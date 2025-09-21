@@ -1,0 +1,26 @@
+# JavaScript directories
+node_modules
+dist
+
+# Logs
+logs
+*.log
+pnpm-debug.log*
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# AI coding tool configurations
+CLAUDE*.md
+.claude
+.cursor-rules
+instructions*.md
+.copilot-instructions.md

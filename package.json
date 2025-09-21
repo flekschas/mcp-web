@@ -1,0 +1,28 @@
+{
+  "name": "mcp-web",
+  "version": "0.1.0",
+  "description": "MCP integration for frontend web apps - expose state and actions as tools",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm -r dev",
+    "clean": "pnpm -r clean",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "frontend",
+    "browser-control",
+    "bridge",
+    "websocket",
+    "automation"
+  ],
+  "author": "Fritz Lekschas (https://lekschas.de)",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@10.15.1",
+  "devDependencies": {
+    "@biomejs/biome": "^2.2.1",
+    "typescript": "~5.8.3"
+  }
+}

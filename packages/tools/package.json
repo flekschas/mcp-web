@@ -1,0 +1,40 @@
+{
+  "name": "@mcp-web/tools",
+  "version": "0.1.0",
+  "description": "MCP Web tools collection",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./python": {
+      "import": "./dist/python/index.js",
+      "types": "./dist/python/index.d.ts"
+    },
+    "./dom": {
+      "import": "./dist/dom/index.js",
+      "types": "./dist/dom/index.d.ts"
+    },
+    "./screenshot": {
+      "import": "./dist/screenshot/index.js",
+      "types": "./dist/screenshot/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "html-to-image": "^1.11.13",
+    "uuid": "^11.0.7",
+    "zod": "^4.1.5"
+  },
+  "devDependencies": {
+    "@types/uuid": "^10.0.0",
+    "typescript": "~5.8.3"
+  }
+}

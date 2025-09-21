@@ -1,0 +1,31 @@
+{
+  "name": "@mcp-web/demos/kanban-board",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "biome format --write src && biome check src",
+    "preview": "vite preview",
+    "bridge": "tsx bridge.ts"
+  },
+  "dependencies": {
+    "@mcp-web/bridge": "workspace:*",
+    "@mcp-web/web": "workspace:*",
+    "@observablehq/plot": "^0.6.17",
+    "@tailwindcss/vite": "^4.1.11",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwindcss": "^4.1.11",
+    "zod": "^4.0.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.2.0",
+    "@types/react": "^18.3.17",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.6.0",
+    "typescript": "~5.8.3",
+    "vite": "^7.0.4"
+  }
+}

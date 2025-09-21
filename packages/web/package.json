@@ -1,0 +1,60 @@
+{
+  "name": "@mcp-web/web",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./integrations/jotai": {
+      "types": "./dist/integrations/jotai.d.ts",
+      "import": "./dist/integrations/jotai.js"
+    },
+    "./integrations/react": {
+      "types": "./dist/integrations/react.d.ts",
+      "import": "./dist/integrations/react.js"
+    },
+    "./tools/screenshot": {
+      "types": "./dist/tools/screenshot.d.ts",
+      "import": "./dist/tools/screenshot.js"
+    },
+    "./tools/python": {
+      "types": "./dist/tools/python.d.ts",
+      "import": "./dist/tools/python.js"
+    },
+    "./tools/dom": {
+      "types": "./dist/tools/dom.d.ts",
+      "import": "./dist/tools/dom.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "tsc --watch",
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@mcp-web/bridge": "workspace:*",
+    "@mcp-web/decompose-zod-schema": "workspace:*",
+    "ajv": "^8.17.1",
+    "html-to-image": "^1.11.13",
+    "immer": "^10.1.1",
+    "jotai": "^2.12.5",
+    "uuid": "^11.1.0",
+    "zod": "^4.0.14"
+  },
+  "devDependencies": {
+    "@types/json-schema": "^7.0.15",
+    "@types/react": "^18.3.0",
+    "typescript": "~5.9.2"
+  },
+  "peerDependencies": {
+    "react": ">=16.8.0"
+  }
+}

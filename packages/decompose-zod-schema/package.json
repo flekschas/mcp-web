@@ -1,0 +1,47 @@
+{
+  "name": "@mcp-web/decompose-zod-schema",
+  "version": "0.1.0",
+  "description": "Utility for decomposing large Zod schemas into smaller, manageable sub-schemas with partial update support",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "bin": {
+    "@mcp-web/decompose-zod-schema": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "node --test --import tsx src/**/*.test.ts",
+    "cli": "tsx src/cli.ts",
+    "example": "tsx src/cli.ts -i examples/example-schema.ts -s userSchema -v"
+  },
+  "dependencies": {
+    "commander": "^14.0.0",
+    "immer": "^10.1.1",
+    "zod": "^4.0.14"
+  },
+  "devDependencies": {
+    "tsx": "^4.16.0",
+    "typescript": "^5.9.2",
+    "@types/node": "^24.1.0"
+  },
+  "keywords": [
+    "zod",
+    "schema",
+    "decomposition",
+    "validation",
+    "typescript",
+    "partial-updates"
+  ],
+  "author": "MCP Frontend Integration System",
+  "license": "MIT"
+}
