@@ -1,3 +1,13 @@
+import type {
+  QueryAcceptedMessage,
+  QueryCancelMessage,
+  QueryCompleteBridgeMessage,
+  QueryCompleteClientMessage,
+  QueryFailureMessage,
+  QueryMessage,
+  QueryProgressMessage,
+  ToolDefinition as TypesToolDefinition
+} from '@mcp-web/types';
 import type * as WS from 'ws';
 import type { z } from 'zod';
 
@@ -38,6 +48,7 @@ export interface ToolCallMessage {
   requestId: string;
   toolName: string;
   toolInput?: Record<string, unknown>;
+  queryId?: string; // Added for query context
 }
 
 export interface ToolResponseMessage {
@@ -50,11 +61,37 @@ export type FrontendMessage =
   | AuthenticateMessage
   | RegisterToolMessage
   | ActivityMessage
-  | ToolResponseMessage;
+  | ToolResponseMessage
+  | QueryMessage
+  | QueryCompleteClientMessage
+  | QueryProgressMessage
+  | QueryCancelMessage;
 
 export type BridgeMessage =
   | AuthenticatedMessage
-  | ToolCallMessage;
+  | ToolCallMessage
+  | QueryAcceptedMessage
+  | QueryProgressMessage
+  | QueryCompleteBridgeMessage
+  | QueryFailureMessage;
+
+export interface TrackedToolCall {
+  tool: string;
+  arguments: unknown;
+  result: unknown;
+}
+
+export type QueryState = 'active' | 'completed' | 'failed' | 'cancelled';
+
+export interface QueryTracking {
+  sessionKey: string;
+  responseTool?: string;
+  toolCalls: TrackedToolCall[];
+  ws: WS.WebSocket;
+  state: QueryState;
+  tools?: TypesToolDefinition[];
+  restrictTools?: boolean;
+}
 
 export interface McpRequest {
   jsonrpc: string;
@@ -63,6 +100,9 @@ export interface McpRequest {
   params?: {
     name?: string;
     arguments?: Record<string, unknown>;
+    _queryContext?: {
+      queryId: string;
+    };
   };
 }
 

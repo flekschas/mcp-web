@@ -2,7 +2,14 @@ import type React from 'react';
 import { useEffect, useId, useState } from 'react';
 import { z } from 'zod';
 import { TaskSchema } from '../schemas';
-import type { ActivityLogEntry, Task, TaskPriority, TaskStatus, TaskType, TeamMember } from '../types';
+import type {
+  ActivityLogEntry,
+  Task,
+  TaskPriority,
+  TaskStatus,
+  TaskType,
+  TeamMember,
+} from '../types';
 import { getTypeIcon } from '../utils';
 
 interface TaskModalProps {
@@ -74,7 +81,7 @@ const TaskModal = ({
   }, [isOpen, task, defaultStatus]);
 
   const handleInputChange = (field: keyof Task, value: string | string[]) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [field]: value,
       updatedAt: new Date().toISOString(),
@@ -82,7 +89,7 @@ const TaskModal = ({
 
     // Clear error when user starts typing
     if (errors[field]) {
-      setErrors(prev => {
+      setErrors((prev) => {
         const newErrors = { ...prev };
         delete newErrors[field];
         return newErrors;
@@ -99,11 +106,17 @@ const TaskModal = ({
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
-    handleInputChange('tags', (formData.tags || []).filter(tag => tag !== tagToRemove));
+    handleInputChange(
+      'tags',
+      (formData.tags || []).filter((tag) => tag !== tagToRemove),
+    );
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && e.target === document.querySelector('[data-tag-input]')) {
+    if (
+      e.key === 'Enter' &&
+      e.target === document.querySelector('[data-tag-input]')
+    ) {
       e.preventDefault();
       handleAddTag();
     } else if (e.key === 'Escape') {
@@ -120,7 +133,9 @@ const TaskModal = ({
       id: task?.id || `task-${Date.now()}`,
       createdAt: formData.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : undefined,
+      dueDate: formData.dueDate
+        ? new Date(formData.dueDate).toISOString()
+        : undefined,
     };
 
     try {
@@ -153,7 +168,9 @@ const TaskModal = ({
       priority: formData.priority as TaskPriority,
       type: formData.type as TaskType,
       assigneeId: formData.assigneeId || undefined,
-      dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : undefined,
+      dueDate: formData.dueDate
+        ? new Date(formData.dueDate).toISOString()
+        : undefined,
       tags: formData.tags || [],
       createdAt: task?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -164,7 +181,9 @@ const TaskModal = ({
 
     // Add to activity log
     const action = task ? 'task_updated' : 'task_created';
-    const description = task ? `Updated task: ${taskData.title}` : `Created new task: ${taskData.title}`;
+    const description = task
+      ? `Updated task: ${taskData.title}`
+      : `Created new task: ${taskData.title}`;
 
     const newActivity: ActivityLogEntry = {
       id: `activity-${Date.now()}`,
@@ -213,7 +232,9 @@ const TaskModal = ({
 
   if (!isOpen) return null;
 
-  const assignee = teamMembers.find(member => member.id === formData.assigneeId);
+  const assignee = teamMembers.find(
+    (member) => member.id === formData.assigneeId,
+  );
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
@@ -230,17 +251,34 @@ const TaskModal = ({
               className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors cursor-pointer"
             >
               <span className="sr-only">Close</span>
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
                 <title>Close</title>
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="px-6 py-4 space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          onKeyDown={handleKeyDown}
+          className="px-6 py-4 space-y-4"
+        >
           <div>
-            <label htmlFor={titleId} className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+            <label
+              htmlFor={titleId}
+              className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
+            >
               Title *
             </label>
             <input
@@ -249,18 +287,25 @@ const TaskModal = ({
               value={formData.title || ''}
               onChange={(e) => handleInputChange('title', e.target.value)}
               className={`w-full px-3 py-2 border rounded-md dark:bg-zinc-700 dark:text-zinc-100 focus:outline-1 focus:outline-blue-500 focus:border-blue-500 ${
-                errors.title ? 'border-red-500' : 'border-zinc-300 dark:border-zinc-600'
+                errors.title
+                  ? 'border-red-500'
+                  : 'border-zinc-300 dark:border-zinc-600'
               }`}
               placeholder="Enter task title..."
             />
             {errors.title && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.title}</p>
+              <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                {errors.title}
+              </p>
             )}
           </div>
 
           {/* Description */}
           <div>
-            <label htmlFor={descriptionId} className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+            <label
+              htmlFor={descriptionId}
+              className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
+            >
               Description
             </label>
             <textarea
@@ -276,7 +321,10 @@ const TaskModal = ({
           {/* Row 1: Status, Priority, Type */}
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <label htmlFor={statusId} className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+              <label
+                htmlFor={statusId}
+                className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
+              >
                 Status
               </label>
               <select
@@ -293,7 +341,10 @@ const TaskModal = ({
             </div>
 
             <div>
-              <label htmlFor={priorityId} className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+              <label
+                htmlFor={priorityId}
+                className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
+              >
                 Priority
               </label>
               <select
@@ -310,7 +361,10 @@ const TaskModal = ({
             </div>
 
             <div>
-              <label htmlFor={typeId} className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+              <label
+                htmlFor={typeId}
+                className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
+              >
                 Type
               </label>
               <select
@@ -321,7 +375,9 @@ const TaskModal = ({
               >
                 <option value="task">{getTypeIcon('task')} Task</option>
                 <option value="bug">{getTypeIcon('bug')} Bug</option>
-                <option value="feature">{getTypeIcon('feature')} Feature</option>
+                <option value="feature">
+                  {getTypeIcon('feature')} Feature
+                </option>
                 <option value="story">{getTypeIcon('story')} Story</option>
                 <option value="epic">{getTypeIcon('epic')} Epic</option>
               </select>
@@ -331,13 +387,18 @@ const TaskModal = ({
           {/* Row 2: Assignee, Due Date */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor={assigneeId} className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+              <label
+                htmlFor={assigneeId}
+                className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
+              >
                 Assignee
               </label>
               <select
                 id={assigneeId}
                 value={formData.assigneeId || ''}
-                onChange={(e) => handleInputChange('assigneeId', e.target.value)}
+                onChange={(e) =>
+                  handleInputChange('assigneeId', e.target.value)
+                }
                 className="w-full h-10 px-1 border border-zinc-300 dark:border-zinc-600 rounded-md dark:bg-zinc-700 dark:text-zinc-100 focus:outline-1 focus:outline-blue-500 focus:border-blue-500"
               >
                 <option value="">Unassigned</option>
@@ -362,7 +423,10 @@ const TaskModal = ({
             </div>
 
             <div>
-              <label htmlFor={dueDateId} className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+              <label
+                htmlFor={dueDateId}
+                className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
+              >
                 Due Date
               </label>
               <input
@@ -377,7 +441,10 @@ const TaskModal = ({
 
           {/* Tags */}
           <div>
-            <label htmlFor={tagsId} className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+            <label
+              htmlFor={tagsId}
+              className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1"
+            >
               Tags
             </label>
             <div className="flex flex-wrap gap-2 mb-2">

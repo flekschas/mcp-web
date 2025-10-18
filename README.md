@@ -1,6 +1,6 @@
 # MCP Frontend Integration System
 
-This system allows any web frontend to be controlled by Claude Desktop through a bridge server architecture.
+This system allows any web frontend application to be controlled by an AI tool (like Claude Desktop) by exposing state and actions as tools using an MCP bridge server architecture.
 
 ## Architecture Overview
 

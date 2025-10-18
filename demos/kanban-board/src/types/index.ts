@@ -90,7 +90,12 @@ export interface User {
   isActive: boolean;
 }
 
-export type UserRole = 'product-manager' | 'engineer' | 'designer' | 'qa' | 'admin';
+export type UserRole =
+  | 'product-manager'
+  | 'engineer'
+  | 'designer'
+  | 'qa'
+  | 'admin';
 
 export interface ActivityLogEntry {
   id: string;

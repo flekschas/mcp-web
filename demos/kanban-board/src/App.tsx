@@ -13,8 +13,9 @@ import {
   defaultFilterText,
   defaultViewMode,
   mockActivityLog,
+  mockColumns,
   mockProjects,
-  mockUsers
+  mockUsers,
 } from './data/mockData';
 import {
   extractedActionItems,
@@ -34,14 +35,24 @@ import {
   TeamMembersSchema,
   UserPreferencesSchema,
   userPreferencesSplitPlan,
-  ViewModeSchema
+  ViewModeSchema,
 } from './schemas';
-import type { ActivityLogEntry, Project, Task, TaskStatus, TeamMember, User, ViewMode } from './types';
+import type {
+  ActivityLogEntry,
+  Column,
+  Project,
+  Task,
+  TaskStatus,
+  TeamMember,
+  User,
+  ViewMode,
+} from './types';
 
 // Initialize MCP Web
 const mcp = new MCPWeb({
   name: 'Kanban Board Demo',
-  description: 'A project management kanban board demonstrating MCP Web integration',
+  description:
+    'A project management kanban board demonstrating MCP Web integration',
 });
 
 // Local storage keys
@@ -72,24 +83,36 @@ const saveToStorage = (key: string, value: any): void => {
 function App() {
   // User state with localStorage persistence
   const [currentUser, setCurrentUser] = useState<User>(() => {
-    const storedUserId = loadFromStorage(STORAGE_KEYS.CURRENT_USER_ID, defaultCurrentUser.id);
-    const foundUser = mockUsers.find(u => u.id === storedUserId);
+    const storedUserId = loadFromStorage(
+      STORAGE_KEYS.CURRENT_USER_ID,
+      defaultCurrentUser.id,
+    );
+    const foundUser = mockUsers.find((u) => u.id === storedUserId);
     return foundUser || defaultCurrentUser;
   });
 
   // Project state with localStorage persistence
   const [projects, setProjects] = useState<Project[]>(() =>
-    loadFromStorage(STORAGE_KEYS.PROJECTS, mockProjects)
+    loadFromStorage(STORAGE_KEYS.PROJECTS, mockProjects),
   );
   const [currentProjectId, setCurrentProjectId] = useState<string>(() => {
-    const stored = loadFromStorage(STORAGE_KEYS.CURRENT_PROJECT_ID, mockProjects[0].id);
+    const stored = loadFromStorage(
+      STORAGE_KEYS.CURRENT_PROJECT_ID,
+      mockProjects[0].id,
+    );
     // Ensure the stored project ID exists in our projects
-    const projectExists = mockProjects.some(p => p.id === stored);
+    const projectExists = mockProjects.some((p) => p.id === stored);
     return projectExists ? stored : mockProjects[0].id;
   });
 
   // Get current project
-  const currentProject = projects.find(p => p.id === currentProjectId) || projects[0];
+  const currentProject =
+    projects.find((p) => p.id === currentProjectId) || projects[0];
+
+  // Column state
+  const [columns, setColumns] = useState<Column[]>(() =>
+    [...mockColumns].sort((a, b) => a.position - b.position),
+  );
 
   // Primitive state
   const [boardTitle, setBoardTitle] = useState<string>(currentProject.name);
@@ -102,15 +125,18 @@ function App() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState<boolean>(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [isUserSettingsOpen, setIsUserSettingsOpen] = useState<boolean>(false);
-  const [isProjectSettingsOpen, setIsProjectSettingsOpen] = useState<boolean>(false);
-  const [isCreateProjectOpen, setIsCreateProjectOpen] = useState<boolean>(false);
+  const [isProjectSettingsOpen, setIsProjectSettingsOpen] =
+    useState<boolean>(false);
+  const [isCreateProjectOpen, setIsCreateProjectOpen] =
+    useState<boolean>(false);
 
   // Current project data
   const tasks = currentProject.tasks;
   const teamMembers = currentProject.teamMembers;
   const boardSettings = currentProject.settings;
   const userPreferences = currentProject.preferences;
-  const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>(mockActivityLog);
+  const [activityLog, setActivityLog] =
+    useState<ActivityLogEntry[]>(mockActivityLog);
 
   // Persist projects to localStorage whenever they change
   useEffect(() => {
@@ -140,14 +166,14 @@ function App() {
   };
 
   const handleTaskSave = (task: Task) => {
-    setProjects(prevProjects =>
-      prevProjects.map(project => {
+    setProjects((prevProjects) =>
+      prevProjects.map((project) => {
         if (project.id === currentProjectId) {
           if (selectedTask) {
             // Update existing task
             return {
               ...project,
-              tasks: project.tasks.map(t => t.id === task.id ? task : t),
+              tasks: project.tasks.map((t) => (t.id === task.id ? task : t)),
               updatedAt: new Date().toISOString(),
             };
           } else {
@@ -160,7 +186,7 @@ function App() {
           }
         }
         return project;
-      })
+      }),
     );
     setIsTaskModalOpen(false);
     setSelectedTask(null);
@@ -168,17 +194,17 @@ function App() {
   };
 
   const handleTaskDelete = (taskId: string) => {
-    setProjects(prevProjects =>
-      prevProjects.map(project => {
+    setProjects((prevProjects) =>
+      prevProjects.map((project) => {
         if (project.id === currentProjectId) {
           return {
             ...project,
-            tasks: project.tasks.filter(t => t.id !== taskId),
+            tasks: project.tasks.filter((t) => t.id !== taskId),
             updatedAt: new Date().toISOString(),
           };
         }
         return project;
-      })
+      }),
     );
     setIsTaskModalOpen(false);
     setSelectedTask(null);
@@ -193,7 +219,7 @@ function App() {
 
   const handleProjectSwitch = (projectId: string) => {
     setCurrentProjectId(projectId);
-    const newProject = projects.find(p => p.id === projectId);
+    const newProject = projects.find((p) => p.id === projectId);
     if (newProject) {
       setBoardTitle(newProject.name);
     }
@@ -204,7 +230,7 @@ function App() {
   };
 
   const handleUserSwitch = (userId: string) => {
-    const newUser = mockUsers.find(u => u.id === userId);
+    const newUser = mockUsers.find((u) => u.id === userId);
     if (newUser) {
       setCurrentUser(newUser);
       // Clear filters when switching users for cleaner demo experience
@@ -233,19 +259,21 @@ function App() {
   }, []);
 
   const handleProjectSave = (updatedProject: Partial<Project>) => {
-    setProjects(prevProjects =>
-      prevProjects.map(project =>
+    setProjects((prevProjects) =>
+      prevProjects.map((project) =>
         project.id === currentProjectId
           ? { ...project, ...updatedProject }
-          : project
-      )
+          : project,
+      ),
     );
     if (updatedProject.name) {
       setBoardTitle(updatedProject.name);
     }
   };
 
-  const handleCreateProject = (newProjectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const handleCreateProject = (
+    newProjectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>,
+  ) => {
     const newProject: Project = {
       ...newProjectData,
       id: `project-${Date.now()}`,
@@ -253,14 +281,40 @@ function App() {
       updatedAt: new Date().toISOString(),
     };
 
-    setProjects(prevProjects => [...prevProjects, newProject]);
+    setProjects((prevProjects) => [...prevProjects, newProject]);
     setCurrentProjectId(newProject.id);
     setBoardTitle(newProject.name);
   };
 
+  const handleColumnReorder = (
+    draggedColumnId: string,
+    targetColumnId: string,
+  ) => {
+    const draggedIndex = columns.findIndex((col) => col.id === draggedColumnId);
+    const targetIndex = columns.findIndex((col) => col.id === targetColumnId);
+
+    if (draggedIndex === -1 || targetIndex === -1) return;
+
+    const reorderedColumns = [...columns];
+    const [draggedColumn] = reorderedColumns.splice(draggedIndex, 1);
+    reorderedColumns.splice(targetIndex, 0, draggedColumn);
+
+    // Update positions
+    const updatedColumns = reorderedColumns.map((col, index) => ({
+      ...col,
+      position: index,
+    }));
+
+    setColumns(updatedColumns);
+  };
+
   // Initialize theme on app load
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | 'auto' | null;
+    const savedTheme = localStorage.getItem('theme') as
+      | 'light'
+      | 'dark'
+      | 'auto'
+      | null;
     if (savedTheme) {
       handleThemeChange(savedTheme);
     } else {
@@ -309,7 +363,8 @@ function App() {
   useTool({
     mcp,
     name: 'assignee_filter',
-    description: 'Currently selected team member ID for filtering tasks by assignee',
+    description:
+      'Currently selected team member ID for filtering tasks by assignee',
     value: assigneeFilter,
     setValue: setAssigneeFilter,
     valueSchema: z.string(),
@@ -338,7 +393,7 @@ function App() {
     mcp,
     name: 'project_metadata_list',
     description: 'List of project metadata for all projects (summary view)',
-    value: projects.map(project => ({
+    value: projects.map((project) => ({
       id: project.id,
       name: project.name,
       description: project.description,
@@ -358,8 +413,8 @@ function App() {
     description: 'Complete list of all tasks in the current project',
     value: tasks,
     setValue: (newTasks: Task[]) => {
-      setProjects(prevProjects =>
-        prevProjects.map(project => {
+      setProjects((prevProjects) =>
+        prevProjects.map((project) => {
           if (project.id === currentProjectId) {
             return {
               ...project,
@@ -368,7 +423,7 @@ function App() {
             };
           }
           return project;
-        })
+        }),
       );
     },
     valueSchema: TaskListSchema,
@@ -380,8 +435,8 @@ function App() {
     description: 'List of all team members working on the current project',
     value: teamMembers,
     setValue: (newMembers: TeamMember[]) => {
-      setProjects(prevProjects =>
-        prevProjects.map(project => {
+      setProjects((prevProjects) =>
+        prevProjects.map((project) => {
           if (project.id === currentProjectId) {
             return {
               ...project,
@@ -390,7 +445,7 @@ function App() {
             };
           }
           return project;
-        })
+        }),
       );
     },
     valueSchema: TeamMembersSchema,
@@ -410,7 +465,11 @@ function App() {
     mcp,
     name: 'create_project_result',
     description: 'Result of creating a new project',
-    value: { success: false, projectId: '', message: 'Use create_project function' },
+    value: {
+      success: false,
+      projectId: '',
+      message: 'Use create_project function',
+    },
     valueSchema: z.object({
       success: z.boolean(),
       projectId: z.string(),
@@ -422,7 +481,11 @@ function App() {
     mcp,
     name: 'switch_project_result',
     description: 'Result of switching projects',
-    value: { success: false, currentProject: '', message: 'Use switch_project function' },
+    value: {
+      success: false,
+      currentProject: '',
+      message: 'Use switch_project function',
+    },
     valueSchema: z.object({
       success: z.boolean(),
       currentProject: z.string().optional(),
@@ -434,7 +497,12 @@ function App() {
     mcp,
     name: 'update_project_result',
     description: 'Result of updating project metadata',
-    value: { success: false, projectId: '', projectName: '', message: 'Use update_project function' },
+    value: {
+      success: false,
+      projectId: '',
+      projectName: '',
+      message: 'Use update_project function',
+    },
     valueSchema: z.object({
       success: z.boolean(),
       projectId: z.string(),
@@ -447,122 +515,157 @@ function App() {
   useTool({
     mcp,
     name: 'project_statistics',
-    description: 'Get comprehensive project statistics including completion rates, task distribution, and performance metrics',
+    description:
+      'Get comprehensive project statistics including completion rates, task distribution, and performance metrics',
     value: () => {
       const now = new Date();
       const totalTasks = tasks.length;
-      const completedTasks = tasks.filter(task => task.status === 'done').length;
-      const overdueTasks = tasks.filter(task =>
-        task.dueDate && new Date(task.dueDate) < now && task.status !== 'done'
+      const completedTasks = tasks.filter(
+        (task) => task.status === 'done',
+      ).length;
+      const overdueTasks = tasks.filter(
+        (task) =>
+          task.dueDate &&
+          new Date(task.dueDate) < now &&
+          task.status !== 'done',
       ).length;
 
       // Status distribution
       const statusDistribution = {
-        todo: tasks.filter(task => task.status === 'todo').length,
-        'in-progress': tasks.filter(task => task.status === 'in-progress').length,
-        review: tasks.filter(task => task.status === 'review').length,
-        done: tasks.filter(task => task.status === 'done').length,
+        todo: tasks.filter((task) => task.status === 'todo').length,
+        'in-progress': tasks.filter((task) => task.status === 'in-progress')
+          .length,
+        review: tasks.filter((task) => task.status === 'review').length,
+        done: tasks.filter((task) => task.status === 'done').length,
       };
 
       // Priority distribution
       const priorityDistribution = {
-        urgent: tasks.filter(task => task.priority === 'urgent').length,
-        high: tasks.filter(task => task.priority === 'high').length,
-        medium: tasks.filter(task => task.priority === 'medium').length,
-        low: tasks.filter(task => task.priority === 'low').length,
+        urgent: tasks.filter((task) => task.priority === 'urgent').length,
+        high: tasks.filter((task) => task.priority === 'high').length,
+        medium: tasks.filter((task) => task.priority === 'medium').length,
+        low: tasks.filter((task) => task.priority === 'low').length,
       };
 
       // Average task age in days
       const avgTaskAge = Math.round(
         tasks.reduce((total, task) => {
-          const age = (now.getTime() - new Date(task.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+          const age =
+            (now.getTime() - new Date(task.createdAt).getTime()) /
+            (1000 * 60 * 60 * 24);
           return total + age;
-        }, 0) / Math.max(tasks.length, 1)
+        }, 0) / Math.max(tasks.length, 1),
       );
 
       return {
         summary: {
           totalTasks,
           completedTasks,
-          completionRate: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
+          completionRate:
+            totalTasks > 0
+              ? Math.round((completedTasks / totalTasks) * 100)
+              : 0,
           overdueTasks,
-          averageTaskAge: avgTaskAge
+          averageTaskAge: avgTaskAge,
         },
         distributions: {
           status: statusDistribution,
-          priority: priorityDistribution
+          priority: priorityDistribution,
         },
         insights: [
-          totalTasks === 0 ? "Project has no tasks yet - consider creating initial tasks to get started" : null,
-          overdueTasks > 0 ? `${overdueTasks} tasks are overdue and need attention` : null,
-          avgTaskAge > 30 ? "Tasks are aging - consider reviewing old tasks for completion or archival" : null,
-          statusDistribution.review > statusDistribution['in-progress'] ? "Review bottleneck detected - more tasks in review than in progress" : null
-        ].filter(Boolean)
+          totalTasks === 0
+            ? 'Project has no tasks yet - consider creating initial tasks to get started'
+            : null,
+          overdueTasks > 0
+            ? `${overdueTasks} tasks are overdue and need attention`
+            : null,
+          avgTaskAge > 30
+            ? 'Tasks are aging - consider reviewing old tasks for completion or archival'
+            : null,
+          statusDistribution.review > statusDistribution['in-progress']
+            ? 'Review bottleneck detected - more tasks in review than in progress'
+            : null,
+        ].filter(Boolean),
       };
     },
-    setValue: () => { },
+    setValue: () => {},
     valueSchema: z.object({
       summary: z.object({
         totalTasks: z.number(),
         completedTasks: z.number(),
         completionRate: z.number(),
         overdueTasks: z.number(),
-        averageTaskAge: z.number()
+        averageTaskAge: z.number(),
       }),
       distributions: z.object({
         status: z.object({
           todo: z.number(),
           'in-progress': z.number(),
           review: z.number(),
-          done: z.number()
+          done: z.number(),
         }),
         priority: z.object({
           urgent: z.number(),
           high: z.number(),
           medium: z.number(),
-          low: z.number()
-        })
+          low: z.number(),
+        }),
       }),
-      insights: z.array(z.string())
-    }) as any
+      insights: z.array(z.string()),
+    }) as any,
   });
 
   useTool({
     mcp,
     name: 'team_performance_analysis',
-    description: 'Analyze individual team member performance including task completion rates, workload balance, and efficiency metrics',
+    description:
+      'Analyze individual team member performance including task completion rates, workload balance, and efficiency metrics',
     value: () => {
-      const teamStats = teamMembers.map(member => {
-        const memberTasks = tasks.filter(task => task.assigneeId === member.id);
-        const completedTasks = memberTasks.filter(task => task.status === 'done').length;
-        const overdueTasks = memberTasks.filter(task => {
+      const teamStats = teamMembers.map((member) => {
+        const memberTasks = tasks.filter(
+          (task) => task.assigneeId === member.id,
+        );
+        const completedTasks = memberTasks.filter(
+          (task) => task.status === 'done',
+        ).length;
+        const overdueTasks = memberTasks.filter((task) => {
           const now = new Date();
-          return task.dueDate && new Date(task.dueDate) < now && task.status !== 'done';
+          return (
+            task.dueDate &&
+            new Date(task.dueDate) < now &&
+            task.status !== 'done'
+          );
         }).length;
 
-        const completionRate = memberTasks.length > 0 ? Math.round((completedTasks / memberTasks.length) * 100) : 0;
+        const completionRate =
+          memberTasks.length > 0
+            ? Math.round((completedTasks / memberTasks.length) * 100)
+            : 0;
 
         // Average time to complete (estimated from completed tasks in last 30 days)
-        const recentCompletedTasks = memberTasks.filter(task => {
+        const recentCompletedTasks = memberTasks.filter((task) => {
           if (task.status !== 'done') return false;
           const completedDate = new Date(task.updatedAt);
           const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
           return completedDate >= thirtyDaysAgo;
         });
 
-        const avgCompletionTime = recentCompletedTasks.length > 0
-          ? Math.round(recentCompletedTasks.reduce((total, task) => {
-            const created = new Date(task.createdAt).getTime();
-            const completed = new Date(task.updatedAt).getTime();
-            return total + (completed - created) / (1000 * 60 * 60 * 24);
-          }, 0) / recentCompletedTasks.length)
-          : 0;
+        const avgCompletionTime =
+          recentCompletedTasks.length > 0
+            ? Math.round(
+                recentCompletedTasks.reduce((total, task) => {
+                  const created = new Date(task.createdAt).getTime();
+                  const completed = new Date(task.updatedAt).getTime();
+                  return total + (completed - created) / (1000 * 60 * 60 * 24);
+                }, 0) / recentCompletedTasks.length,
+              )
+            : 0;
 
         return {
           member: {
             id: member.id,
             name: member.name,
-            role: member.role
+            role: member.role,
           },
           metrics: {
             totalTasks: memberTasks.length,
@@ -570,73 +673,91 @@ function App() {
             completionRate,
             overdueTasks,
             avgCompletionTimeDays: avgCompletionTime,
-            currentWorkload: memberTasks.filter(task => task.status !== 'done').length
-          }
+            currentWorkload: memberTasks.filter(
+              (task) => task.status !== 'done',
+            ).length,
+          },
         };
       });
 
       // Add unassigned tasks analysis
-      const unassignedTasks = tasks.filter(task => !task.assigneeId);
+      const unassignedTasks = tasks.filter((task) => !task.assigneeId);
 
       return {
         teamStats,
         unassignedTasks: {
           count: unassignedTasks.length,
           breakdown: {
-            urgent: unassignedTasks.filter(task => task.priority === 'urgent').length,
-            high: unassignedTasks.filter(task => task.priority === 'high').length,
-            medium: unassignedTasks.filter(task => task.priority === 'medium').length,
-            low: unassignedTasks.filter(task => task.priority === 'low').length,
-          }
+            urgent: unassignedTasks.filter((task) => task.priority === 'urgent')
+              .length,
+            high: unassignedTasks.filter((task) => task.priority === 'high')
+              .length,
+            medium: unassignedTasks.filter((task) => task.priority === 'medium')
+              .length,
+            low: unassignedTasks.filter((task) => task.priority === 'low')
+              .length,
+          },
         },
         insights: [
-          unassignedTasks.length > 0 ? `${unassignedTasks.length} tasks need to be assigned to team members` : null,
-          teamStats.some(stat => stat.metrics.overdueTasks > 0) ? "Some team members have overdue tasks that need attention" : null,
-          teamStats.length > 0 && Math.max(...teamStats.map(s => s.metrics.currentWorkload)) - Math.min(...teamStats.map(s => s.metrics.currentWorkload)) > 5
-            ? "Workload imbalance detected - consider redistributing tasks" : null
-        ].filter(Boolean)
+          unassignedTasks.length > 0
+            ? `${unassignedTasks.length} tasks need to be assigned to team members`
+            : null,
+          teamStats.some((stat) => stat.metrics.overdueTasks > 0)
+            ? 'Some team members have overdue tasks that need attention'
+            : null,
+          teamStats.length > 0 &&
+          Math.max(...teamStats.map((s) => s.metrics.currentWorkload)) -
+            Math.min(...teamStats.map((s) => s.metrics.currentWorkload)) >
+            5
+            ? 'Workload imbalance detected - consider redistributing tasks'
+            : null,
+        ].filter(Boolean),
       };
     },
-    setValue: () => { },
+    setValue: () => {},
     valueSchema: z.object({
-      teamStats: z.array(z.object({
-        member: z.object({
-          id: z.string(),
-          name: z.string(),
-          role: z.string()
+      teamStats: z.array(
+        z.object({
+          member: z.object({
+            id: z.string(),
+            name: z.string(),
+            role: z.string(),
+          }),
+          metrics: z.object({
+            totalTasks: z.number(),
+            completedTasks: z.number(),
+            completionRate: z.number(),
+            overdueTasks: z.number(),
+            avgCompletionTimeDays: z.number(),
+            currentWorkload: z.number(),
+          }),
         }),
-        metrics: z.object({
-          totalTasks: z.number(),
-          completedTasks: z.number(),
-          completionRate: z.number(),
-          overdueTasks: z.number(),
-          avgCompletionTimeDays: z.number(),
-          currentWorkload: z.number()
-        })
-      })),
+      ),
       unassignedTasks: z.object({
         count: z.number(),
         breakdown: z.object({
           urgent: z.number(),
           high: z.number(),
           medium: z.number(),
-          low: z.number()
-        })
+          low: z.number(),
+        }),
       }),
-      insights: z.array(z.string())
-    }) as any
+      insights: z.array(z.string()),
+    }) as any,
   });
 
   useTool({
     mcp,
     name: 'bottleneck_analysis',
-    description: 'Identify workflow bottlenecks and inefficiencies in the task pipeline',
+    description:
+      'Identify workflow bottlenecks and inefficiencies in the task pipeline',
     value: () => {
       const statusCounts = {
-        todo: tasks.filter(task => task.status === 'todo').length,
-        'in-progress': tasks.filter(task => task.status === 'in-progress').length,
-        review: tasks.filter(task => task.status === 'review').length,
-        done: tasks.filter(task => task.status === 'done').length,
+        todo: tasks.filter((task) => task.status === 'todo').length,
+        'in-progress': tasks.filter((task) => task.status === 'in-progress')
+          .length,
+        review: tasks.filter((task) => task.status === 'review').length,
+        done: tasks.filter((task) => task.status === 'done').length,
       };
 
       // Identify bottlenecks based on task accumulation patterns
@@ -646,17 +767,23 @@ function App() {
         bottlenecks.push({
           stage: 'review',
           severity: 'high',
-          description: 'Tasks are accumulating in review - review process may be slow',
-          recommendation: 'Consider adding more reviewers or streamlining review process'
+          description:
+            'Tasks are accumulating in review - review process may be slow',
+          recommendation:
+            'Consider adding more reviewers or streamlining review process',
         });
       }
 
-      if (statusCounts['in-progress'] > statusCounts.todo * 2 && statusCounts.todo > 0) {
+      if (
+        statusCounts['in-progress'] > statusCounts.todo * 2 &&
+        statusCounts.todo > 0
+      ) {
         bottlenecks.push({
           stage: 'in-progress',
           severity: 'medium',
           description: 'Many tasks in progress relative to backlog',
-          recommendation: 'Focus on completing current tasks before starting new ones'
+          recommendation:
+            'Focus on completing current tasks before starting new ones',
         });
       }
 
@@ -665,57 +792,67 @@ function App() {
           stage: 'todo',
           severity: 'medium',
           description: 'Large backlog of unstarted tasks',
-          recommendation: 'Prioritize backlog and increase development velocity'
+          recommendation:
+            'Prioritize backlog and increase development velocity',
         });
       }
 
       // Analyze overdue tasks by status
       const now = new Date();
-      const overdueByStatus = Object.keys(statusCounts).reduce((acc, status) => {
-        acc[status] = tasks.filter(task =>
-          task.status === status &&
-          task.dueDate &&
-          new Date(task.dueDate) < now
-        ).length;
-        return acc;
-      }, {} as Record<string, number>);
+      const overdueByStatus = Object.keys(statusCounts).reduce(
+        (acc, status) => {
+          acc[status] = tasks.filter(
+            (task) =>
+              task.status === status &&
+              task.dueDate &&
+              new Date(task.dueDate) < now,
+          ).length;
+          return acc;
+        },
+        {} as Record<string, number>,
+      );
 
       return {
         statusDistribution: statusCounts,
         bottlenecks,
         overdueByStatus,
         flowEfficiency: {
-          todoToProgress: statusCounts['in-progress'] / Math.max(statusCounts.todo, 1),
-          progressToReview: statusCounts.review / Math.max(statusCounts['in-progress'], 1),
-          reviewToDone: statusCounts.done / Math.max(statusCounts.review, 1)
+          todoToProgress:
+            statusCounts['in-progress'] / Math.max(statusCounts.todo, 1),
+          progressToReview:
+            statusCounts.review / Math.max(statusCounts['in-progress'], 1),
+          reviewToDone: statusCounts.done / Math.max(statusCounts.review, 1),
         },
-        recommendations: bottlenecks.length === 0
-          ? ["Workflow appears balanced - maintain current pace"]
-          : bottlenecks.map(b => b.recommendation)
+        recommendations:
+          bottlenecks.length === 0
+            ? ['Workflow appears balanced - maintain current pace']
+            : bottlenecks.map((b) => b.recommendation),
       };
     },
-    setValue: () => { },
+    setValue: () => {},
     valueSchema: z.object({
       statusDistribution: z.object({
         todo: z.number(),
         'in-progress': z.number(),
         review: z.number(),
-        done: z.number()
+        done: z.number(),
       }),
-      bottlenecks: z.array(z.object({
-        stage: z.string(),
-        severity: z.enum(['low', 'medium', 'high']),
-        description: z.string(),
-        recommendation: z.string()
-      })),
+      bottlenecks: z.array(
+        z.object({
+          stage: z.string(),
+          severity: z.enum(['low', 'medium', 'high']),
+          description: z.string(),
+          recommendation: z.string(),
+        }),
+      ),
       overdueByStatus: z.record(z.string(), z.number()),
       flowEfficiency: z.object({
         todoToProgress: z.number(),
         progressToReview: z.number(),
-        reviewToDone: z.number()
+        reviewToDone: z.number(),
       }),
-      recommendations: z.array(z.string())
-    }) as any
+      recommendations: z.array(z.string()),
+    }) as any,
   });
 
   // Keep only the working statistical analysis tools
@@ -727,8 +864,8 @@ function App() {
     description: 'Board display and notification settings',
     value: boardSettings,
     setValue: (newSettings: any) => {
-      setProjects(prevProjects =>
-        prevProjects.map(project => {
+      setProjects((prevProjects) =>
+        prevProjects.map((project) => {
           if (project.id === currentProjectId) {
             return {
               ...project,
@@ -737,7 +874,7 @@ function App() {
             };
           }
           return project;
-        })
+        }),
       );
     },
     valueSchema: BoardSettingsSchema,
@@ -750,8 +887,8 @@ function App() {
     description: 'User preferences for sorting, display, and defaults',
     value: userPreferences,
     setValue: (newPreferences: any) => {
-      setProjects(prevProjects =>
-        prevProjects.map(project => {
+      setProjects((prevProjects) =>
+        prevProjects.map((project) => {
           if (project.id === currentProjectId) {
             return {
               ...project,
@@ -760,7 +897,7 @@ function App() {
             };
           }
           return project;
-        })
+        }),
       );
     },
     valueSchema: UserPreferencesSchema,
@@ -770,7 +907,8 @@ function App() {
   useTool({
     mcp,
     name: 'current_project_metadata',
-    description: 'Current project metadata including name, description, and timeline',
+    description:
+      'Current project metadata including name, description, and timeline',
     value: {
       id: currentProject.id,
       name: currentProject.name,
@@ -806,7 +944,12 @@ function App() {
     mcp,
     name: 'import_tasks_result',
     description: 'Result of importing tasks from Google Drive meeting notes',
-    value: { success: false, tasksCreated: 0, taskIds: [], message: 'Use import_tasks_from_google_drive action' },
+    value: {
+      success: false,
+      tasksCreated: 0,
+      taskIds: [],
+      message: 'Use import_tasks_from_google_drive action',
+    },
     valueSchema: z.object({
       success: z.boolean(),
       tasksCreated: z.number(),
@@ -826,7 +969,8 @@ function App() {
   useTool({
     mcp,
     name: 'multi_mcp_workflow_demo',
-    description: 'Demo workflow showing multi-MCP integration: Google Drive + Kanban',
+    description:
+      'Demo workflow showing multi-MCP integration: Google Drive + Kanban',
     value: {
       step1: 'Fetch meeting notes from Google Drive',
       step2: 'Extract action items using AI',
@@ -834,7 +978,7 @@ function App() {
       step4: 'Update project timeline from meeting decisions',
       demoDocument: mockMeetingNotesDocument.name,
       actionItemsFound: extractedActionItems.length,
-      ready: true
+      ready: true,
     },
     valueSchema: z.object({
       step1: z.string(),
@@ -849,11 +993,13 @@ function App() {
 
   // Register user-aware MCP tools using useTool with reactive state
   const [currentUserTasks, setCurrentUserTasks] = useState(() => {
-    return tasks.filter(task => task.assigneeId === currentUser.id);
+    return tasks.filter((task) => task.assigneeId === currentUser.id);
   });
 
   const [userWorkload, setUserWorkload] = useState(() => {
-    const userTasks = tasks.filter(task => task.assigneeId === currentUser.id);
+    const userTasks = tasks.filter(
+      (task) => task.assigneeId === currentUser.id,
+    );
     return {
       user: {
         id: currentUser.id,
@@ -861,34 +1007,42 @@ function App() {
         role: currentUser.role,
       },
       totalTasks: userTasks.length,
-      activeTasks: userTasks.filter(t => t.status !== 'done').length,
-      completedTasks: userTasks.filter(t => t.status === 'done').length,
-      overdueTasks: userTasks.filter(t =>
-        t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'done'
+      activeTasks: userTasks.filter((t) => t.status !== 'done').length,
+      completedTasks: userTasks.filter((t) => t.status === 'done').length,
+      overdueTasks: userTasks.filter(
+        (t) =>
+          t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'done',
       ).length,
       tasksByStatus: {
-        todo: userTasks.filter(t => t.status === 'todo').length,
-        'in-progress': userTasks.filter(t => t.status === 'in-progress').length,
-        review: userTasks.filter(t => t.status === 'review').length,
-        done: userTasks.filter(t => t.status === 'done').length,
+        todo: userTasks.filter((t) => t.status === 'todo').length,
+        'in-progress': userTasks.filter((t) => t.status === 'in-progress')
+          .length,
+        review: userTasks.filter((t) => t.status === 'review').length,
+        done: userTasks.filter((t) => t.status === 'done').length,
       },
       tasksByPriority: {
-        urgent: userTasks.filter(t => t.priority === 'urgent').length,
-        high: userTasks.filter(t => t.priority === 'high').length,
-        medium: userTasks.filter(t => t.priority === 'medium').length,
-        low: userTasks.filter(t => t.priority === 'low').length,
-      }
+        urgent: userTasks.filter((t) => t.priority === 'urgent').length,
+        high: userTasks.filter((t) => t.priority === 'high').length,
+        medium: userTasks.filter((t) => t.priority === 'medium').length,
+        low: userTasks.filter((t) => t.priority === 'low').length,
+      },
     };
   });
 
   const [userPriorityTasks, setUserPriorityTasks] = useState(() => {
-    const userTasks = tasks.filter(task => task.assigneeId === currentUser.id);
-    return userTasks.filter(task => task.priority === 'urgent' || task.priority === 'high');
+    const userTasks = tasks.filter(
+      (task) => task.assigneeId === currentUser.id,
+    );
+    return userTasks.filter(
+      (task) => task.priority === 'urgent' || task.priority === 'high',
+    );
   });
 
   // Update user-specific data when user or tasks change
   useEffect(() => {
-    const userTasks = tasks.filter(task => task.assigneeId === currentUser.id);
+    const userTasks = tasks.filter(
+      (task) => task.assigneeId === currentUser.id,
+    );
     setCurrentUserTasks(userTasks);
 
     setUserWorkload({
@@ -898,26 +1052,32 @@ function App() {
         role: currentUser.role,
       },
       totalTasks: userTasks.length,
-      activeTasks: userTasks.filter(t => t.status !== 'done').length,
-      completedTasks: userTasks.filter(t => t.status === 'done').length,
-      overdueTasks: userTasks.filter(t =>
-        t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'done'
+      activeTasks: userTasks.filter((t) => t.status !== 'done').length,
+      completedTasks: userTasks.filter((t) => t.status === 'done').length,
+      overdueTasks: userTasks.filter(
+        (t) =>
+          t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'done',
       ).length,
       tasksByStatus: {
-        todo: userTasks.filter(t => t.status === 'todo').length,
-        'in-progress': userTasks.filter(t => t.status === 'in-progress').length,
-        review: userTasks.filter(t => t.status === 'review').length,
-        done: userTasks.filter(t => t.status === 'done').length,
+        todo: userTasks.filter((t) => t.status === 'todo').length,
+        'in-progress': userTasks.filter((t) => t.status === 'in-progress')
+          .length,
+        review: userTasks.filter((t) => t.status === 'review').length,
+        done: userTasks.filter((t) => t.status === 'done').length,
       },
       tasksByPriority: {
-        urgent: userTasks.filter(t => t.priority === 'urgent').length,
-        high: userTasks.filter(t => t.priority === 'high').length,
-        medium: userTasks.filter(t => t.priority === 'medium').length,
-        low: userTasks.filter(t => t.priority === 'low').length,
-      }
+        urgent: userTasks.filter((t) => t.priority === 'urgent').length,
+        high: userTasks.filter((t) => t.priority === 'high').length,
+        medium: userTasks.filter((t) => t.priority === 'medium').length,
+        low: userTasks.filter((t) => t.priority === 'low').length,
+      },
     });
 
-    setUserPriorityTasks(userTasks.filter(task => task.priority === 'urgent' || task.priority === 'high'));
+    setUserPriorityTasks(
+      userTasks.filter(
+        (task) => task.priority === 'urgent' || task.priority === 'high',
+      ),
+    );
   }, [currentUser, tasks]);
 
   useTool({
@@ -953,7 +1113,8 @@ function App() {
   useTool({
     mcp,
     name: 'current_user_workload',
-    description: 'Workload summary for the current user including task counts by status and priority',
+    description:
+      'Workload summary for the current user including task counts by status and priority',
     value: userWorkload,
     setValue: setUserWorkload,
     valueSchema: z.any(),
@@ -962,7 +1123,8 @@ function App() {
   useTool({
     mcp,
     name: 'current_user_priority_tasks',
-    description: 'High priority (urgent and high) tasks assigned to the current user',
+    description:
+      'High priority (urgent and high) tasks assigned to the current user',
     value: userPriorityTasks,
     setValue: setUserPriorityTasks,
     valueSchema: TaskListSchema,
@@ -971,15 +1133,23 @@ function App() {
   useTool({
     mcp,
     name: 'available_users',
-    description: 'List of all users available for demonstration of user switching',
-    value: mockUsers.map(u => ({ id: u.id, name: u.name, role: u.role, email: u.email })),
-    setValue: () => {}, // Read-only
-    valueSchema: z.array(z.object({
-      id: z.string(),
-      name: z.string(),
-      role: z.string(),
-      email: z.string(),
+    description:
+      'List of all users available for demonstration of user switching',
+    value: mockUsers.map((u) => ({
+      id: u.id,
+      name: u.name,
+      role: u.role,
+      email: u.email,
     })),
+    setValue: () => {}, // Read-only
+    valueSchema: z.array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        role: z.string(),
+        email: z.string(),
+      }),
+    ),
   });
 
   useEffect(() => {
@@ -997,7 +1167,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="mx-auto px-4 py-6">
         <BoardHeader
           title={boardTitle}
           projectName={currentProject.name}
@@ -1011,7 +1181,7 @@ function App() {
           assigneeFilter={assigneeFilter}
           onAssigneeFilterChange={setAssigneeFilter}
           onCreateTask={() => handleCreateTask()}
-          projects={projects.map(project => ({
+          projects={projects.map((project) => ({
             id: project.id,
             name: project.name,
             description: project.description,
@@ -1035,8 +1205,8 @@ function App() {
           <KanbanBoard
             tasks={tasks}
             setTasks={(newTasks: Task[]) => {
-              setProjects(prevProjects =>
-                prevProjects.map(project => {
+              setProjects((prevProjects) =>
+                prevProjects.map((project) => {
                   if (project.id === currentProjectId) {
                     return {
                       ...project,
@@ -1045,9 +1215,11 @@ function App() {
                     };
                   }
                   return project;
-                })
+                }),
               );
             }}
+            columns={columns}
+            onColumnReorder={handleColumnReorder}
             teamMembers={teamMembers}
             settings={boardSettings}
             preferences={userPreferences}

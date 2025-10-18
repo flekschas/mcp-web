@@ -1,5 +1,5 @@
-import * as Plot from "@observablehq/plot";
-import { useEffect, useRef } from "react";
+import * as Plot from '@observablehq/plot';
+import { useEffect, useRef } from 'react';
 
 export interface Priority {
   priority: string;
@@ -10,27 +10,29 @@ export interface PriorityDistributionChartProps {
   data: Priority[];
 }
 
-export const PriorityDistributionChart = ({ data }: PriorityDistributionChartProps) => {
+export const PriorityDistributionChart = ({
+  data,
+}: PriorityDistributionChartProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!containerRef.current || data.length === 0) return;
 
     const plot = Plot.plot({
-      title: "Priority Distribution",
+      title: 'Priority Distribution',
       width: 300,
       height: 300,
-      color: { scheme: "spectral" },
+      color: { scheme: 'spectral' },
       marks: [
         Plot.barY(data, {
-          x: "priority",
-          y: "count",
-          fill: "priority",
+          x: 'priority',
+          y: 'count',
+          fill: 'priority',
           tip: true,
-          title: (d: Priority) => `${d.priority}: ${d.count} tasks`
+          title: (d: Priority) => `${d.priority}: ${d.count} tasks`,
         }),
-        Plot.ruleY([0])
-      ]
+        Plot.ruleY([0]),
+      ],
     });
 
     containerRef.current.replaceChildren(plot);

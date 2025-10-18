@@ -1,0 +1,30 @@
+{
+  "name": "checkers-demo-agent",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch agent.ts",
+    "start": "tsx agent.ts",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^2.0.27",
+    "@ai-sdk/cerebras": "^1.0.25",
+    "@ai-sdk/google": "^2.0.20",
+    "@ai-sdk/openai": "^2.0.50",
+    "@hono/node-server": "^1.19.5",
+    "@mcp-web/client": "workspace:*",
+    "@mcp-web/types": "workspace:*",
+    "ai": "^5.0.68",
+    "checkers-shared": "workspace:*",
+    "dotenv": "^17.2.3",
+    "hono": "^4.9.11",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "tsx": "^4.19.0",
+    "typescript": "catalog:"
+  }
+}

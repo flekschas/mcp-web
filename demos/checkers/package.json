@@ -1,0 +1,15 @@
+{
+  "name": "checkers-demo",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "AUTH_TOKEN=mcp-web-checkers-demo && concurrently \"pnpm run dev:app\" \"pnpm run dev:agent\" \"pnpm run dev:bridge\"",
+    "dev:app": "cd app && pnpm run dev",
+    "dev:agent": "cd agent && pnpm run dev",
+    "dev:bridge": "cd bridge && pnpm run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

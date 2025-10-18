@@ -4,57 +4,41 @@ import { readFileSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
+import {
+  type MCPWebConfig,
+  type MCPWebConfigInput,
+  McpWebConfigSchema,
+  type QueryMessage,
+  QueryAcceptedMessageSchema,
+  QueryCancelMessageSchema,
+  QueryCompleteBridgeMessageSchema,
+  QueryCompleteClientMessageSchema,
+  QueryFailureMessageSchema,
+  QueryMessageSchema,
+  QueryProgressMessageSchema
+} from '@mcp-web/types';
 import { WebSocket, WebSocketServer } from 'ws';
-import { z } from 'zod';
 import type {
   ActivityMessage,
   AuthenticateMessage,
   FrontendMessage,
   McpRequest,
   McpResponse,
+  QueryTracking,
   RegisterToolMessage,
   SessionData,
   ToolCallMessage,
   ToolDefinition,
-  ToolResponseMessage
+  ToolResponseMessage,
 } from './types.js';
 
-// Re-export types for frontend consumption
-export type {
-  ActivityMessage,
-  AuthenticatedMessage,
-  AuthenticateMessage,
-  BridgeMessage,
-  FrontendMessage,
-  RegisterToolMessage,
-  ToolCallMessage,
-  ToolResponseMessage
-} from './types.js';
-
-export const bridgeServerConfigSchema = z.object({
-  /** The port for the WebSocket server (for frontend connections) */
-  wsPort: z.number().int().min(1).max(65535).optional().default(3001).describe('The port for the WebSocket server (for frontend connections)'),
-  /** The port for the MCP server (for client connections) */
-  mcpPort: z.number().int().min(1).max(65535).optional().default(3002).describe('The port for the MCP server (for client connections)'),
-  /** The name of the server. This is used to identify the server and is displayed in your AI App (e.g., Claude Desktop) */
-  name: z.string().min(1).describe('The name of the server. This is used to identify the server and is displayed in your AI App (e.g., Claude Desktop)'),
-  /** The description of the server. This should describe the web app you want the AI App to control. */
-  description: z.string().min(1).describe('The description of the server. This should describe the web app you want the AI App to control.'),
-  /** Either a URL or a data URI like "data:image/png;base64,...". This is shown in the AI App. */
-  icon: z.string().optional().describe('Either a URL or a data URI like "data:image/png;base64,...". This is shown in the AI App.')
-});
-
-export type BridgeServerConfigInput = z.input<typeof bridgeServerConfigSchema>;
-
-export type BridgeServerConfig = z.output<typeof bridgeServerConfigSchema>;
-
-
-export class Bridge {
+export class MCPWebBridge {
   private sessions = new Map<string, SessionData>();
-  private config: BridgeServerConfig;
+  private queries = new Map<string, QueryTracking>();
+  private config: MCPWebConfig;
 
   constructor(
-    config: BridgeServerConfigInput = {
+    config: MCPWebConfigInput = {
       wsPort: 3001,
       mcpPort: 3002,
       name: "Web App Controller",
@@ -62,7 +46,7 @@ export class Bridge {
     }
   ) {
     // Validate the configuration
-    const parsedConfig = bridgeServerConfigSchema.safeParse(config);
+    const parsedConfig = McpWebConfigSchema.safeParse(config);
     if (!parsedConfig.success) {
       throw new Error(`Invalid bridge server configuration: ${parsedConfig.error.message}`);
     }
@@ -128,12 +112,59 @@ export class Bridge {
     const mcpServer = createServer((req, res) => {
       // Enable CORS
       res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
       if (req.method === 'OPTIONS') {
         res.writeHead(200);
         res.end();
+        return;
+      }
+
+      // Route query progress/complete/fail/cancel endpoints
+      const url = req.url || '';
+      const queryProgressMatch = url.match(/^\/query\/([^/]+)\/progress$/);
+      const queryCompleteMatch = url.match(/^\/query\/([^/]+)\/complete$/);
+      const queryFailMatch = url.match(/^\/query\/([^/]+)\/fail$/);
+      const queryCancelMatch = url.match(/^\/query\/([^/]+)\/cancel$/);
+
+      if (req.method === 'POST' && queryProgressMatch) {
+        const uuid = queryProgressMatch[1];
+        let body = '';
+        req.on('data', (chunk) => { body += chunk; });
+        req.on('end', () => {
+          this.handleQueryProgressEndpoint(req, res, uuid, body);
+        });
+        return;
+      }
+
+      if (req.method === 'PUT' && queryCompleteMatch) {
+        const uuid = queryCompleteMatch[1];
+        let body = '';
+        req.on('data', (chunk) => { body += chunk; });
+        req.on('end', () => {
+          this.handleQueryCompleteEndpoint(req, res, uuid, body);
+        });
+        return;
+      }
+
+      if (req.method === 'PUT' && queryFailMatch) {
+        const uuid = queryFailMatch[1];
+        let body = '';
+        req.on('data', (chunk) => { body += chunk; });
+        req.on('end', () => {
+          this.handleQueryFailEndpoint(req, res, uuid, body);
+        });
+        return;
+      }
+
+      if (req.method === 'PUT' && queryCancelMatch) {
+        const uuid = queryCancelMatch[1];
+        let body = '';
+        req.on('data', (chunk) => { body += chunk; });
+        req.on('end', () => {
+          this.handleQueryCancelEndpoint(req, res, uuid, body);
+        });
         return;
       }
 
@@ -167,6 +198,12 @@ export class Bridge {
         break;
       case 'tool-response':
         this.handleToolResponse(sessionKey, message);
+        break;
+      case 'query':
+        this.handleQuery(sessionKey, message, ws);
+        break;
+      case 'query_cancel':
+        this.handleQueryCancel(message);
         break;
       default:
         // biome-ignore lint/suspicious/noExplicitAny: Edge case handling
@@ -223,26 +260,269 @@ export class Bridge {
     console.log(`Tool response from ${sessionKey}:`, message);
   }
 
+  private handleQueryCancel(message: { type: 'query_cancel'; uuid: string }) {
+    const cancelMessage = QueryCancelMessageSchema.parse(message);
+    const { uuid } = cancelMessage;
+    const query = this.queries.get(uuid);
+
+    if (!query) {
+      console.warn(`Cancel requested for unknown query: ${uuid}`);
+      return;
+    }
+
+    console.log(`Cancelling query ${uuid}`);
+
+    // Mark query as cancelled
+    query.state = 'cancelled';
+
+    // Send cancellation message to frontend
+    const cancellationMessage = QueryFailureMessageSchema.parse({
+      uuid,
+      error: 'Query cancelled by user'
+    });
+
+    if (query.ws.readyState === WebSocket.OPEN) {
+      query.ws.send(JSON.stringify(cancellationMessage));
+    }
+
+    this.queries.delete(uuid);
+  }
+
+  private async handleQuery(sessionKey: string, message: QueryMessage, ws: WebSocket) {
+    const { uuid, responseTool, tools, restrictTools } = message;
+
+    if (!this.config.agentUrl) {
+      ws.send(JSON.stringify(QueryFailureMessageSchema.parse({
+        uuid,
+        error: 'Missing Agent URL'
+      })));
+      return;
+    }
+
+    try {
+      // Track this query
+      this.queries.set(uuid, {
+        sessionKey,
+        responseTool: responseTool?.name,
+        toolCalls: [],
+        ws,
+        state: 'active',
+        tools,
+        restrictTools
+      });
+
+      console.log(`Forwarding query ${uuid} to agent: ${this.config.agentUrl}`);
+
+      // Forward query to agent
+      const response = await fetch(`${this.config.agentUrl}/query/${uuid}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(this.config.authToken && { 'Authorization': `Bearer ${this.config.authToken}` })
+        },
+        body: JSON.stringify(QueryMessageSchema.parse(message))
+      });
+
+      if (!response.ok) {
+        throw new Error(`Agent responded with ${response.status}: ${response.statusText}`);
+      }
+
+      // Send immediate acceptance back to frontend
+      ws.send(JSON.stringify(QueryAcceptedMessageSchema.parse({ uuid })));
+
+      // TODO: Set up streaming response from agent
+      // For now, we'll just indicate that the query was forwarded
+      ws.send(JSON.stringify(QueryProgressMessageSchema.parse({
+        uuid,
+        message: 'Query forwarded to agent'
+      })));
+
+    } catch (error) {
+      console.error(`Error forwarding query ${uuid}:`, error);
+      this.queries.delete(uuid);
+      ws.send(JSON.stringify(QueryFailureMessageSchema.parse({
+        uuid,
+        error: `${error instanceof Error ? error.message : String(error)}`
+      })));
+    }
+  }
+
+  private handleQueryProgressEndpoint(_req: IncomingMessage, res: ServerResponse, uuid: string, body: string) {
+    try {
+      const message = JSON.parse(body);
+      const progressMessage = QueryProgressMessageSchema.parse({ uuid, ...message });
+
+      const query = this.queries.get(uuid);
+      if (!query) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Query not found' }));
+        return;
+      }
+
+      // Forward progress to frontend
+      if (query.ws.readyState === WebSocket.OPEN) {
+        query.ws.send(JSON.stringify(progressMessage));
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true }));
+    } catch (error) {
+      console.error('Error handling query progress:', error);
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Invalid request body' }));
+    }
+  }
+
+  private handleQueryCompleteEndpoint(_req: IncomingMessage, res: ServerResponse, uuid: string, body: string) {
+    try {
+      const message = JSON.parse(body);
+      const completeMessage = QueryCompleteClientMessageSchema.parse({ uuid, ...message });
+
+      const query = this.queries.get(uuid);
+      if (!query) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Query not found or already completed' }));
+        return;
+      }
+
+      // Edge case: responseTool specified but agent called queryComplete()
+      if (query.responseTool) {
+        const errorMessage = QueryFailureMessageSchema.parse({
+          uuid,
+          error: `Query specified responseTool '${query.responseTool}' but agent called queryComplete() instead`
+        });
+
+        if (query.ws.readyState === WebSocket.OPEN) {
+          query.ws.send(JSON.stringify(errorMessage));
+        }
+
+        this.queries.delete(uuid);
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: errorMessage.error }));
+        return;
+      }
+
+      // Mark query as completed
+      query.state = 'completed';
+
+      // Send completion with tracked tool calls
+      const bridgeMessage = QueryCompleteBridgeMessageSchema.parse({
+        uuid,
+        message: completeMessage.message,
+        toolCalls: query.toolCalls
+      });
+
+      if (query.ws.readyState === WebSocket.OPEN) {
+        query.ws.send(JSON.stringify(bridgeMessage));
+      }
+
+      this.queries.delete(uuid);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true }));
+    } catch (error) {
+      console.error('Error handling query complete:', error);
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Invalid request body' }));
+    }
+  }
+
+  private handleQueryFailEndpoint(_req: IncomingMessage, res: ServerResponse, uuid: string, body: string) {
+    try {
+      const message = JSON.parse(body);
+      const failureMessage = QueryFailureMessageSchema.parse({ uuid, ...message });
+
+      const query = this.queries.get(uuid);
+      if (!query) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Query not found or already completed' }));
+        return;
+      }
+
+      // Mark query as failed
+      query.state = 'failed';
+
+      // Send failure message to frontend
+      if (query.ws.readyState === WebSocket.OPEN) {
+        query.ws.send(JSON.stringify(failureMessage));
+      }
+
+      this.queries.delete(uuid);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true }));
+    } catch (error) {
+      console.error('Error handling query fail:', error);
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Invalid request body' }));
+    }
+  }
+
+  private handleQueryCancelEndpoint(_req: IncomingMessage, res: ServerResponse, uuid: string, _body: string) {
+    try {
+      const query = this.queries.get(uuid);
+      if (!query) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Query not found or already completed' }));
+        return;
+      }
+
+      // Mark query as cancelled
+      query.state = 'cancelled';
+
+      // Send cancellation message to frontend (as a failure with specific message)
+      const cancellationMessage = QueryFailureMessageSchema.parse({
+        uuid,
+        error: 'Query cancelled by user'
+      });
+
+      if (query.ws.readyState === WebSocket.OPEN) {
+        query.ws.send(JSON.stringify(cancellationMessage));
+      }
+
+      this.queries.delete(uuid);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true }));
+    } catch (error) {
+      console.error('Error handling query cancel:', error);
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Invalid request body' }));
+    }
+  }
+
   private async handleMCPRequest(req: IncomingMessage, res: ServerResponse, body: string) {
     try {
       const mcpRequest: McpRequest = JSON.parse(body);
 
-      // Extract auth token from Authorization header
+      // Extract auth from header OR query context
       const authHeader = req.headers.authorization;
       const authToken = authHeader?.replace('Bearer ', '');
+      const queryId = mcpRequest.params?._queryContext?.queryId;
 
-      if (!authToken) {
-        this.sendMCPError(res, mcpRequest.id, -32600, 'Missing authorization token');
+      let session: SessionData | undefined;
+
+      if (queryId) {
+        // Authenticate via query context
+        const query = this.queries.get(queryId);
+        if (!query) {
+          this.sendMCPError(res, mcpRequest.id, -32600, 'Query not found or expired');
+          return;
+        }
+        if (query.state !== 'active') {
+          this.sendMCPError(res, mcpRequest.id, -32600, `Query is ${query.state}, not active`);
+          return;
+        }
+        session = this.sessions.get(query.sessionKey);
+
+      } else if (authToken) {
+        // Traditional authentication
+        session = Array.from(this.sessions.values())
+          .find((s) => s.authToken === authToken);
+      } else {
+        this.sendMCPError(res, mcpRequest.id, -32600, 'Missing authentication');
         return;
       }
 
-      // Find session by auth token
-      const session = Array.from(this.sessions.values())
-        .find((s) => s.authToken === authToken);
-
       if (!session) {
-        console.log(Array.from(this.sessions.values()))
-        this.sendMCPError(res, mcpRequest.id, -32600, 'Invalid authorization token');
+        this.sendMCPError(res, mcpRequest.id, -32600, 'Invalid authentication');
         return;
       }
 
@@ -362,10 +642,36 @@ export class Bridge {
   }
 
   private async handleToolCall(params: McpRequest['params']) {
-    const { name: toolName, arguments: toolInput } = params || {};
+    const { name: toolName, arguments: toolInput, _queryContext } = params || {};
 
     if (!toolName) {
       return { error: "Tool name is required" };
+    }
+
+    // Extract query ID from context if available
+    const queryId = _queryContext?.queryId;
+
+    // If this is part of a query, validate the query state and restrictions
+    if (queryId) {
+      const query = this.queries.get(queryId);
+      if (!query) {
+        return { error: `Query ${queryId} not found` };
+      }
+      if (query.state !== 'active') {
+        return {
+          error: `Cannot call tools on ${query.state} query. Query ${queryId} is no longer active.`
+        };
+      }
+
+      // Check tool restrictions if query has them
+      if (query.restrictTools && query.tools) {
+        const allowed = query.tools.some(t => t.name === toolName);
+        if (!allowed) {
+          return {
+            error: `Tool '${toolName}' not allowed by query restrictions. Allowed tools: ${query.tools.map(t => t.name).join(', ')}`
+          };
+        }
+      }
     }
 
     if (toolName === 'list_active_sessions') {
@@ -382,7 +688,7 @@ export class Bridge {
       } else if (sessions.length > 1) {
         return {
           error: "Multiple sessions active. Please specify session_id or use list_active_sessions to see available sessions.",
-          available_sessions: await this.listActiveSessions()
+          available_sessions: this.listActiveSessions()
         };
       } else {
         return { error: "No active sessions" };
@@ -397,7 +703,7 @@ export class Bridge {
     if (!session) {
       return {
         error: "Session not found",
-        available_sessions: await this.listActiveSessions()
+        available_sessions: this.listActiveSessions()
       };
     }
 
@@ -412,7 +718,7 @@ export class Bridge {
     console.log('tool call', toolName, toolInput, params);
 
     // Forward tool call to frontend
-    return this.forwardToSession(sessionKey, toolName, toolInput);
+    return this.forwardToSession(sessionKey, toolName, toolInput, queryId);
   }
 
   private async handleResourcesList() {
@@ -450,6 +756,7 @@ export class Bridge {
     sessionKey: string,
     toolName: string,
     toolInput?: Record<string, unknown>,
+    queryId?: string
   ): Promise<unknown> {
     const session = this.sessions.get(sessionKey);
     if (!session || session.ws.readyState !== WebSocket.OPEN) {
@@ -464,7 +771,8 @@ export class Bridge {
       type: 'tool-call',
       requestId,
       toolName,
-      toolInput
+      toolInput,
+      ...(queryId && { queryId })
     };
 
     return new Promise((resolve) => {
@@ -479,7 +787,51 @@ export class Bridge {
           if (message.type === 'tool-response' && message.requestId === requestId) {
             clearTimeout(timeout);
             session.ws.removeListener('message', handleResponse);
-            resolve(message.result);
+
+            const toolResult = message.result;
+
+            // Track tool call if part of a query
+            if (queryId) {
+              const query = this.queries.get(queryId);
+              if (query) {
+                query.toolCalls.push({
+                  tool: toolName,
+                  arguments: toolInput,
+                  result: toolResult
+                });
+
+                // Check if this was the responseTool - auto-complete query
+                if (query.responseTool === toolName) {
+                  // Check if tool call succeeded
+                  if (toolResult && typeof toolResult === 'object' && 'error' in toolResult) {
+                    // Tool failed - send query_failure
+                    const errorMessage = QueryFailureMessageSchema.parse({
+                      uuid: queryId,
+                      error: `responseTool '${toolName}' failed: ${String(toolResult.error)}`
+                    });
+
+                    if (query.ws.readyState === WebSocket.OPEN) {
+                      query.ws.send(JSON.stringify(errorMessage));
+                    }
+                  } else {
+                    // Tool succeeded - auto-complete query
+                    const bridgeMessage = QueryCompleteBridgeMessageSchema.parse({
+                      uuid: queryId,
+                      message: undefined,
+                      toolCalls: query.toolCalls
+                    });
+
+                    if (query.ws.readyState === WebSocket.OPEN) {
+                      query.ws.send(JSON.stringify(bridgeMessage));
+                    }
+                  }
+
+                  this.queries.delete(queryId);
+                }
+              }
+            }
+
+            resolve(toolResult);
           }
         } catch (_error) {
           // Ignore invalid JSON

@@ -1,22 +1,17 @@
-import { z } from 'zod';
 import type { BridgeMessage } from '@mcp-web/bridge';
-import { ToolDefinitionSchema } from './tools/schema';
-import type { ToolDefinition } from './tools/types';
-
-interface MCPWebConfig {
-  /** The name of the app. This is used to identify the app in the MCP bridge and is diplayed in your AI App (e.g., Claude Desktop) */
-  name: string;
-  /** The description of the app. This is used to describe the app in the MCP bridge. */
-  description?: string;
-  /** The URL of the MCP bridge server. If not provided, it will be detected automatically. */
-  bridgeUrl?: string;
-  /** Whether to automatically connect to the MCP bridge on initialization. */
-  autoConnect?: boolean;
-  /** Optional auth token to use. If not provided, will generate or load from localStorage. */
-  authToken?: string;
-  /** Whether to persist the auth token in localStorage. Default: true */
-  persistAuthToken?: boolean;
-}
+import {
+  type MCPWebConfig,
+  type MCPWebConfigInput,
+  McpWebConfigSchema,
+  type ProcessedContextItem,
+  type Query,
+  QueryMessageSchema,
+  type ToolDefinition,
+  ToolDefinitionSchema,
+} from '@mcp-web/types';
+import { QueryRequestSchema, QueryResponseSchema } from './schemas';
+import type { QueryRequestInput, QueryResponse } from './types';
+import { toJSONSchema } from './utils';
 
 export class MCPWeb {
   private ws: WebSocket | null = null;
@@ -25,8 +20,7 @@ export class MCPWeb {
   readonly tools = new Map<string, ToolDefinition>();
   private connected = false;
   public isConnecting = false;
-  private mcpPort: number | null = null;
-  readonly config: Required<Pick<MCPWebConfig, 'name' | 'description' | 'bridgeUrl' | 'autoConnect'>>;
+  readonly config: MCPWebConfig;
   readonly mcpConfig: {
     [serverName: string]: {
       command: 'npx';
@@ -38,23 +32,17 @@ export class MCPWeb {
     }
   };
 
-  constructor(config: MCPWebConfig) {
-    this.config = {
-      name: config.name,
-      description: config.description || `Control ${config.name} web application`,
-      bridgeUrl: config.bridgeUrl || this.detectBridgeUrl(),
-      autoConnect: config.autoConnect ?? true
-    };
-
+  constructor(config: MCPWebConfigInput) {
+    this.config = McpWebConfigSchema.parse(config);
     this.sessionKey = this.generateSessionKey();
-    this.authToken = this.resolveAuthToken(config);
+    this.authToken = this.resolveAuthToken(this.config);
 
     this.mcpConfig = {
       [this.config.name]: {
         command: 'npx',
         args: ['@mcp-web/client'],
         env: {
-          MCP_SERVER_URL: 'http://localhost:3002', // Placeholder - will be updated when bridge provides actual MCP port
+          MCP_SERVER_URL: `${window.location.protocol}//${this.config.host}:${this.config.mcpPort}`,
           AUTH_TOKEN: this.authToken
         }
       }
@@ -67,18 +55,16 @@ export class MCPWeb {
     this.setupActivityTracking();
   }
 
-  private detectBridgeUrl(): string {
+  private getBridgeWsUrl(): string {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.hostname;
-    const port = window.location.protocol === 'https:' ? '3001' : '3001';
-    return `${protocol}//${host}:${port}`;
+    return `${protocol}//${this.config.host}:${this.config.wsPort}`;
   }
 
   private generateSessionKey(): string {
-    let sessionKey = localStorage.getItem('mcp-session-key');
+    let sessionKey = localStorage.getItem('mcp-web-session-key');
     if (!sessionKey) {
       sessionKey = crypto.randomUUID();
-      localStorage.setItem('mcp-session-key', sessionKey);
+      localStorage.setItem('mcp-web-session-key', sessionKey);
     }
     return sessionKey;
   }
@@ -89,7 +75,7 @@ export class MCPWeb {
 
   private loadAuthToken(): string | null {
     try {
-      return localStorage.getItem('mcp-auth-token');
+      return localStorage.getItem('mcp-web-auth-token');
     } catch (error) {
       console.warn('Failed to load auth token from localStorage:', error);
       return null;
@@ -98,7 +84,7 @@ export class MCPWeb {
 
   private saveAuthToken(token: string): void {
     try {
-      localStorage.setItem('mcp-auth-token', token);
+      localStorage.setItem('mcp-web-auth-token', token);
     } catch (error) {
       console.warn('Failed to save auth token to localStorage:', error);
     }
@@ -158,7 +144,7 @@ export class MCPWeb {
     this.isConnecting = true;
     return new Promise((resolve, reject) => {
       try {
-        const wsUrl = `${this.config.bridgeUrl}?session=${this.sessionKey}`;
+        const wsUrl = `${this.getBridgeWsUrl()}?session=${this.sessionKey}`;
         this.ws = new WebSocket(wsUrl);
 
         this.ws.onopen = () => {
@@ -227,12 +213,6 @@ export class MCPWeb {
     switch (message.type) {
       case 'authenticated':
         this.connected = true;
-
-        // Capture MCP port from bridge response and update config
-        if (message.mcpPort) {
-          this.mcpPort = message.mcpPort;
-          this.updateMcpConfig();
-        }
 
         this.registerAllTools();
         break;
@@ -319,20 +299,6 @@ export class MCPWeb {
     }, 5000);
   }
 
-  private updateMcpConfig() {
-    if (!this.mcpPort) return;
-
-    // Determine protocol and host from bridge URL
-    const bridgeUrl = new URL(this.config.bridgeUrl.replace('ws:', 'http:').replace('wss:', 'https:'));
-    const protocol = bridgeUrl.protocol;
-    const hostname = bridgeUrl.hostname;
-
-    // Update the MCP_SERVER_URL with the correct port
-    this.mcpConfig[this.config.name].env.MCP_SERVER_URL = `${protocol}//${hostname}:${this.mcpPort}`;
-
-    console.log(`Updated MCP server URL to: ${this.mcpConfig[this.config.name].env.MCP_SERVER_URL}`);
-  }
-
   private setupActivityTracking() {
     const updateActivity = () => {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
@@ -352,13 +318,11 @@ export class MCPWeb {
     setInterval(updateActivity, 30000); // Every 30 seconds
   }
 
-
-  // Public API methods
-
   /**
    * Add a tool that can be called by Claude Desktop
+   * @returns The processed tool definition that can be used as responseTool in queries
    */
-  addTool(tool: ToolDefinition): void {
+  addTool(tool: ToolDefinition): ToolDefinition {
     // Validate the tool definition using Zod schema
     const validationResult = ToolDefinitionSchema.safeParse(tool);
     if (!validationResult.success) {
@@ -367,11 +331,11 @@ export class MCPWeb {
 
     // Convert Zod schema to JSON Schema if needed
     const processedTool = { ...validationResult.data };
-    if (processedTool.inputSchema && typeof processedTool.inputSchema === 'object' && 'safeParse' in processedTool.inputSchema) {
-      processedTool.inputSchema = z.toJSONSchema(processedTool.inputSchema as z.ZodSchema);
+    if (processedTool.inputSchema) {
+      processedTool.inputSchema = toJSONSchema(processedTool.inputSchema);
     }
-    if (processedTool.outputSchema && typeof processedTool.outputSchema === 'object' && 'safeParse' in processedTool.outputSchema) {
-      processedTool.outputSchema = z.toJSONSchema(processedTool.outputSchema as z.ZodSchema);
+    if (processedTool.outputSchema) {
+      processedTool.outputSchema = toJSONSchema(processedTool.outputSchema);
     }
 
     console.log('Adding tool', processedTool.name, processedTool.inputSchema);
@@ -384,6 +348,8 @@ export class MCPWeb {
     }
 
     console.log(`Tool registered: ${processedTool.name}`);
+
+    return processedTool;
   }
 
   /**
@@ -417,6 +383,188 @@ export class MCPWeb {
    */
   getTools(): string[] {
     return Array.from(this.tools.keys());
+  }
+
+  /**
+   * Query the agent (only available when agentUrl is configured)
+   *
+   * @param request - The query request object
+   * @param signal - Optional AbortSignal for canceling the query
+   */
+  async* query(request: QueryRequestInput, signal?: AbortSignal): AsyncIterableIterator<QueryResponse> {
+    if (!this.config.agentUrl) {
+      throw new Error('Agent URL not configured. Add agentUrl to MCPWeb config to enable queries.');
+    }
+
+    if (!this.connected) {
+      throw new Error('Not connected to bridge. Ensure MCPWeb is connected before making queries.');
+    }
+
+    const parsedRequest = QueryRequestSchema.parse(request);
+
+    const {
+      prompt,
+      context,
+      responseTool,
+      timeout,
+    } = parsedRequest;
+
+    // Generate a unique identifier for the query
+    const uuid = crypto?.randomUUID() ?? (() => {
+      const fallbackUuid = `query-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+      console.warn(
+        '⚠️  Running in insecure context (http://). Using fallback UUID generation.',
+        '\n   For production, use https:// to enable secure crypto.randomUUID().'
+      );
+      return fallbackUuid;
+    })();
+
+    // Process context items
+    const processedContext: ProcessedContextItem[] = [];
+
+    if (context) {
+      for (const item of context) {
+        if ('handler' in item) {
+          // Tool definition
+          processedContext.push({
+            name: item.name,
+            value: await item.handler(),
+            schema: item.outputSchema ? toJSONSchema(item.outputSchema) : undefined,
+            description: item.description,
+            type: 'tool'
+          });
+        } else {
+          // Ephemeral context
+          processedContext.push({
+            name: item.name,
+            value: item.value,
+            schema: item.schema,
+            description: item.description,
+            type: 'ephemeral'
+          });
+        }
+      }
+    }
+
+    // Send query message to bridge
+    const queryMessage = QueryMessageSchema.parse({
+      uuid,
+      prompt,
+      context: processedContext,
+      responseTool
+    } satisfies Query);
+
+    this.ws?.send(JSON.stringify(queryMessage));
+
+    // Create async iterator for streaming events
+    let completed = false;
+    let timeoutId: NodeJS.Timeout | null = null;
+    let aborted = false;
+
+    const eventQueue: QueryResponse[] = [];
+    let resolveNext: ((value: IteratorResult<QueryResponse>) => void) | null = null;
+
+    // Handle abort signal
+    const handleAbort = () => {
+      if (aborted || completed) return;
+      aborted = true;
+      completed = true;
+
+      // Send cancellation message to bridge
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        this.ws.send(JSON.stringify({
+          type: 'query_cancel',
+          uuid
+        }));
+      }
+
+      if (timeoutId) clearTimeout(timeoutId);
+      this.ws?.removeEventListener('message', handleMessage);
+
+      // Yield a cancellation error
+      const cancelError: QueryResponse = {
+        type: 'query_failure',
+        uuid,
+        error: 'Query cancelled by user'
+      };
+
+      if (resolveNext) {
+        resolveNext({ value: cancelError, done: false });
+        resolveNext = null;
+      } else {
+        eventQueue.push(cancelError);
+      }
+    };
+
+    // Listen for abort signal
+    if (signal) {
+      if (signal.aborted) {
+        handleAbort();
+      } else {
+        signal.addEventListener('abort', handleAbort);
+      }
+    }
+
+    const handleMessage = (event: MessageEvent) => {
+      try {
+        const message = JSON.parse(event.data);
+
+        const parsedMessage = QueryResponseSchema.parse(message);
+
+        if (parsedMessage.uuid === uuid) {
+          if (parsedMessage.type === 'query_complete' || parsedMessage.type === 'query_failure') {
+            completed = true;
+            if (timeoutId) clearTimeout(timeoutId);
+            this.ws?.removeEventListener('message', handleMessage);
+            if (signal) signal.removeEventListener('abort', handleAbort);
+          }
+
+          if (resolveNext) {
+            resolveNext({ value: parsedMessage, done: false });
+            resolveNext = null;
+          } else {
+            eventQueue.push(parsedMessage);
+          }
+        }
+      } catch (_error) {
+        // Ignore invalid JSON
+      }
+    };
+
+    this.ws?.addEventListener('message', handleMessage);
+
+    // Set up timeout
+    timeoutId = setTimeout(() => {
+      completed = true;
+      this.ws?.removeEventListener('message', handleMessage);
+      if (signal) signal.removeEventListener('abort', handleAbort);
+      if (resolveNext) {
+        resolveNext({ value: new Error('Query timeout'), done: true });
+        resolveNext = null;
+      }
+    }, timeout);
+
+    // Async iterator implementation
+    const getNext = (): Promise<IteratorResult<QueryResponse>> => {
+      return new Promise((resolve) => {
+        if (eventQueue.length > 0) {
+          // biome-ignore lint/style/noNonNullAssertion: We just checked that the length is greater than 0
+          const event = eventQueue.shift()!;
+          resolve({ value: event, done: false });
+        } else if (completed) {
+          resolve({ value: undefined, done: true });
+        } else {
+          resolveNext = resolve;
+        }
+      });
+    };
+
+    // Yield events as they arrive
+    while (!completed) {
+      const result = await getNext();
+      if (result.done) break;
+      yield result.value;
+    }
   }
 }
 

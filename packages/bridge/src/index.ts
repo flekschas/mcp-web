@@ -1,11 +1,21 @@
-export { Bridge } from './bridge.js';
+export { MCPWebBridge } from './bridge.js';
 export type {
+  ActivityMessage,
+  AuthenticatedMessage,
+  AuthenticateMessage,
   BridgeMessage,
   FrontendMessage,
-  ToolCallMessage,
-  AuthenticateMessage,
-  AuthenticatedMessage,
   RegisterToolMessage,
-  ActivityMessage,
-  ToolResponseMessage
-} from './bridge.js';
+  ToolCallMessage,
+  ToolResponseMessage,
+  QueryTracking,
+  TrackedToolCall
+} from './types.js';
+export type {
+  QueryMessage,
+  QueryAcceptedMessage,
+  QueryProgressMessage,
+  QueryCompleteBridgeMessage,
+  QueryCompleteClientMessage,
+  QueryFailureMessage
+} from '@mcp-web/types';

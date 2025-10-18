@@ -1,6 +1,6 @@
+import type { ToolDefinition, ToolResult } from '@mcp-web/types';
 import { z } from 'zod';
 import { BaseTool } from '../base.js';
-import type { ToolDefinition, ToolResult } from '../types.js';
 
 const inputSchema = z.object({ selector: z.string().describe('CSS selector to query') });
 type InputSchema = z.infer<typeof inputSchema>;

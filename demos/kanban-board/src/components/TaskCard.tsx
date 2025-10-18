@@ -1,5 +1,16 @@
-import type { BoardSettings, Task, TeamMember, UserPreferences } from '../types';
-import { formatDate, getPriorityColor, getTypeColor, getTypeIcon, isOverdue } from '../utils';
+import type {
+  BoardSettings,
+  Task,
+  TeamMember,
+  UserPreferences,
+} from '../types';
+import {
+  formatDate,
+  getPriorityColor,
+  getTypeColor,
+  getTypeIcon,
+  isOverdue,
+} from '../utils';
 
 interface TaskCardProps {
   task: Task;
@@ -22,7 +33,29 @@ const TaskCard = ({
   isDragging,
   onClick,
 }: TaskCardProps) => {
-  const assignee = teamMembers.find(member => member.id === task.assigneeId);
+  const assignee = teamMembers.find((member) => member.id === task.assigneeId);
+
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', task.id);
+    onDragStart();
+  };
+
+  const handleDragEnd = () => {
+    onDragEnd();
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onClick();
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onClick();
+    }
+  };
 
   return (
     // biome-ignore lint/a11y/useSemanticElements: This acts as a grid cell
@@ -30,30 +63,36 @@ const TaskCard = ({
       draggable
       tabIndex={0}
       role="gridcell"
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-      onClick={onClick}
-      onKeyDown={onClick}
-      className={`bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 cursor-pointer hover:shadow-md transition-all duration-200 ${
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      className={`bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 cursor-grab active:cursor-grabbing hover:shadow-md transition-all duration-200 ${
         isDragging ? 'opacity-50 scale-95' : 'hover:-translate-y-1'
       } ${settings.compactMode ? 'p-3' : 'p-4'}`}
     >
       {/* Task header - Type and Priority */}
       <div className="flex items-center justify-between mb-2">
         {settings.showTaskTypes && (
-          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getTypeColor(task.type)}`}>
+          <span
+            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getTypeColor(task.type)}`}
+          >
             <span className="mr-1">{getTypeIcon(task.type)}</span>
             {task.type}
           </span>
         )}
 
-        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getPriorityColor(task.priority)}`}>
+        <span
+          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getPriorityColor(task.priority)}`}
+        >
           {task.priority}
         </span>
       </div>
 
       {/* Task title */}
-      <h4 className={`font-medium text-zinc-900 dark:text-zinc-100 mb-2 ${settings.compactMode ? 'text-sm' : 'text-base'}`}>
+      <h4
+        className={`font-medium text-zinc-900 dark:text-zinc-100 mb-2 ${settings.compactMode ? 'text-sm' : 'text-base'}`}
+      >
         {task.title}
       </h4>
 
@@ -87,11 +126,13 @@ const TaskCard = ({
       <div className="flex items-center justify-between mt-3">
         {/* Due date */}
         {settings.showDueDates && task.dueDate && (
-          <span className={`text-xs px-2 py-1 rounded-md ${
-            isOverdue(task.dueDate)
-              ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-              : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400'
-          }`}>
+          <span
+            className={`text-xs px-2 py-1 rounded-md ${
+              isOverdue(task.dueDate)
+                ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400'
+            }`}
+          >
             📅 {formatDate(task.dueDate)}
           </span>
         )}

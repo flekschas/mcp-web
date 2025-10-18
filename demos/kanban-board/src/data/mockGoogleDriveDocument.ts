@@ -97,7 +97,7 @@ export const mockMeetingNotesDocument: GoogleDriveDocument = {
 ---
 *Meeting notes compiled by Alice Johnson*
 *Next sync meeting: February 1, 2025, 2:00 PM PST*
-  `.trim()
+  `.trim(),
 };
 
 // Extracted action items from the meeting notes
@@ -108,23 +108,23 @@ export const extractedActionItems: ActionItem[] = [
     dueDate: '2025-02-03T18:00:00Z',
     priority: 'urgent',
     type: 'bug',
-    tags: ['mobile', 'authentication', 'critical']
+    tags: ['mobile', 'authentication', 'critical'],
   },
   {
-    assignee: 'Carol Davis', 
+    assignee: 'Carol Davis',
     task: 'Optimize database queries for dashboard loading',
     dueDate: '2025-02-03T18:00:00Z',
     priority: 'high',
     type: 'task',
-    tags: ['performance', 'backend', 'database']
+    tags: ['performance', 'backend', 'database'],
   },
   {
     assignee: 'Eva Martinez',
     task: 'Create automated test suite for authentication flow',
     dueDate: '2025-02-03T18:00:00Z',
-    priority: 'high', 
+    priority: 'high',
     type: 'task',
-    tags: ['testing', 'automation', 'ci-cd']
+    tags: ['testing', 'automation', 'ci-cd'],
   },
   {
     assignee: 'David Wilson',
@@ -132,31 +132,31 @@ export const extractedActionItems: ActionItem[] = [
     dueDate: '2025-02-08T18:00:00Z',
     priority: 'medium',
     type: 'story',
-    tags: ['design', 'branding', 'ui']
+    tags: ['design', 'branding', 'ui'],
   },
   {
     assignee: 'Alice Johnson',
-    task: 'Conduct user interviews for dark mode feature requirements', 
+    task: 'Conduct user interviews for dark mode feature requirements',
     dueDate: '2025-02-08T18:00:00Z',
     priority: 'medium',
     type: 'story',
-    tags: ['research', 'user-experience', 'requirements']
+    tags: ['research', 'user-experience', 'requirements'],
   },
   {
     assignee: 'Bob Smith',
     task: 'Implement responsive design improvements for tablet view',
-    dueDate: '2025-02-08T18:00:00Z', 
+    dueDate: '2025-02-08T18:00:00Z',
     priority: 'medium',
     type: 'feature',
-    tags: ['responsive', 'tablet', 'ui']
+    tags: ['responsive', 'tablet', 'ui'],
   },
   {
     assignee: 'Carol Davis',
     task: 'Research and implement caching strategy for API responses',
     dueDate: '2025-02-15T18:00:00Z',
     priority: 'low',
-    type: 'task', 
-    tags: ['performance', 'caching', 'api']
+    type: 'task',
+    tags: ['performance', 'caching', 'api'],
   },
   {
     assignee: 'David Wilson',
@@ -164,7 +164,7 @@ export const extractedActionItems: ActionItem[] = [
     dueDate: '2025-02-15T18:00:00Z',
     priority: 'low',
     type: 'story',
-    tags: ['design', 'mockups', 'settings']
+    tags: ['design', 'mockups', 'settings'],
   },
   {
     assignee: 'Eva Martinez',
@@ -172,8 +172,8 @@ export const extractedActionItems: ActionItem[] = [
     dueDate: '2025-02-15T18:00:00Z',
     priority: 'low',
     type: 'task',
-    tags: ['documentation', 'onboarding', 'knowledge-sharing']
-  }
+    tags: ['documentation', 'onboarding', 'knowledge-sharing'],
+  },
 ];
 
 // Mock Google Drive API responses
@@ -188,14 +188,14 @@ export const mockGoogleDriveResponses = {
         mimeType: mockMeetingNotesDocument.mimeType,
         createdTime: mockMeetingNotesDocument.createdTime,
         modifiedTime: mockMeetingNotesDocument.modifiedTime,
-        webViewLink: mockMeetingNotesDocument.webViewLink
-      }
-    ]
+        webViewLink: mockMeetingNotesDocument.webViewLink,
+      },
+    ],
   },
-  
+
   getFile: mockMeetingNotesDocument,
-  
-  exportFile: mockMeetingNotesDocument.content
+
+  exportFile: mockMeetingNotesDocument.content,
 };
 
 // Utility function to simulate AI parsing of meeting notes

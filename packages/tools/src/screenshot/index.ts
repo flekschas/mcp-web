@@ -1,8 +1,8 @@
+import type { ToolDefinition, ToolResult } from '@mcp-web/types';
 import { toCanvas, toJpeg, toPng } from 'html-to-image';
 import type { Options as HtmlToImageOptions } from 'html-to-image/lib/types';
 import { z } from 'zod';
 import { BaseTool } from '../base.js';
-import type { ToolDefinition, ToolResult } from '../types.js';
 
 interface Options extends HtmlToImageOptions {
   name?: string;

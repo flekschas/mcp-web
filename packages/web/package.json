@@ -42,17 +42,14 @@
   "dependencies": {
     "@mcp-web/bridge": "workspace:*",
     "@mcp-web/decompose-zod-schema": "workspace:*",
-    "ajv": "^8.17.1",
-    "html-to-image": "^1.11.13",
-    "immer": "^10.1.1",
-    "jotai": "^2.12.5",
-    "uuid": "^11.1.0",
-    "zod": "^4.0.14"
+    "@mcp-web/types": "workspace:*",
+    "ajv": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@types/json-schema": "^7.0.15",
     "@types/react": "^18.3.0",
-    "typescript": "~5.9.2"
+    "typescript": "catalog:"
   },
   "peerDependencies": {
     "react": ">=16.8.0"

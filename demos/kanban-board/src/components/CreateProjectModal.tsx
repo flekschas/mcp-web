@@ -6,7 +6,9 @@ interface CreateProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentUser: User;
-  onCreate: (newProject: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  onCreate: (
+    newProject: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>,
+  ) => void;
 }
 
 const CreateProjectModal = ({
@@ -39,8 +41,11 @@ const CreateProjectModal = ({
           name: currentUser.name,
           email: currentUser.email,
           avatar: currentUser.avatar,
-          role: currentUser.role.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-        }
+          role: currentUser.role
+            .split('-')
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(' '),
+        },
       ],
       settings: mockBoardSettings,
       preferences: currentUser.preferences,
@@ -75,9 +80,19 @@ const CreateProjectModal = ({
               onClick={onClose}
               className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors cursor-pointer"
             >
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg
+                className="w-6 h-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
                 <title>Close</title>
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
@@ -86,7 +101,10 @@ const CreateProjectModal = ({
         <div className="px-6 py-4">
           <div className="space-y-4">
             <div>
-              <label htmlFor="new-project-name" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+              <label
+                htmlFor="new-project-name"
+                className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2"
+              >
                 Project Name <span className="text-red-500">*</span>
               </label>
               <input
@@ -101,7 +119,10 @@ const CreateProjectModal = ({
             </div>
 
             <div>
-              <label htmlFor="new-project-description" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+              <label
+                htmlFor="new-project-description"
+                className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2"
+              >
                 Description <span className="text-red-500">*</span>
               </label>
               <textarea
@@ -119,7 +140,10 @@ const CreateProjectModal = ({
             </div>
 
             <div>
-              <label htmlFor="new-project-deadline" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+              <label
+                htmlFor="new-project-deadline"
+                className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2"
+              >
                 Deadline (Optional)
               </label>
               <input
@@ -133,7 +157,10 @@ const CreateProjectModal = ({
             </div>
 
             <div>
-              <label htmlFor="new-project-status" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+              <label
+                htmlFor="new-project-status"
+                className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2"
+              >
                 Initial Status
               </label>
               <select
@@ -149,8 +176,13 @@ const CreateProjectModal = ({
           </div>
 
           <div className="mt-6 text-xs text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800 p-3 rounded-lg">
-            <p className="font-medium mb-1">Project Owner: {currentUser.name}</p>
-            <p>You'll be added as the initial team member and can invite others later.</p>
+            <p className="font-medium mb-1">
+              Project Owner: {currentUser.name}
+            </p>
+            <p>
+              You'll be added as the initial team member and can invite others
+              later.
+            </p>
           </div>
         </div>
 

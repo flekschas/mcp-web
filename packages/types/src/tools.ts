@@ -1,6 +1,16 @@
 import Ajv, { type AnySchema } from 'ajv';
 import { z } from 'zod';
 
+/**
+ * Re-export MCP SDK's standard Tool type for convenience.
+ * This is the wire protocol type used for tool definitions in MCP communication.
+ *
+ * Note: This differs from our `ToolDefinition` type which includes additional
+ * client-side properties like `handler` and `outputSchema` that are not part
+ * of the MCP wire protocol.
+ */
+export type { Tool, ListToolsResult } from '@modelcontextprotocol/sdk/types.js';
+
 const ajv = new Ajv({ strict: false });
 
 const validateJsonSchemaOrZod = (schema: unknown): schema is z.core.JSONSchema.JSONSchema | z.ZodObject => {
@@ -51,3 +61,16 @@ export const ToolDefinitionSchema = z.object({
     { message: "Must be valid JSON Schema Draft 7 or Zod schema" }
   ).optional()
 });
+
+
+export type ToolDefinition = z.infer<typeof ToolDefinitionSchema>;
+
+export interface ToolError {
+  error: string;
+}
+
+export interface ToolSuccess<T> {
+  value: T;
+}
+
+export type ToolResult<T> = ToolError | ToolSuccess<T>;

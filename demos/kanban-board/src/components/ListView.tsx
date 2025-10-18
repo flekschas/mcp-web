@@ -1,5 +1,14 @@
 import { useMemo } from 'react';
-import type { ActivityLogEntry, BoardSettings, Task, TaskPriority, TaskStatus, TaskType, TeamMember, UserPreferences } from '../types';
+import type {
+  ActivityLogEntry,
+  BoardSettings,
+  Task,
+  TaskPriority,
+  TaskStatus,
+  TaskType,
+  TeamMember,
+  UserPreferences,
+} from '../types';
 
 const getPriorityColor = (priority: TaskPriority): string => {
   switch (priority) {
@@ -85,13 +94,18 @@ const ListView = ({
   const sortedTasks = useMemo(() => {
     // Filter tasks based on search text, selected column, and assignee
     const filteredTasks = tasks.filter((task) => {
-      const matchesFilter = filterText === '' ||
+      const matchesFilter =
+        filterText === '' ||
         task.title.toLowerCase().includes(filterText.toLowerCase()) ||
         task.description.toLowerCase().includes(filterText.toLowerCase()) ||
-        task.tags.some(tag => tag.toLowerCase().includes(filterText.toLowerCase()));
+        task.tags.some((tag) =>
+          tag.toLowerCase().includes(filterText.toLowerCase()),
+        );
 
-      const matchesColumn = selectedColumn === '' || task.status === selectedColumn;
-      const matchesAssignee = assigneeFilter === '' || task.assigneeId === assigneeFilter;
+      const matchesColumn =
+        selectedColumn === '' || task.status === selectedColumn;
+      const matchesAssignee =
+        assigneeFilter === '' || task.assigneeId === assigneeFilter;
 
       return matchesFilter && matchesColumn && matchesAssignee;
     });
@@ -108,7 +122,8 @@ const ListView = ({
         }
         case 'dueDate':
           if (a.dueDate && b.dueDate) {
-            comparison = new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+            comparison =
+              new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
           } else if (a.dueDate) {
             comparison = -1;
           } else if (b.dueDate) {
@@ -116,10 +131,12 @@ const ListView = ({
           }
           break;
         case 'createdAt':
-          comparison = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          comparison =
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
           break;
         case 'updatedAt':
-          comparison = new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+          comparison =
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
           break;
         case 'title':
           comparison = a.title.localeCompare(b.title);
@@ -147,7 +164,7 @@ const ListView = ({
     setTasks(updatedTasks);
 
     // Add to activity log
-    const task = tasks.find(t => t.id === taskId);
+    const task = tasks.find((t) => t.id === taskId);
     if (task) {
       const newActivity: ActivityLogEntry = {
         id: `activity-${Date.now()}`,
@@ -182,14 +199,20 @@ const ListView = ({
         {sortedTasks.length === 0 ? (
           <div className="px-6 py-12 text-center">
             <div className="text-4xl mb-4">📋</div>
-            <p className="text-zinc-500 dark:text-zinc-400 text-lg">No tasks found</p>
+            <p className="text-zinc-500 dark:text-zinc-400 text-lg">
+              No tasks found
+            </p>
             <p className="text-zinc-400 dark:text-zinc-500 text-sm mt-1">
-              {filterText ? 'Try adjusting your search filter' : 'Create your first task to get started'}
+              {filterText
+                ? 'Try adjusting your search filter'
+                : 'Create your first task to get started'}
             </p>
           </div>
         ) : (
           sortedTasks.map((task) => {
-            const assignee = teamMembers.find(member => member.id === task.assigneeId);
+            const assignee = teamMembers.find(
+              (member) => member.id === task.assigneeId,
+            );
 
             return (
               // biome-ignore lint/a11y/useSemanticElements: custom list item
@@ -197,14 +220,20 @@ const ListView = ({
                 key={task.id}
                 className="px-6 py-4 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
                 role="listitem"
-                onClick={() => { onTaskClick(task); }}
-                onKeyDown={() => { onTaskClick(task); }}
+                onClick={() => {
+                  onTaskClick(task);
+                }}
+                onKeyDown={() => {
+                  onTaskClick(task);
+                }}
               >
                 <div className="grid grid-cols-12 gap-4 items-center">
                   {/* Task Title & Description */}
                   <div className="col-span-4">
                     <div className="flex items-start">
-                      <span className="mr-2 text-lg">{getTypeIcon(task.type)}</span>
+                      <span className="mr-2 text-lg">
+                        {getTypeIcon(task.type)}
+                      </span>
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
                           {task.title}
@@ -225,7 +254,9 @@ const ListView = ({
                               </span>
                             ))}
                             {task.tags.length > 2 && (
-                              <span className="text-xs text-zinc-400">+{task.tags.length - 2}</span>
+                              <span className="text-xs text-zinc-400">
+                                +{task.tags.length - 2}
+                              </span>
                             )}
                           </div>
                         )}
@@ -239,7 +270,10 @@ const ListView = ({
                       value={task.status}
                       onChange={(e) => {
                         e.stopPropagation();
-                        handleStatusChange(task.id, e.target.value as TaskStatus);
+                        handleStatusChange(
+                          task.id,
+                          e.target.value as TaskStatus,
+                        );
                       }}
                       className={`text-xs font-medium px-2 py-1 rounded-full border-0 focus:outline-1 focus:outline-blue-500 ${getStatusColor(task.status)}`}
                     >
@@ -252,7 +286,9 @@ const ListView = ({
 
                   {/* Priority */}
                   <div className="col-span-1">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
+                    <span
+                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}
+                    >
                       {task.priority}
                     </span>
                   </div>
@@ -280,15 +316,19 @@ const ListView = ({
                   {/* Due Date */}
                   <div className="col-span-2">
                     {settings.showDueDates && task.dueDate ? (
-                      <span className={`text-xs px-2 py-1 rounded-md ${
-                        isOverdue(task.dueDate)
-                          ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-                          : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400'
-                      }`}>
+                      <span
+                        className={`text-xs px-2 py-1 rounded-md ${
+                          isOverdue(task.dueDate)
+                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                            : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400'
+                        }`}
+                      >
                         {formatDate(task.dueDate)}
                       </span>
                     ) : (
-                      <span className="text-sm text-zinc-400 dark:text-zinc-500">-</span>
+                      <span className="text-sm text-zinc-400 dark:text-zinc-500">
+                        -
+                      </span>
                     )}
                   </div>
 

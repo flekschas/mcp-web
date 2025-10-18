@@ -14,12 +14,13 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@mcp-web/types": "workspace:*",
     "ws": "^8.18.0",
-    "zod": "^4.0.14"
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "@types/node": "^24.0.13",
+    "@types/node": "catalog:",
     "@types/ws": "^8.5.13",
-    "typescript": "~5.8.3"
+    "typescript": "catalog:"
   }
 }

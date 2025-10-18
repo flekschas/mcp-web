@@ -8,6 +8,13 @@ export function isZodSchema(schema: z.ZodType<unknown> | z.core.JSONSchema.JSONS
   return typeof schema === 'object' && 'safeParse' in schema;
 }
 
+export function toJSONSchema(schema: z.ZodObject | z.core.JSONSchema.JSONSchema): z.core.JSONSchema.JSONSchema {
+  if (schema && typeof schema === 'object' && 'safeParse' in schema) {
+    return z.toJSONSchema(schema as z.ZodSchema);
+  }
+  return schema;
+}
+
 // Type guard to check if a schema represents an object value (plain object, not array)
 export function isObjectValue<T>(schema?: z.ZodType<T> | z.core.JSONSchema.JSONSchema): boolean {
   if (!schema) return false;
@@ -31,6 +38,7 @@ export function isSupportedValue<T>(schema?: z.ZodType<T> | z.core.JSONSchema.JS
 
   if (typeof schema === 'object' && 'safeParse' in schema) {
     // For Zod schemas, we support most basic types
+    // biome-ignore lint/suspicious/noExplicitAny: It's the internal zod definition
     const zodDef = (schema as any)._def;
     if (zodDef && 'typeName' in zodDef) {
       const unsupportedTypes = ['ZodMap', 'ZodSet', 'ZodFunction', 'ZodLazy', 'ZodPromise'];

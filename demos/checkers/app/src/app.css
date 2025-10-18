@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+#app {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.board-square {
+  @apply w-12 h-12 flex items-center justify-center cursor-pointer transition-all duration-200;
+}
+
+.board-square.light {
+  @apply bg-amber-100;
+}
+
+.board-square.dark {
+  @apply bg-amber-800;
+}
+
+.board-square.selected {
+  @apply ring-4 ring-blue-400;
+}
+
+.board-square.valid-move {
+  @apply ring-2 ring-green-400;
+}
+
+.board-square.valid-move:hover {
+  @apply bg-green-200;
+}
+
+.piece {
+  @apply w-10 h-10 rounded-full border-2 flex items-center justify-center font-bold text-sm;
+}
+
+.piece.red {
+  @apply bg-red-500 border-red-700 text-white;
+}
+
+.piece.black {
+  @apply bg-gray-800 border-gray-900 text-white;
+}
+
+.piece.queen::after {
+  content: '♕';
+}

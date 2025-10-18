@@ -1,4 +1,14 @@
-import type { Task, TeamMember, Column, BoardSettings, UserPreferences, Project, ProjectMetadata, ActivityLogEntry, User } from '../types';
+import type {
+  Task,
+  TeamMember,
+  Column,
+  BoardSettings,
+  UserPreferences,
+  Project,
+  ProjectMetadata,
+  ActivityLogEntry,
+  User,
+} from '../types';
 
 // Mock team members
 export const mockTeamMembers: TeamMember[] = [
@@ -10,7 +20,7 @@ export const mockTeamMembers: TeamMember[] = [
     role: 'Product Manager',
   },
   {
-    id: 'user-2', 
+    id: 'user-2',
     name: 'Bob Smith',
     email: 'bob@example.com',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Bob',
@@ -19,7 +29,7 @@ export const mockTeamMembers: TeamMember[] = [
   {
     id: 'user-3',
     name: 'Carol Davis',
-    email: 'carol@example.com', 
+    email: 'carol@example.com',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Carol',
     role: 'Backend Developer',
   },
@@ -36,14 +46,26 @@ export const mockTeamMembers: TeamMember[] = [
     email: 'eva@example.com',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Eva',
     role: 'QA Engineer',
-  }
+  },
 ];
 
 // Mock columns
 export const mockColumns: Column[] = [
   { id: 'col-1', title: 'To Do', status: 'todo', position: 0, isVisible: true },
-  { id: 'col-2', title: 'In Progress', status: 'in-progress', position: 1, isVisible: true },
-  { id: 'col-3', title: 'Review', status: 'review', position: 2, isVisible: true },
+  {
+    id: 'col-2',
+    title: 'In Progress',
+    status: 'in-progress',
+    position: 1,
+    isVisible: true,
+  },
+  {
+    id: 'col-3',
+    title: 'Review',
+    status: 'review',
+    position: 2,
+    isVisible: true,
+  },
   { id: 'col-4', title: 'Done', status: 'done', position: 3, isVisible: true },
 ];
 
@@ -143,7 +165,7 @@ export const mockTasks: Task[] = [
     createdAt: '2024-01-07T13:20:00Z',
     updatedAt: '2024-01-21T10:45:00Z',
     position: 1,
-  }
+  },
 ];
 
 // Mock board settings
@@ -172,7 +194,8 @@ export const mockProjects: Project[] = [
   {
     id: 'project-1',
     name: 'Project Alpha',
-    description: 'A comprehensive project management application with modern features',
+    description:
+      'A comprehensive project management application with modern features',
     deadline: '2024-03-31T23:59:59Z',
     status: 'active',
     ownerId: 'user-1',
@@ -198,7 +221,7 @@ export const mockProjects: Project[] = [
     preferences: { ...mockUserPreferences, sortBy: 'dueDate' },
   },
   {
-    id: 'project-3', 
+    id: 'project-3',
     name: 'API Documentation',
     description: 'Comprehensive documentation for all REST API endpoints',
     deadline: '2024-02-28T23:59:59Z',
@@ -210,20 +233,22 @@ export const mockProjects: Project[] = [
     teamMembers: [mockTeamMembers[2]], // Carol
     settings: mockBoardSettings,
     preferences: { ...mockUserPreferences, defaultTaskType: 'task' },
-  }
+  },
 ];
 
 // Mock project metadata (summary view)
-export const mockProjectMetadata: ProjectMetadata[] = mockProjects.map(project => ({
-  id: project.id,
-  name: project.name,
-  description: project.description,
-  deadline: project.deadline,
-  status: project.status,
-  ownerId: project.ownerId,
-  createdAt: project.createdAt,
-  updatedAt: project.updatedAt,
-}));
+export const mockProjectMetadata: ProjectMetadata[] = mockProjects.map(
+  (project) => ({
+    id: project.id,
+    name: project.name,
+    description: project.description,
+    deadline: project.deadline,
+    status: project.status,
+    ownerId: project.ownerId,
+    createdAt: project.createdAt,
+    updatedAt: project.updatedAt,
+  }),
+);
 
 // Mock activity log
 export const mockActivityLog: ActivityLogEntry[] = [
@@ -270,7 +295,7 @@ export const mockActivityLog: ActivityLogEntry[] = [
     userId: 'user-1',
     userName: 'Alice Johnson',
     timestamp: '2024-01-20T15:20:00Z',
-  }
+  },
 ];
 
 // Mock users with different roles and preferences
@@ -317,9 +342,13 @@ export const mockUsers: User[] = [
     email: 'eva@example.com',
     avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Eva',
     role: 'qa',
-    preferences: { ...mockUserPreferences, sortBy: 'priority', sortOrder: 'asc' },
+    preferences: {
+      ...mockUserPreferences,
+      sortBy: 'priority',
+      sortOrder: 'asc',
+    },
     isActive: false,
-  }
+  },
 ];
 
 // Default values

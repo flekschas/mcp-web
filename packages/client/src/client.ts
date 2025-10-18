@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { type Query, QuerySchema } from '@mcp-web/types';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -7,84 +8,57 @@ import {
   ListPromptsRequestSchema,
   ListResourcesRequestSchema,
   ListToolsRequestSchema,
+  type Tool,
+  type ListToolsResult,
 } from '@modelcontextprotocol/sdk/types.js';
-import { z } from 'zod';
+import {
+  JsonRpcRequestSchema,
+  JsonRpcResponseSchema,
+  MCPWebClientConfigSchema,
+} from './schemas.js';
+import type {
+  Content,
+  MCPWebBridgeResponse,
+  MCPWebClientConfig,
+  MCPWebClientConfigInput,
+} from './types.js';
 
-export interface ClientConfig {
-  serverUrl: string;
-  authToken: string;
-  timeout?: number;
-}
+export class MCPWebClient {
+  private config: MCPWebClientConfig;
+  private server?: Server;
+  private query?: Query;
+  private isCompleted = false; // Track if query has been completed
 
-const JsonRpcResponse = z.object({
-  jsonrpc: z.string(),
-  id: z.union([z.string(), z.number()]),
-  result: z.any().optional(),
-  error: z.object({
-    code: z.number(),
-    message: z.string(),
-    data: z.any().optional()
-  }).optional()
-});
+  constructor(config: MCPWebClientConfigInput, query?: Query) {
+    this.config = MCPWebClientConfigSchema.parse(config);
 
-interface BridgeResponse {
-  error?: string;
-  data?: any;
-  success?: boolean;
-  available_sessions?: any[];
-  available_tools?: string[];
-  tools?: any[];
-  resources?: any[];
-  prompts?: any[];
-}
-
-interface TextContent {
-  type: 'text';
-  text: string;
-};
-
-interface ImageContent {
-  type: 'image';
-  data: string;
-  mimeType: string;
-};
-
-type Content = TextContent | ImageContent;
-
-export class Client {
-  private config: ClientConfig;
-  private server: Server;
-
-  constructor() {
-    this.config = {
-      serverUrl: process.env.MCP_SERVER_URL || 'http://localhost:3002',
-      authToken: process.env.AUTH_TOKEN || '',
-      timeout: Number.parseInt(process.env.TIMEOUT || '30000')
-    };
-
-    if (!this.config.authToken) {
-      console.error('AUTH_TOKEN environment variable is required');
-      process.exit(1);
+    if (query) {
+      this.query = QuerySchema.parse(query);
     }
 
-    this.server = new Server(
-      {
-        name: 'mcp-frontend-client',
-        version: '1.0.0',
-      },
-      {
-        capabilities: {
-          tools: {},
-          resources: {},
-          prompts: {},
+    // Only create server for root instances (not contextualized ones)
+    if (!this.query) {
+      this.server = new Server(
+        {
+          name: '@mcp-web/client',
+          version: '1.0.0',
         },
-      }
-    );
+        {
+          capabilities: {
+            tools: {},
+            resources: {},
+            prompts: {},
+          },
+        }
+      );
 
-    this.setupHandlers();
+      this.setupHandlers();
+    }
   }
 
   private setupHandlers() {
+    if (!this.server) return;
+
     // Handle tool listing
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
       try {
@@ -196,26 +170,256 @@ export class Client {
     });
   }
 
-  private async makeRequest(method: string, params?: any): Promise<BridgeResponse> {
+  /**
+   * Create a contextualized client for a specific query.
+   * All tool calls made through this client will be tagged with the query UUID.
+   *
+   * @param query - The query object containing uuid and optional responseTool
+   */
+  contextualize(query: Query): MCPWebClient {
+    return new MCPWebClient(this.config, query);
+  }
+
+  /**
+   * Call a tool, automatically augmented with query context if this is a
+   * contextualized client.
+   */
+  async callTool(name: string, args: unknown) {
+    if (this.query && this.isCompleted) {
+      throw new Error('Cannot call tools on a completed query. This contextualized client has already called complete().');
+    }
+
+    // Check tool restrictions if query has them
+    if (this.query?.restrictTools && this.query?.tools) {
+      const allowed = this.query.tools.some(t => t.name === name);
+      if (!allowed) {
+        throw new Error(
+          `Tool '${name}' not allowed. Query restricted to: ${this.query.tools.map(t => t.name).join(', ')}`
+        );
+      }
+    }
+
+    const params = {
+      name,
+      arguments: args || {},
+      // Augment with query context if this is a contextualized instance
+      ...(this.query && { _queryContext: { queryId: this.query.uuid } })
+    };
+
+    const response = await this.makeRequest('tools/call', params);
+
+    if (response.error) {
+      throw new Error(response.error);
+    }
+
+    // Auto-complete if this was the responseTool
+    if (this.query?.responseTool?.name === name) {
+      this.isCompleted = true;
+    }
+
+    return response;
+  }
+
+  async listTools(): Promise<ListToolsResult> {
+    // If we have tools from the query, return those
+    if (this.query?.tools) {
+      // Need to convert ToolDefinition to Tool format expected by MCP
+      const tools = this.query.tools.map(t => ({
+        name: t.name,
+        description: t.description,
+        inputSchema: t.inputSchema || { type: 'object', properties: {}, required: [] }
+      }));
+      return { tools: tools as Tool[] };
+    }
+
+    // Otherwise fetch from bridge (requires auth via query context or token)
+    const params = this.query
+      ? { _queryContext: { queryId: this.query.uuid } }
+      : undefined;
+
+    const response = await this.makeRequest('tools/list', params);
+    return response.tools ? { tools: response.tools as Tool[] } : { tools: [] };
+  }
+
+  /**
+   * Send a progress update for the current query.
+   * Can only be called on a contextualized client instance.
+   */
+  async sendProgress(message: string): Promise<void> {
+    if (!this.query) {
+      throw new Error('sendProgress can only be called on a contextualized client instance');
+    }
+
+    if (this.isCompleted) {
+      throw new Error('Cannot send progress on a completed query. This contextualized client has already called complete().');
+    }
+
+    const url = this.config.serverUrl.replace('ws:', 'http:').replace('wss:', 'https:');
+    const progressUrl = `${url}/query/${this.query.uuid}/progress`;
+
+    try {
+      const response = await fetch(progressUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to send progress: HTTP ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Failed to send query progress:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Mark the current query as complete with a message.
+   * Can only be called on a contextualized client instance.
+   * Note: If the query specified a responseTool, calling this method will result in an error.
+   */
+  async complete(message: string): Promise<void> {
+    if (!this.query) {
+      throw new Error('complete can only be called on a contextualized client instance');
+    }
+
+    if (this.isCompleted) {
+      throw new Error('Query already completed. complete() can only be called once per contextualized client.');
+    }
+
+    const url = this.config.serverUrl.replace('ws:', 'http:').replace('wss:', 'https:');
+    const completeUrl = `${url}/query/${this.query.uuid}/complete`;
+
+    try {
+      const response = await fetch(completeUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ message })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: response.statusText })) as { error?: string };
+        throw new Error(`Failed to complete query: ${errorData.error || response.statusText}`);
+      }
+
+      // Only mark as completed after successful response
+      this.isCompleted = true;
+    } catch (error) {
+      console.error('Failed to complete query:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Mark the current query as failed with an error message.
+   * Can only be called on a contextualized client instance.
+   * Use this when the query encounters an error during processing.
+   */
+  async fail(error: string | Error): Promise<void> {
+    if (!this.query) {
+      throw new Error('fail can only be called on a contextualized client instance');
+    }
+
+    if (this.isCompleted) {
+      throw new Error('Query already completed. Cannot fail a completed query.');
+    }
+
+    const errorMessage = typeof error === 'string' ? error : error.message;
+    const url = this.config.serverUrl.replace('ws:', 'http:').replace('wss:', 'https:');
+    const failUrl = `${url}/query/${this.query.uuid}/fail`;
+
+    try {
+      const response = await fetch(failUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ error: errorMessage })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: response.statusText })) as { error?: string };
+        throw new Error(`Failed to mark query as failed: ${errorData.error || response.statusText}`);
+      }
+
+      // Mark as completed to prevent further operations
+      this.isCompleted = true;
+    } catch (err) {
+      console.error('Failed to mark query as failed:', err);
+      throw err;
+    }
+  }
+
+  /**
+   * Cancel the current query.
+   * Can only be called on a contextualized client instance.
+   * Use this when the user or system needs to abort query processing.
+   */
+  async cancel(): Promise<void> {
+    if (!this.query) {
+      throw new Error('cancel can only be called on a contextualized client instance');
+    }
+
+    if (this.isCompleted) {
+      throw new Error('Query already completed. Cannot cancel a completed query.');
+    }
+
+    const url = this.config.serverUrl.replace('ws:', 'http:').replace('wss:', 'https:');
+    const cancelUrl = `${url}/query/${this.query.uuid}/cancel`;
+
+    try {
+      const response = await fetch(cancelUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({})
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: response.statusText })) as { error?: string };
+        throw new Error(`Failed to cancel query: ${errorData.error || response.statusText}`);
+      }
+
+      // Mark as completed to prevent further operations
+      this.isCompleted = true;
+    } catch (err) {
+      console.error('Failed to cancel query:', err);
+      throw err;
+    }
+  }
+
+  private async makeRequest(method: string, params?: Record<string, unknown>): Promise<MCPWebBridgeResponse> {
     const url = this.config.serverUrl.replace('ws:', 'http:').replace('wss:', 'https:');
 
-    const requestBody = {
+    const requestBody = JsonRpcRequestSchema.parse({
       jsonrpc: '2.0',
       id: Date.now(),
       method,
       params
-    };
+    });
 
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
 
+      // Only include Authorization header if we have an authToken
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (this.config.authToken) {
+        headers['Authorization'] = `Bearer ${this.config.authToken}`;
+      }
+      // If no authToken, params should include _queryContext for auth
+
       const response = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.config.authToken}`
-        },
+        headers,
         body: JSON.stringify(requestBody),
         signal: controller.signal
       });
@@ -228,13 +432,13 @@ export class Client {
 
       const rawData = await response.json();
 
-      const data = JsonRpcResponse.parse(rawData);
+      const data = JsonRpcResponseSchema.parse(rawData);
 
       if (data.error) {
         throw new Error(`MCP Error: ${data.error.message}`);
       }
 
-      return data.result as BridgeResponse;
+      return data.result as MCPWebBridgeResponse;
 
     } catch (error) {
       if (error instanceof Error) {
@@ -248,6 +452,14 @@ export class Client {
   }
 
   async run() {
+    if (this.query) {
+      throw new Error('Cannot run a contextualized client instance. Only root clients can be run as MCP servers.');
+    }
+
+    if (!this.server) {
+      throw new Error('Server not initialized. Cannot run client.');
+    }
+
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     console.error('MCP Bridge Client started');

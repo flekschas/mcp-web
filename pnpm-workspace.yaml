@@ -1,4 +1,15 @@
 packages:
   - 'demos/*'
+  - 'demos/*/app'
+  - 'demos/*/agent'
+  - 'demos/*/bridge'
+  - 'demos/*/shared'
   - 'packages/*'
   - 'packages/integrations/*'
+
+catalog:
+  '@types/node': ^24.7.0
+  ajv: ^8.17.1
+  tsx: ^4.19.2
+  typescript: ~5.9.3
+  zod: ~4.1.12

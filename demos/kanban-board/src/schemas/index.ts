@@ -2,12 +2,34 @@ import { z } from 'zod';
 
 // Enum schemas
 export const TaskPrioritySchema = z.enum(['low', 'medium', 'high', 'urgent']);
-export const TaskStatusSchema = z.enum(['todo', 'in-progress', 'review', 'done']);
-export const TaskTypeSchema = z.enum(['bug', 'feature', 'story', 'epic', 'task']);
+export const TaskStatusSchema = z.enum([
+  'todo',
+  'in-progress',
+  'review',
+  'done',
+]);
+export const TaskTypeSchema = z.enum([
+  'bug',
+  'feature',
+  'story',
+  'epic',
+  'task',
+]);
 export const ViewModeSchema = z.enum(['board', 'list', 'stats']);
 export const ThemeModeSchema = z.enum(['light', 'dark', 'auto']);
-export const ProjectStatusSchema = z.enum(['planning', 'active', 'on-hold', 'completed']);
-export const SortBySchema = z.enum(['priority', 'dueDate', 'createdAt', 'updatedAt', 'title']);
+export const ProjectStatusSchema = z.enum([
+  'planning',
+  'active',
+  'on-hold',
+  'completed',
+]);
+export const SortBySchema = z.enum([
+  'priority',
+  'dueDate',
+  'createdAt',
+  'updatedAt',
+  'title',
+]);
 export const SortOrderSchema = z.enum(['asc', 'desc']);
 
 // Core entity schemas
@@ -61,7 +83,6 @@ export const UserPreferencesSchema = z.object({
   defaultPriority: TaskPrioritySchema,
 });
 
-
 export const ProjectMetadataSchema = z.object({
   id: z.string().min(1, 'Project ID is required'),
   name: z.string().min(1, 'Project name is required').max(100, 'Name too long'),
@@ -111,20 +132,25 @@ export const ProjectListSchema = z.array(ProjectSchema);
 // Schema split configurations for complex objects
 export const boardSettingsSplitPlan = {
   display: ['theme', 'compactMode'],
-  visibility: ['showAssigneeAvatars', 'showDueDates', 'showTags', 'showTaskTypes'],
-  notifications: ['notificationsEnabled']
+  visibility: [
+    'showAssigneeAvatars',
+    'showDueDates',
+    'showTags',
+    'showTaskTypes',
+  ],
+  notifications: ['notificationsEnabled'],
 } as const;
 
 export const userPreferencesSplitPlan = {
   sorting: ['sortBy', 'sortOrder'],
   display: ['groupByAssignee', 'hiddenColumns'],
-  defaults: ['defaultTaskType', 'defaultPriority']
+  defaults: ['defaultTaskType', 'defaultPriority'],
 } as const;
 
 export const projectMetadataSplitPlan = {
   basic: ['name', 'description', 'status'],
   timeline: ['deadline', 'createdAt', 'updatedAt'],
-  ownership: ['ownerId']
+  ownership: ['ownerId'],
 } as const;
 
 // Google Drive integration schemas

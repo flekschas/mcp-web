@@ -1,6 +1,6 @@
 
+import type { ToolDefinition, ToolResult } from '@mcp-web/types';
 import type { z } from 'zod';
-import type { ToolDefinition, ToolResult } from './types.js';
 
 export abstract class BaseTool<TParams, TResult> {
   abstract readonly name: string;

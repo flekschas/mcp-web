@@ -1,7 +1,7 @@
+import type { ToolDefinition, ToolError, ToolResult } from '@mcp-web/types';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { BaseTool } from '../base.js';
-import type { ToolDefinition, ToolResult, ToolError } from '../types.js';
 
 interface Options {
   /** The name of the tool. */
@@ -136,7 +136,7 @@ const getPromiseAndResolveReject = <T>() => {
     resolve = res;
     reject = rej;
   });
-  // @ts-ignore: We know that the resolve and reject functions are defined
+  // @ts-expect-error: We know that the resolve and reject functions are defined
   return { promise, resolve, reject };
 }
 
