@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ToolDefinitionSchema } from './tools';
+import { SerializableToolMetadataSchema } from './tools';
 
 export const ProcessedContextItemSchema = z.object({
   name: z.string(),
@@ -13,8 +13,8 @@ export const QuerySchema = z.object({
   uuid: z.string(),
   prompt: z.string(),
   context: z.array(ProcessedContextItemSchema),
-  responseTool: ToolDefinitionSchema.optional(),
-  tools: z.array(ToolDefinitionSchema).optional(),
+  responseTool: SerializableToolMetadataSchema.optional(),
+  tools: z.array(SerializableToolMetadataSchema).optional(),
   restrictTools: z.boolean().optional()
 });
 
@@ -70,21 +70,23 @@ export const QueryCompleteBridgeMessageSchema = z.object({
 export const QueryFailureMessageSchema = z.object({
   type: z.literal('query_failure').default('query_failure'),
   uuid: z.string().describe('The query UUID'),
-  error: z.string().describe('The error message'),
+  error: z.string().describe('The error code'),
+  reason: z.string().optional().describe('The reason for the failure'),
 });
 
 export const QueryCancelMessageSchema = z.object({
   type: z.literal('query_cancel').default('query_cancel'),
   uuid: z.string().describe('The query UUID to cancel'),
+  reason: z.string().optional().describe('The reason for the cancellation'),
 });
 
 // Export inferred types
 export type ProcessedContextItem = z.infer<typeof ProcessedContextItemSchema>;
 export type Query = z.infer<typeof QuerySchema>;
-export type QueryMessage = z.infer<typeof QueryMessageSchema>;
-export type QueryAcceptedMessage = z.infer<typeof QueryAcceptedMessageSchema>;
-export type QueryProgressMessage = z.infer<typeof QueryProgressMessageSchema>;
-export type QueryCompleteClientMessage = z.infer<typeof QueryCompleteClientMessageSchema>;
-export type QueryCompleteBridgeMessage = z.infer<typeof QueryCompleteBridgeMessageSchema>;
-export type QueryFailureMessage = z.infer<typeof QueryFailureMessageSchema>;
-export type QueryCancelMessage = z.infer<typeof QueryCancelMessageSchema>;
+export type QueryMessage = z.output<typeof QueryMessageSchema>;
+export type QueryAcceptedMessage = z.output<typeof QueryAcceptedMessageSchema>;
+export type QueryProgressMessage = z.output<typeof QueryProgressMessageSchema>;
+export type QueryCompleteClientMessage = z.output<typeof QueryCompleteClientMessageSchema>;
+export type QueryCompleteBridgeMessage = z.output<typeof QueryCompleteBridgeMessageSchema>;
+export type QueryFailureMessage = z.output<typeof QueryFailureMessageSchema>;
+export type QueryCancelMessage = z.output<typeof QueryCancelMessageSchema>;

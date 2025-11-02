@@ -1,3 +1,4 @@
+import type { SerializableToolMetadata, ToolDefinition } from '@mcp-web/types';
 import Ajv from 'ajv';
 import { ZodObject, z } from 'zod';
 
@@ -10,7 +11,14 @@ export function isZodSchema(schema: z.ZodType<unknown> | z.core.JSONSchema.JSONS
 
 export function toJSONSchema(schema: z.ZodObject | z.core.JSONSchema.JSONSchema): z.core.JSONSchema.JSONSchema {
   if (schema && typeof schema === 'object' && 'safeParse' in schema) {
-    return z.toJSONSchema(schema as z.ZodSchema);
+    const jsonSchema = z.toJSONSchema(schema as z.ZodSchema);
+    // Remove $schema property to avoid AJV Draft 2020-12 validation errors
+    // Our AJV instance only supports Draft 7
+    if (typeof jsonSchema === 'object' && '$schema' in jsonSchema) {
+      const { $schema: _unused, ...rest } = jsonSchema as Record<string, unknown>;
+      return rest;
+    }
+    return jsonSchema;
   }
   return schema;
 }
@@ -99,4 +107,20 @@ export function validateInput<T>(
   }
 
   return input as T;
+}
+
+/**
+ * Convert a ToolDefinition to SerializableToolMetadata for wire transmission.
+ * Removes the handler and converts Zod schemas to JSON Schema.
+ *
+ * @param tool - The tool definition to convert
+ * @returns Serializable tool metadata without handler, with JSON Schema schemas
+ */
+export function toSerializableToolMetadata(tool: ToolDefinition): SerializableToolMetadata {
+  return {
+    name: tool.name,
+    description: tool.description,
+    inputSchema: tool.inputSchema ? toJSONSchema(tool.inputSchema as z.ZodObject) : undefined,
+    outputSchema: tool.outputSchema ? toJSONSchema(tool.outputSchema as z.ZodObject) : undefined,
+  };
 }

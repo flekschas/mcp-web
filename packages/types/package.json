@@ -26,7 +26,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.15.1",
+    "@modelcontextprotocol/sdk": "catalog:",
     "ajv": "catalog:",
     "zod": "catalog:"
   },

@@ -1,26 +1,34 @@
-import type { ToolDefinition, ToolResult } from '@mcp-web/types';
+import type { ToolDefinition } from '@mcp-web/types';
 import { z } from 'zod';
 import { BaseTool } from '../base.js';
 
-const inputSchema = z.object({ selector: z.string().describe('CSS selector to query') });
-type InputSchema = z.infer<typeof inputSchema>;
-const inputJsonSchema = z.toJSONSchema(inputSchema, { target: "draft-7" });
+const DOMElementSchema = z.object({
+  tagName: z.string(),
+  id: z.string(),
+  className: z.string(),
+  textContent: z.string().nullable(),
+  attributes: z.record(z.string(), z.string())
+});
 
-interface DOMElement {
-  tagName: string;
-  id: string;
-  className: string;
-  textContent: string | null;
-  attributes: Record<string, string>;
-}
+type DOMElement = z.infer<typeof DOMElementSchema>;
 
-function getDOMElements(params: InputSchema): ToolResult<DOMElement[]> {
-  const parsedParams = inputSchema.safeParse(params);
+const GetDOMElementsInputSchema = z.object({
+  selector: z.string().describe('CSS selector to query')
+});
+type GetDOMElementsInput = z.infer<typeof GetDOMElementsInputSchema>;
+
+const GetDOMElementsOutputSchema = z.object({
+  elements: z.array(DOMElementSchema)
+});
+type GetDOMElementsOutput = z.infer<typeof GetDOMElementsOutputSchema>;
+
+const getDOMElementsInputJsonSchema = z.toJSONSchema(GetDOMElementsInputSchema, { target: "draft-7" });
+
+function getDOMElements(params: GetDOMElementsInput): GetDOMElementsOutput {
+  const parsedParams = GetDOMElementsInputSchema.safeParse(params);
 
   if (!parsedParams.success) {
-    return {
-      error: 'Invalid input parameters'
-    }
+    throw new Error(`DOMQueryTool: Invalid input parameters: ${parsedParams.error.message}`);
   }
 
   const { selector } = parsedParams.data;
@@ -28,7 +36,7 @@ function getDOMElements(params: InputSchema): ToolResult<DOMElement[]> {
   const elements = document.querySelectorAll(selector);
 
   return {
-    value: Array.from(elements).map((el) => ({
+    elements: Array.from(elements).map((el) => ({
       tagName: el.tagName,
       id: el.id,
       className: el.className,
@@ -41,31 +49,10 @@ function getDOMElements(params: InputSchema): ToolResult<DOMElement[]> {
   }
 }
 
-export class DOMQueryTool extends BaseTool<{ selector: string }, DOMElement[]> {
-  static readonly NAME = 'dom-query';
-  static readonly DESCRIPTION = 'Query the DOM for elements';
-  static readonly INPUT_SCHEMA = inputJsonSchema;
-
+export class DOMQueryTool extends BaseTool<typeof GetDOMElementsInputSchema, typeof GetDOMElementsOutputSchema> {
+  public readonly name = 'dom-query';
+  public readonly description = 'Query the DOM for elements';
+  public readonly inputSchema = GetDOMElementsInputSchema;
+  public readonly outputSchema = GetDOMElementsOutputSchema;
   public readonly handler = getDOMElements;
-
-  get name() {
-    return DOMQueryTool.NAME;
-  }
-
-  get description() {
-    return DOMQueryTool.DESCRIPTION;
-  }
-
-  get inputSchema() {
-    return DOMQueryTool.INPUT_SCHEMA;
-  }
-
-  override toDefinition(): ToolDefinition {
-    return {
-      name: this.name,
-      description: this.description,
-      handler: this.handler,
-      inputSchema: this.inputSchema
-    };
-  }
 }

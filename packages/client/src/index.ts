@@ -3,10 +3,10 @@
 import { MCPWebClient } from './client.js';
 import { MCPWebClientConfigSchema } from './schemas.js';
 
+export type { Query } from '@mcp-web/types';
 // Export for programmatic use
 export { MCPWebClient } from './client.js';
-export type { MCPWebClientConfig, MCPWebClientConfigInput } from './types.js';
-export type { Query } from '@mcp-web/types';
+export type { MCPWebClientConfig } from './types.js';
 
 // Only run as CLI if this is the main module
 if (import.meta.url === `file://${process.argv[1]}`) {

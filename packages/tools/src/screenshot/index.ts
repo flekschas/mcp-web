@@ -1,4 +1,3 @@
-import type { ToolDefinition, ToolResult } from '@mcp-web/types';
 import { toCanvas, toJpeg, toPng } from 'html-to-image';
 import type { Options as HtmlToImageOptions } from 'html-to-image/lib/types';
 import { z } from 'zod';
@@ -11,34 +10,31 @@ interface Options extends HtmlToImageOptions {
   elementSelector?: string;
 }
 
-const takeScreenshotSchema = z.object({
+const TakeScreenshotInputSchema = z.object({
   elementSelector: z.string().optional().describe('CSS selector to query'),
 });
-type TakeScreenshot = z.infer<typeof takeScreenshotSchema>;
-const takeScreenshotJsonSchema = z.toJSONSchema(takeScreenshotSchema, { target: "draft-7" });
+type TakeScreenshotInput = z.infer<typeof TakeScreenshotInputSchema>;
 
-const createDynamicScreenshot = (options: Options) => {
-  return async (params: TakeScreenshot): Promise<ToolResult<string>> => {
-    return takeScreenshot(params, options);
+const TakeScreenshotOutputSchema = z.object({
+  format: z.enum(['png', 'jpeg', 'webp']).describe('The format of the screenshot'),
+  dataUrl: z.string().describe('The data URL of the screenshot'),
+});
+type TakeScreenshotOutput = z.infer<typeof TakeScreenshotOutputSchema>;
+
+const createScreenshot = (options: Options) => {
+  return async (params?: TakeScreenshotInput): Promise<TakeScreenshotOutput> => {
+    return takeScreenshot(params || {}, options);
   }
 }
 
-const createStaticScreenshot = (options: Options) => {
-  return async (): Promise<ToolResult<string>> => {
-    const staticParams: TakeScreenshot = {
-      elementSelector: options.elementSelector
-    };
-    return takeScreenshot(staticParams, options);
-  }
-}
-
-async function takeScreenshot(params: TakeScreenshot, options: Options): Promise<ToolResult<string>> {
-  const parsedParams = takeScreenshotSchema.safeParse(params);
+async function takeScreenshot(
+  params: TakeScreenshotInput,
+  options: Options
+): Promise<TakeScreenshotOutput> {
+  const parsedParams = TakeScreenshotInputSchema.safeParse(params);
 
   if (!parsedParams.success) {
-    return {
-      error: 'Invalid parameters'
-    }
+    throw new Error('Invalid parameters');
   }
 
   const { elementSelector } = parsedParams.data;
@@ -65,43 +61,25 @@ async function takeScreenshot(params: TakeScreenshot, options: Options): Promise
     }
 
     return {
-      value: result
-    }
-  } catch (_error) {
-    return {
-      error: 'Failed to take screenshot'
-    }
+      format: format || 'png',
+      dataUrl: result,
+    };
+  } catch (error) {
+    throw new Error(`Failed to take screenshot: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
-export class ScreenshotTool extends BaseTool<TakeScreenshot, string> {
-  public readonly name;
-  public readonly description;
-  public readonly inputSchema;
-  public readonly handler;
+export class ScreenshotTool extends BaseTool<typeof TakeScreenshotInputSchema, typeof TakeScreenshotOutputSchema> {
+  public readonly name: string;
+  public readonly description: string;
+  public readonly inputSchema = TakeScreenshotInputSchema;
+  public readonly outputSchema = TakeScreenshotOutputSchema;
+  public readonly handler: (params?: TakeScreenshotInput) => Promise<TakeScreenshotOutput>;
 
   constructor(options: Options) {
     super();
     this.name = options.name || 'screenshot';
     this.description = options.description || 'Take a screenshot of the web page';
-
-    if (options.elementSelector) {
-      // Static mode: no input schema, always use predefined selector
-      this.inputSchema = undefined;
-      this.handler = createStaticScreenshot(options);
-    } else {
-      // Dynamic mode: current behavior
-      this.inputSchema = takeScreenshotJsonSchema;
-      this.handler = createDynamicScreenshot(options);
-    }
-  }
-
-  override toDefinition(): ToolDefinition {
-    return {
-      name: this.name,
-      description: this.description,
-      handler: this.handler,
-      inputSchema: this.inputSchema
-    };
+    this.handler = createScreenshot(options);
   }
 }

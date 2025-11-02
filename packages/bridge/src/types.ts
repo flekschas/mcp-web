@@ -6,7 +6,7 @@ import type {
   QueryFailureMessage,
   QueryMessage,
   QueryProgressMessage,
-  ToolDefinition as TypesToolDefinition
+  ToolMetadata
 } from '@mcp-web/types';
 import type * as WS from 'ws';
 import type { z } from 'zod';
@@ -73,7 +73,8 @@ export type BridgeMessage =
   | QueryAcceptedMessage
   | QueryProgressMessage
   | QueryCompleteBridgeMessage
-  | QueryFailureMessage;
+  | QueryFailureMessage
+  | QueryCancelMessage;
 
 export interface TrackedToolCall {
   tool: string;
@@ -89,7 +90,7 @@ export interface QueryTracking {
   toolCalls: TrackedToolCall[];
   ws: WS.WebSocket;
   state: QueryState;
-  tools?: TypesToolDefinition[];
+  tools?: ToolMetadata[];
   restrictTools?: boolean;
 }
 

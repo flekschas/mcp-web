@@ -23,5 +23,5 @@ export const McpWebConfigSchema = z.object({
   autoConnect: z.boolean().optional().default(true).describe('Whether to automatically connect to the MCP bridge on initialization.'),
 });
 
-export type MCPWebConfig = z.infer<typeof McpWebConfigSchema>;
-export type MCPWebConfigInput = z.input<typeof McpWebConfigSchema>;
+export type MCPWebConfig = z.input<typeof McpWebConfigSchema>;
+export type MCPWebConfigOutput = z.infer<typeof McpWebConfigSchema>;

@@ -1,15 +1,28 @@
 #!/usr/bin/env node
 
-import { type Query, QuerySchema } from '@mcp-web/types';
+import {
+  InvalidAuthenticationErrorCode,
+  MissingAuthenticationErrorCode,
+  type Query,
+  QueryDoneErrorCode,
+  QueryNotActiveErrorCode,
+  QueryNotFoundErrorCode,
+  QuerySchema,
+  ClientNotConextualizedErrorCode,
+} from '@mcp-web/types';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
+  type CallToolRequest,
   CallToolRequestSchema,
+  type CallToolResult,
   ListPromptsRequestSchema,
+  type ListPromptsResult,
   ListResourcesRequestSchema,
+  type ListResourcesResult,
   ListToolsRequestSchema,
-  type Tool,
   type ListToolsResult,
+  type Tool,
 } from '@modelcontextprotocol/sdk/types.js';
 import {
   JsonRpcRequestSchema,
@@ -20,16 +33,16 @@ import type {
   Content,
   MCPWebBridgeResponse,
   MCPWebClientConfig,
-  MCPWebClientConfigInput,
+  MCPWebClientConfigOutput,
 } from './types.js';
 
 export class MCPWebClient {
-  private config: MCPWebClientConfig;
+  private config: MCPWebClientConfigOutput;
   private server?: Server;
   private query?: Query;
-  private isCompleted = false; // Track if query has been completed
+  private isDone = false; // Track if query has been completed
 
-  constructor(config: MCPWebClientConfigInput, query?: Query) {
+  constructor(config: MCPWebClientConfig, query?: Query) {
     this.config = MCPWebClientConfigSchema.parse(config);
 
     if (query) {
@@ -56,69 +69,51 @@ export class MCPWebClient {
     }
   }
 
-  private setupHandlers() {
-    if (!this.server) return;
+  private getQueryContextParams(): { _queryContext: { queryId: string } } | undefined {
+    return this.query ? { _queryContext: { queryId: this.query.uuid } } : undefined;
+  }
 
-    // Handle tool listing
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
-      try {
-        const response = await this.makeRequest('tools/list');
-        return response.tools ? { tools: response.tools } : { tools: [] };
-      } catch (error) {
-        console.error('Failed to list tools:', error);
-        return { tools: [] };
-      }
-    });
+  private async makeToolCallRequest(request: CallToolRequest): Promise<CallToolResult> {
+    try {
+      const { name, arguments: args, _queryContext } = request.params as any;
 
-    // Handle tool calls
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      try {
-        const { name, arguments: args } = request.params;
+      const response = await this.makeRequest('tools/call', {
+        name,
+        arguments: args || {},
+        ...(_queryContext && { _queryContext })
+      });
 
-        const response = await this.makeRequest('tools/call', {
-          name,
-          arguments: args || {}
-        });
-
-        // Handle different response formats
-        if (response.error) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: `Error: ${response.error}${response.available_sessions ? `\n\nAvailable sessions:\n${JSON.stringify(response.available_sessions, null, 2)}` : ''}`
-              }
-            ],
-            isError: true
-          };
-        }
-
-        // Handle successful responses
-        let content: Content[];
-        if (response.data) {
-          if (typeof response.data === 'string') {
-            // Check if it's a data URL (image)
-            if (response.data.startsWith('data:image/')) {
-              content = [
-                {
-                  type: 'image',
-                  data: response.data,
-                  mimeType: response.data.split(';')[0].split(':')[1]
-                }
-              ];
-            } else {
-              content = [
-                {
-                  type: 'text',
-                  text: response.data
-                }
-              ];
+      // Handle different response formats
+      if (response.error) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Error: ${response.error}${response.available_sessions ? `\n\nAvailable sessions:\n${JSON.stringify(response.available_sessions, null, 2)}` : ''}`
             }
+          ],
+          isError: true
+        };
+      }
+
+      // Handle successful responses
+      let content: Content[];
+      if (response.data) {
+        if (typeof response.data === 'string') {
+          // Check if it's a data URL (image)
+          if (response.data.startsWith('data:image/')) {
+            content = [
+              {
+                type: 'image',
+                data: response.data,
+                mimeType: response.data.split(';')[0].split(':')[1]
+              }
+            ];
           } else {
             content = [
               {
                 type: 'text',
-                text: JSON.stringify(response.data, null, 2)
+                text: response.data
               }
             ];
           }
@@ -126,48 +121,76 @@ export class MCPWebClient {
           content = [
             {
               type: 'text',
-              text: JSON.stringify(response, null, 2)
+              text: JSON.stringify(response.data, null, 2)
             }
           ];
         }
-
-        return { content };
-
-      } catch (error) {
-        console.error('Tool call failed:', error);
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Tool execution failed: ${error instanceof Error ? error.message : String(error)}`
-            }
-          ],
-          isError: true
-        };
+      } else {
+        content = [
+          {
+            type: 'text',
+            text: JSON.stringify(response, null, 2)
+          }
+        ];
       }
-    });
+
+      return { content };
+
+    } catch (error) {
+      // Re-throw authentication and query errors
+      if (error instanceof Error) {
+        const errorMessage = error.message;
+        if (errorMessage === MissingAuthenticationErrorCode ||
+            errorMessage === InvalidAuthenticationErrorCode ||
+            errorMessage === QueryNotFoundErrorCode ||
+            errorMessage === QueryNotActiveErrorCode) {
+          throw error;
+        }
+      }
+
+      // All other errors get returned as CallToolResult with isError: true
+      console.error('Tool call failed:', error);
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Tool execution failed: ${error instanceof Error ? error.message : String(error)}`
+          }
+        ],
+        isError: true
+      };
+    }
+  }
+
+  private async makeListToolsRequest(): Promise<ListToolsResult> {
+    const response = await this.makeRequest('tools/list', this.getQueryContextParams());
+    return response.tools ? { tools: response.tools as Tool[] } : { tools: [] };
+  }
+
+  private async makeListResourcesRequest(): Promise<ListResourcesResult> {
+    const response = await this.makeRequest('resources/list', this.getQueryContextParams());
+    return response.resources ? { resources: response.resources as ListResourcesResult['resources'] } : { resources: [] };
+  }
+
+  private async makeListPromptsRequest(): Promise<ListPromptsResult> {
+    const response = await this.makeRequest('prompts/list', this.getQueryContextParams());
+    return response.prompts ? { prompts: response.prompts as ListPromptsResult['prompts'] } : { prompts: [] };
+  }
+
+  private setupHandlers() {
+    if (!this.server) return;
+
+    // Handle tool listing
+    this.server.setRequestHandler(ListToolsRequestSchema, () => this.makeListToolsRequest());
+
+    // Handle tool calls
+    this.server.setRequestHandler(CallToolRequestSchema, this.makeToolCallRequest.bind(this));
 
     // Handle resource listing
-    this.server.setRequestHandler(ListResourcesRequestSchema, async () => {
-      try {
-        const response = await this.makeRequest('resources/list');
-        return response.resources ? { resources: response.resources } : { resources: [] };
-      } catch (error) {
-        console.error('Failed to list resources:', error);
-        return { resources: [] };
-      }
-    });
+    this.server.setRequestHandler(ListResourcesRequestSchema, () => this.makeListResourcesRequest());
 
     // Handle prompt listing
-    this.server.setRequestHandler(ListPromptsRequestSchema, async () => {
-      try {
-        const response = await this.makeRequest('prompts/list');
-        return response.prompts ? { prompts: response.prompts } : { prompts: [] };
-      } catch (error) {
-        console.error('Failed to list prompts:', error);
-        return { prompts: [] };
-      }
-    });
+    this.server.setRequestHandler(ListPromptsRequestSchema, () => this.makeListPromptsRequest());
   }
 
   /**
@@ -184,9 +207,9 @@ export class MCPWebClient {
    * Call a tool, automatically augmented with query context if this is a
    * contextualized client.
    */
-  async callTool(name: string, args: unknown) {
-    if (this.query && this.isCompleted) {
-      throw new Error('Cannot call tools on a completed query. This contextualized client has already called complete().');
+  async callTool(name: string, args?: Record<string, unknown>): Promise<CallToolResult> {
+    if (this.query && this.isDone) {
+      throw new Error(QueryDoneErrorCode);
     }
 
     // Check tool restrictions if query has them
@@ -199,28 +222,36 @@ export class MCPWebClient {
       }
     }
 
-    const params = {
-      name,
-      arguments: args || {},
-      // Augment with query context if this is a contextualized instance
-      ...(this.query && { _queryContext: { queryId: this.query.uuid } })
+    const request: CallToolRequest = {
+      method: 'tools/call',
+      params: {
+        name,
+        arguments: args || {} as Record<string, unknown>,
+        // Augment with query context if this is a contextualized instance
+        ...this.getQueryContextParams()
+      },
     };
 
-    const response = await this.makeRequest('tools/call', params);
-
-    if (response.error) {
-      throw new Error(response.error);
-    }
+    const response = await this.makeToolCallRequest(request);
 
     // Auto-complete if this was the responseTool
     if (this.query?.responseTool?.name === name) {
-      this.isCompleted = true;
+      this.isDone = true;
     }
 
     return response;
   }
 
+  /**
+   * List all available tools.
+   * If this is a contextualized client with restricted tools, returns only those tools.
+   * Otherwise fetches all tools from the bridge.
+   */
   async listTools(): Promise<ListToolsResult> {
+    if (this.isDone) {
+      throw new Error(QueryDoneErrorCode);
+    }
+
     // If we have tools from the query, return those
     if (this.query?.tools) {
       // Need to convert ToolDefinition to Tool format expected by MCP
@@ -232,13 +263,30 @@ export class MCPWebClient {
       return { tools: tools as Tool[] };
     }
 
-    // Otherwise fetch from bridge (requires auth via query context or token)
-    const params = this.query
-      ? { _queryContext: { queryId: this.query.uuid } }
-      : undefined;
+    // Otherwise use the shared request handler
+    return this.makeListToolsRequest();
+  }
 
-    const response = await this.makeRequest('tools/list', params);
-    return response.tools ? { tools: response.tools as Tool[] } : { tools: [] };
+  /**
+   * List all available resources.
+   */
+  async listResources(): Promise<ListResourcesResult> {
+    if (this.isDone) {
+      throw new Error(QueryDoneErrorCode);
+    }
+
+    return this.makeListResourcesRequest();
+  }
+
+  /**
+   * List all available prompts.
+   */
+  async listPrompts(): Promise<ListPromptsResult> {
+    if (this.isDone) {
+      throw new Error(QueryDoneErrorCode);
+    }
+
+    return this.makeListPromptsRequest();
   }
 
   /**
@@ -247,11 +295,11 @@ export class MCPWebClient {
    */
   async sendProgress(message: string): Promise<void> {
     if (!this.query) {
-      throw new Error('sendProgress can only be called on a contextualized client instance');
+      throw new Error(ClientNotConextualizedErrorCode);
     }
 
-    if (this.isCompleted) {
-      throw new Error('Cannot send progress on a completed query. This contextualized client has already called complete().');
+    if (this.isDone) {
+      throw new Error(QueryDoneErrorCode);
     }
 
     const url = this.config.serverUrl.replace('ws:', 'http:').replace('wss:', 'https:');
@@ -267,10 +315,10 @@ export class MCPWebClient {
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to send progress: HTTP ${response.status}`);
+        const errorData = await response.json().catch(() => ({ error: response.statusText })) as { error?: string };
+        throw new Error(errorData.error || `Failed to send progress: HTTP ${response.status}`);
       }
     } catch (error) {
-      console.error('Failed to send query progress:', error);
       throw error;
     }
   }
@@ -282,11 +330,11 @@ export class MCPWebClient {
    */
   async complete(message: string): Promise<void> {
     if (!this.query) {
-      throw new Error('complete can only be called on a contextualized client instance');
+      throw new Error(ClientNotConextualizedErrorCode);
     }
 
-    if (this.isCompleted) {
-      throw new Error('Query already completed. complete() can only be called once per contextualized client.');
+    if (this.isDone) {
+      throw new Error(QueryDoneErrorCode);
     }
 
     const url = this.config.serverUrl.replace('ws:', 'http:').replace('wss:', 'https:');
@@ -307,9 +355,8 @@ export class MCPWebClient {
       }
 
       // Only mark as completed after successful response
-      this.isCompleted = true;
+      this.isDone = true;
     } catch (error) {
-      console.error('Failed to complete query:', error);
       throw error;
     }
   }
@@ -321,11 +368,11 @@ export class MCPWebClient {
    */
   async fail(error: string | Error): Promise<void> {
     if (!this.query) {
-      throw new Error('fail can only be called on a contextualized client instance');
+      throw new Error(ClientNotConextualizedErrorCode);
     }
 
-    if (this.isCompleted) {
-      throw new Error('Query already completed. Cannot fail a completed query.');
+    if (this.isDone) {
+      throw new Error(QueryDoneErrorCode);
     }
 
     const errorMessage = typeof error === 'string' ? error : error.message;
@@ -347,9 +394,8 @@ export class MCPWebClient {
       }
 
       // Mark as completed to prevent further operations
-      this.isCompleted = true;
+      this.isDone = true;
     } catch (err) {
-      console.error('Failed to mark query as failed:', err);
       throw err;
     }
   }
@@ -359,13 +405,13 @@ export class MCPWebClient {
    * Can only be called on a contextualized client instance.
    * Use this when the user or system needs to abort query processing.
    */
-  async cancel(): Promise<void> {
+  async cancel(reason?: string): Promise<void> {
     if (!this.query) {
-      throw new Error('cancel can only be called on a contextualized client instance');
+      throw new Error(ClientNotConextualizedErrorCode);
     }
 
-    if (this.isCompleted) {
-      throw new Error('Query already completed. Cannot cancel a completed query.');
+    if (this.isDone) {
+      throw new Error(QueryDoneErrorCode);
     }
 
     const url = this.config.serverUrl.replace('ws:', 'http:').replace('wss:', 'https:');
@@ -377,7 +423,7 @@ export class MCPWebClient {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({})
+        body: JSON.stringify(reason ? { reason } : {})
       });
 
       if (!response.ok) {
@@ -386,9 +432,8 @@ export class MCPWebClient {
       }
 
       // Mark as completed to prevent further operations
-      this.isCompleted = true;
+      this.isDone = true;
     } catch (err) {
-      console.error('Failed to cancel query:', err);
       throw err;
     }
   }
@@ -413,7 +458,7 @@ export class MCPWebClient {
       };
 
       if (this.config.authToken) {
-        headers['Authorization'] = `Bearer ${this.config.authToken}`;
+        headers.Authorization = `Bearer ${this.config.authToken}`;
       }
       // If no authToken, params should include _queryContext for auth
 
@@ -435,7 +480,7 @@ export class MCPWebClient {
       const data = JsonRpcResponseSchema.parse(rawData);
 
       if (data.error) {
-        throw new Error(`MCP Error: ${data.error.message}`);
+        throw new Error(data.error.message);
       }
 
       return data.result as MCPWebBridgeResponse;

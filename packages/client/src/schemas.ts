@@ -19,7 +19,7 @@ export const JsonRpcRequestSchema = z.object({
 });
 
 export const MCPWebClientConfigSchema = z.object({
-  serverUrl: z.string().url(),
+  serverUrl: z.url(),
   authToken: z.string().min(1).optional(),
   timeout: z.number().optional().default(30000)
 });

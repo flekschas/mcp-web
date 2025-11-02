@@ -1,18 +1,17 @@
-
-import type { ToolDefinition, ToolResult } from '@mcp-web/types';
+import type { ToolDefinition } from '@mcp-web/types';
 import type { z } from 'zod';
 
-export abstract class BaseTool<TParams, TResult> {
+export abstract class BaseTool<
+  TInput extends z.ZodObject,
+  TOutput extends z.ZodObject,
+> {
   abstract readonly name: string;
   abstract readonly description: string;
-  abstract readonly inputSchema: z.core.JSONSchema.JSONSchema | undefined;
-  readonly outputSchema?: z.core.JSONSchema.JSONSchema | z.ZodObject | undefined;
-  abstract readonly handler: (params: TParams) => ToolResult<TResult> | Promise<ToolResult<TResult>>;
+  abstract readonly inputSchema?: TInput;
+  abstract readonly outputSchema: TOutput;
+  abstract readonly handler: (params: z.infer<TInput>) => z.infer<TOutput> | Promise<z.infer<TOutput>>;
 
-  /**
-   * Returns a ToolDefinition object that can be validated with your schema
-   */
-  toDefinition(): ToolDefinition {
+  get definition(): ToolDefinition {
     return {
       name: this.name,
       description: this.description,

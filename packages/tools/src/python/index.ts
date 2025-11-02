@@ -1,4 +1,4 @@
-import type { ToolDefinition, ToolError, ToolResult } from '@mcp-web/types';
+import type { ToolDefinition } from '@mcp-web/types';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { BaseTool } from '../base.js';
@@ -12,9 +12,15 @@ interface Options {
   defaultPackages?: string[];
 }
 
-const runPythonSchema = z.object({ script: z.string().describe('Python script to run') });
-type RunPythonSchema = z.infer<typeof runPythonSchema>;
-const runPythonJsonSchema = z.toJSONSchema(runPythonSchema, { target: "draft-7" });
+const RunPythonInputSchema = z.object({
+  script: z.string().describe('Python script to run')
+});
+type RunPythonInput = z.infer<typeof RunPythonInputSchema>;
+
+const RunPythonOutputSchema = z.object({ result: z.string().describe('The result of the Python script') });
+type RunPythonOutput = z.infer<typeof RunPythonOutputSchema>;
+
+const runPythonJsonSchema = z.toJSONSchema(RunPythonInputSchema, { target: "draft-7" });
 
 export interface WorkerMessagePackages {
   packages: string[];
@@ -130,9 +136,9 @@ const createWorker = (options: Options) => {
 }
 
 const getPromiseAndResolveReject = <T>() => {
-  let resolve: (value: ToolResult<T> | PromiseLike<ToolResult<T>>) => void;
-  let reject: (error: ToolError) => void;
-  const promise = new Promise<ToolResult<T>>((res, rej) => {
+  let resolve: (value: T | PromiseLike<T>) => void;
+  let reject: (error: Error) => void;
+  const promise = new Promise<T>((res, rej) => {
     resolve = res;
     reject = rej;
   });
@@ -143,18 +149,16 @@ const getPromiseAndResolveReject = <T>() => {
 const createRunPython = (
   worker: Worker,
   getDatasets: () => Record<string, unknown> | Promise<Record<string, unknown>>
-) => async (params: RunPythonSchema): Promise<ToolResult<string>> => {
-  const parsedParams = runPythonSchema.safeParse(params);
+) => async (params: RunPythonInput): Promise<RunPythonOutput> => {
+  const parsedParams = RunPythonInputSchema.safeParse(params);
 
   if (!parsedParams.success) {
-    return {
-      error: 'Invalid input parameters'
-    }
+    throw new Error(`PythonTool: Invalid input parameters: ${parsedParams.error.message}`);
   }
 
   const { script } = parsedParams.data;
 
-  const { promise, resolve, reject } = getPromiseAndResolveReject<string>();
+  const { promise, resolve, reject } = getPromiseAndResolveReject<RunPythonOutput>();
   const executionId = uuidv4();
 
   worker.addEventListener("message", function listener(event: MessageEvent<WorkerResponse>) {
@@ -167,23 +171,30 @@ const createRunPython = (
     worker.removeEventListener("message", listener);
 
     if ('error' in event.data) {
-      reject(event.data satisfies ToolError);
+      reject(new Error(event.data.error));
       return;
     }
 
-    resolve({ value: event.data.result } satisfies ToolResult<string>);
+    resolve({ result: event.data.result });
   });
 
-  worker.postMessage({ id: executionId, script, datasets: await getDatasets() } satisfies WorkerMessageRunPython);
+  worker.postMessage(
+    {
+      id: executionId,
+      script,
+      datasets: await getDatasets()
+    } satisfies WorkerMessageRunPython
+  );
 
   return promise;
 }
 
-export class PythonTool extends BaseTool<RunPythonSchema, string> {
+export class PythonTool extends BaseTool<typeof RunPythonInputSchema, typeof RunPythonOutputSchema> {
   public readonly name;
   public readonly description;
-  public readonly inputSchema = runPythonJsonSchema;
-  public readonly handler;
+  public readonly inputSchema = RunPythonInputSchema;
+  public readonly outputSchema = RunPythonOutputSchema;
+  public readonly handler: (params: RunPythonInput) => Promise<RunPythonOutput>;
   private worker: Worker;
 
   constructor(getDatasets: () => Record<string, unknown>, options: Options) {
@@ -194,12 +205,7 @@ export class PythonTool extends BaseTool<RunPythonSchema, string> {
     this.handler = createRunPython(this.worker, getDatasets);
   }
 
-  override toDefinition(): ToolDefinition {
-    return {
-      name: this.name,
-      description: this.description,
-      handler: this.handler,
-      inputSchema: this.inputSchema
-    };
+  destroy() {
+    this.worker.terminate();
   }
 }

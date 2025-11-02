@@ -6,8 +6,10 @@ packages:
   - 'demos/*/shared'
   - 'packages/*'
   - 'packages/integrations/*'
+  - 'tests'
 
 catalog:
+  '@modelcontextprotocol/sdk': ^1.15.1
   '@types/node': ^24.7.0
   ajv: ^8.17.1
   tsx: ^4.19.2

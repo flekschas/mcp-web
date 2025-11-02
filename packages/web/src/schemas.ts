@@ -65,9 +65,16 @@ export const QueryResponseFailureSchema = z.object({
   error: z.string(),
 });
 
+export const QueryResponseCancelSchema = z.object({
+  type: z.literal('query_cancel').default('query_cancel'),
+  uuid: z.string(),
+  reason: z.string().optional(),
+});
+
 export const QueryResponseSchema = z.union([
   QueryResponseAcceptedSchema,
   QueryResponseProgressSchema,
   QueryResponseCompleteSchema,
-  QueryResponseFailureSchema
+  QueryResponseFailureSchema,
+  QueryResponseCancelSchema,
 ]);

@@ -1,11 +1,10 @@
-import { strict as assert } from 'node:assert';
-import { test } from 'node:test';
+import { test, expect } from 'bun:test';
 import { z } from 'zod';
 
 // Import the decompose functions
-import { applyPartialUpdate, decomposeSchema, validatePlan } from './index.js';
-import { parseEnumSplit } from './utils.js';
-import { validateSliceCompleteness } from './validate.js';
+import { applyPartialUpdate, decomposeSchema, validatePlan } from './index.ts';
+import { parseEnumSplit } from './utils.ts';
+import { validateSliceCompleteness } from './validate.ts';
 
 test('decomposeSchema - basic object decomposition', () => {
   const schema = z.object({
@@ -20,15 +19,15 @@ test('decomposeSchema - basic object decomposition', () => {
   });
 
   // Should create at least one decomposed schema
-  assert.ok(decomposed);
-  assert.equal(Array.isArray(decomposed), true);
+  expect(decomposed).toBeDefined();
+  expect(Array.isArray(decomposed)).toBe(true);
 
   // Each decomposed schema should have required properties
   decomposed.forEach((item) => {
-    assert.ok(item.name);
-    assert.ok(item.schema);
-    assert.ok(item.targetPaths);
-    assert.equal(Array.isArray(item.targetPaths), true);
+    expect(item.name).toBeDefined();
+    expect(item.schema).toBeDefined();
+    expect(item.targetPaths).toBeDefined();
+    expect(Array.isArray(item.targetPaths)).toBe(true);
   });
 
   // Test that decomposed schemas work correctly with safeParse
@@ -41,25 +40,25 @@ test('decomposeSchema - basic object decomposition', () => {
 
   if (basicSchema) {
     // Test valid data
-    assert.ok(basicSchema.schema.safeParse({
+    expect(basicSchema.schema.safeParse({
       name: 'John Doe',
       age: 30,
       email: 'john.doe@example.com'
-    }).success);
+    }).success).toBe(true);
 
     // Test invalid email
-    assert.ok(!basicSchema.schema.safeParse({
+    expect(basicSchema.schema.safeParse({
       name: 'John Doe',
       age: 30,
       email: 'invalid-email'
-    }).success);
+    }).success).toBe(false);
 
     // Test invalid age type
-    assert.ok(!basicSchema.schema.safeParse({
+    expect(basicSchema.schema.safeParse({
       name: 'John Doe',
       age: 'thirty',
       email: 'john.doe@example.com'
-    }).success);
+    }).success).toBe(false);
   }
 });
 
@@ -85,15 +84,15 @@ test('decomposeSchema - nested object decomposition', () => {
     'settings.theme',
   ]);
 
-  assert.ok(decomposed);
-  assert.equal(Array.isArray(decomposed), true);
+  expect(decomposed).toBeDefined();
+  expect(Array.isArray(decomposed)).toBe(true);
 
   // Verify that target paths are properly tracked
   const allPaths = decomposed.flatMap((item) => item.targetPaths);
   const hasNestedPaths = allPaths.some((path) => path.includes('.'));
 
   // Should have nested paths for nested objects
-  assert.equal(hasNestedPaths, true);
+  expect(hasNestedPaths).toBe(true);
 
   // Test that we have the expected structure but skip complex safeParse validation
   // since nested schemas may have complex internal structures that are harder to test directly
@@ -104,24 +103,24 @@ test('decomposeSchema - nested object decomposition', () => {
   const themeSchema = decomposed.find(d => d.targetPaths.includes('settings.theme'));
 
   // Just verify the schemas exist and have the expected structure
-  assert.ok(userNameSchema, 'Should have schema for user.name path');
-  assert.ok(bioSchema, 'Should have schema for user.profile.bio path');
-  assert.ok(themeSchema, 'Should have schema for settings.theme path');
+  expect(userNameSchema).toBeDefined();
+  expect(bioSchema).toBeDefined();
+  expect(themeSchema).toBeDefined();
 
   // Test structure exists
   if (userNameSchema) {
-    assert.ok(userNameSchema.schema, 'user.name schema should exist');
-    assert.ok(userNameSchema.name, 'user.name schema should have a name');
+    expect(userNameSchema.schema).toBeDefined();
+    expect(userNameSchema.name).toBeDefined();
   }
 
   if (bioSchema) {
-    assert.ok(bioSchema.schema, 'bio schema should exist');
-    assert.ok(bioSchema.name, 'bio schema should have a name');
+    expect(bioSchema.schema).toBeDefined();
+    expect(bioSchema.name).toBeDefined();
   }
 
   if (themeSchema) {
-    assert.ok(themeSchema.schema, 'theme schema should exist');
-    assert.ok(themeSchema.name, 'theme schema should have a name');
+    expect(themeSchema.schema).toBeDefined();
+    expect(themeSchema.name).toBeDefined();
   }
 });
 
@@ -139,7 +138,7 @@ test('decomposeSchema - large enum splitting', () => {
     maxOptionsPerEnum: 50,
   });
 
-  assert.ok(decomposed);
+  expect(decomposed).toBeDefined();
 
   // Should split the large enum into multiple schemas
   const enumSchemas = decomposed.filter((item) =>
@@ -147,7 +146,7 @@ test('decomposeSchema - large enum splitting', () => {
   );
 
   // Should have multiple enum chunks
-  assert.equal(enumSchemas.length > 1, true);
+  expect(enumSchemas.length > 1).toBe(true);
 
   // Test that decomposed enum schemas work correctly with safeParse
   enumSchemas.forEach((enumSchema) => {
@@ -160,8 +159,7 @@ test('decomposeSchema - large enum splitting', () => {
         name: 'Test Name'
       };
 
-      assert.ok(enumSchema.schema.safeParse(testData).success,
-        `Valid enum option ${validOption} should pass validation for schema ${enumSchema.name}`);
+      expect(enumSchema.schema.safeParse(testData).success).toBe(true);
 
       // Test with invalid enum option
       const invalidData = {
@@ -169,8 +167,7 @@ test('decomposeSchema - large enum splitting', () => {
         name: 'Test Name'
       };
 
-      assert.ok(!enumSchema.schema.safeParse(invalidData).success,
-        `Invalid enum option should fail validation for schema ${enumSchema.name}`);
+      expect(enumSchema.schema.safeParse(invalidData).success).toBe(false);
     }
   });
 
@@ -180,8 +177,8 @@ test('decomposeSchema - large enum splitting', () => {
   );
 
   if (nameSchema) {
-    assert.ok(nameSchema.schema.safeParse({ name: 'Test Name' }).success);
-    assert.ok(!nameSchema.schema.safeParse({ name: 123 }).success); // Invalid type
+    expect(nameSchema.schema.safeParse({ name: 'Test Name' }).success).toBe(true);
+    expect(nameSchema.schema.safeParse({ name: 123 }).success).toBe(false);
   }
 });
 
@@ -204,9 +201,9 @@ test('applyPartialUpdate - basic property update', () => {
     partialUpdate,
   ) as typeof currentState;
 
-  assert.equal(result.name, 'Jane');
-  assert.equal(result.age, 25);
-  assert.equal(result.email, 'john@example.com'); // unchanged
+  expect(result.name).toBe('Jane');
+  expect(result.age).toBe(25);
+  expect(result.email).toBe('john@example.com');
 });
 
 test('applyPartialUpdate - nested property update', () => {
@@ -236,11 +233,11 @@ test('applyPartialUpdate - nested property update', () => {
     partialUpdate,
   ) as typeof currentState;
 
-  assert.equal(result.user.profile.bio, 'Updated bio');
-  assert.equal(result.settings.theme, 'dark');
-  assert.equal(result.user.name, 'John'); // unchanged
-  assert.equal(result.user.profile.avatar, 'avatar1.jpg'); // unchanged
-  assert.equal(result.settings.notifications, true); // unchanged
+  expect(result.user.profile.bio).toBe('Updated bio');
+  expect(result.settings.theme).toBe('dark');
+  expect(result.user.name).toBe('John');
+  expect(result.user.profile.avatar).toBe('avatar1.jpg');
+  expect(result.settings.notifications).toBe(true);
 });
 
 test('schema validity - decomposed schemas produce valid data', () => {
@@ -271,7 +268,7 @@ test('schema validity - decomposed schemas produce valid data', () => {
 
   // Validate with original schema
   const originalResult = originalSchema.safeParse(testData);
-  assert.equal(originalResult.success, true);
+  expect(originalResult.success).toBe(true);
 
   // Apply updates using each decomposed schema and verify the result is still valid
   decomposed.forEach((decomposedItem) => {
@@ -298,11 +295,7 @@ test('schema validity - decomposed schemas produce valid data', () => {
         sampleUpdate,
       );
       const finalResult = originalSchema.safeParse(updatedData);
-      assert.equal(
-        finalResult.success,
-        true,
-        `Updated data failed original schema validation after applying ${decomposedItem.name}`,
-      );
+      expect(finalResult.success).toBe(true);
     }
   });
 });
@@ -347,7 +340,7 @@ test('roundtrip test - multiple partial updates should preserve validity', () =>
 
   // Verify initial data is valid
   const initialResult = schema.safeParse(currentData);
-  assert.equal(initialResult.success, true);
+  expect(initialResult.success).toBe(true);
 
   // Apply multiple partial updates
   decomposed.forEach((decomposedItem, index) => {
@@ -397,11 +390,7 @@ test('roundtrip test - multiple partial updates should preserve validity', () =>
 
       // Verify data is still valid after each update
       const updateResult = schema.safeParse(currentData);
-      assert.equal(
-        updateResult.success,
-        true,
-        `Data became invalid after applying update ${index} (${decomposedItem.name})`,
-      );
+      expect(updateResult.success).toBe(true);
     }
   });
 });
@@ -410,37 +399,37 @@ test('roundtrip test - multiple partial updates should preserve validity', () =>
 
 test('parseEnumSplit - handles all slice notation formats', () => {
   // Regular path
-  assert.deepEqual(parseEnumSplit('category'), { path: 'category' });
+  expect(parseEnumSplit('category')).toEqual({ path: 'category' });
 
   // Chunk size notation
-  assert.deepEqual(parseEnumSplit('category[50]'), {
+  expect(parseEnumSplit('category[50]')).toEqual({
     path: 'category',
     chunkSize: 50,
   });
 
   // Full slice notation
-  assert.deepEqual(parseEnumSplit('category[10:20]'), {
+  expect(parseEnumSplit('category[10:20]')).toEqual({
     path: 'category',
     start: 10,
     end: 20,
   });
 
   // From index to end
-  assert.deepEqual(parseEnumSplit('category[10:]'), {
+  expect(parseEnumSplit('category[10:]')).toEqual({
     path: 'category',
     start: 10,
     end: undefined,
   });
 
   // From start to index
-  assert.deepEqual(parseEnumSplit('category[:20]'), {
+  expect(parseEnumSplit('category[:20]')).toEqual({
     path: 'category',
     start: 0,
     end: 20,
   });
 
   // Entire enum
-  assert.deepEqual(parseEnumSplit('category[:]'), {
+  expect(parseEnumSplit('category[:]')).toEqual({
     path: 'category',
     start: 0,
     end: undefined,
@@ -455,7 +444,7 @@ test('validateSliceCompleteness - valid complete slices', () => {
   ];
 
   const errors = validateSliceCompleteness('category', slices, 150);
-  assert.equal(errors.length, 0);
+  expect(errors.length).toBe(0);
 });
 
 test('validateSliceCompleteness - detects gaps', () => {
@@ -465,9 +454,9 @@ test('validateSliceCompleteness - detects gaps', () => {
   ];
 
   const errors = validateSliceCompleteness('category', slices, 100);
-  assert.equal(errors.length, 1);
-  assert.ok(errors[0].includes('Gap in enum slices'));
-  assert.ok(errors[0].includes('[50:60]'));
+  expect(errors.length).toBe(1);
+  expect(errors[0].includes('Gap in enum slices')).toBe(true);
+  expect(errors[0].includes('[50:60]')).toBe(true);
 });
 
 test('validateSliceCompleteness - detects overlaps', () => {
@@ -477,8 +466,8 @@ test('validateSliceCompleteness - detects overlaps', () => {
   ];
 
   const errors = validateSliceCompleteness('category', slices, 100);
-  assert.equal(errors.length, 1);
-  assert.ok(errors[0].includes('Overlapping enum slices'));
+  expect(errors.length).toBe(1);
+  expect(errors[0].includes('Overlapping enum slices')).toBe(true);
 });
 
 test('validateSliceCompleteness - detects incomplete coverage', () => {
@@ -488,9 +477,9 @@ test('validateSliceCompleteness - detects incomplete coverage', () => {
   ];
 
   const errors = validateSliceCompleteness('category', slices, 100);
-  assert.equal(errors.length, 1);
-  assert.ok(errors[0].includes('Incomplete enum slices'));
-  assert.ok(errors[0].includes('[80:100]'));
+  expect(errors.length).toBe(1);
+  expect(errors[0].includes('Incomplete enum slices')).toBe(true);
+  expect(errors[0].includes('[80:100]')).toBe(true);
 });
 
 test('decomposeSchema - manual slice notation', () => {
@@ -510,44 +499,44 @@ test('decomposeSchema - manual slice notation', () => {
 
   const decomposed = decomposeSchema(schema, plan);
 
-  assert.equal(decomposed.length, 4);
+  expect(decomposed.length).toBe(4);
 
   // Verify slice schemas contain correct enum options
   const categorySchemas = decomposed.filter((d) => d.name.includes('category'));
-  assert.equal(categorySchemas.length, 3);
+  expect(categorySchemas.length).toBe(3);
 
   // Check that all category slices have the correct enum values and test with safeParse
   categorySchemas.forEach((categorySchema) => {
     const schemaShape = (categorySchema.schema as z.ZodObject).shape;
     const enumSchema = schemaShape.category;
-    assert.ok(enumSchema instanceof z.ZodEnum);
+    expect(enumSchema instanceof z.ZodEnum).toBe(true);
     const enumOptions = enumSchema.options;
-    assert.ok(enumOptions.length > 0);
+    expect(enumOptions.length > 0).toBe(true);
 
     // Test safeParse with valid option from this slice
     const validOption = enumOptions[0];
-    assert.ok(categorySchema.schema.safeParse({
+    expect(categorySchema.schema.safeParse({
       category: validOption,
       name: 'Test Item'
-    }).success, `Schema ${categorySchema.name} should accept valid option ${validOption}`);
+    }).success).toBe(true);
 
     // Test safeParse with invalid option (from outside this slice)
     const invalidOption = 'not-in-this-slice';
-    assert.ok(!categorySchema.schema.safeParse({
+    expect(categorySchema.schema.safeParse({
       category: invalidOption,
       name: 'Test Item'
-    }).success, `Schema ${categorySchema.name} should reject invalid option ${invalidOption}`);
+    }).success).toBe(false);
   });
 
   // Test the name schema
   const nameSchema = decomposed.find(d => d.name === 'name');
-  assert.ok(nameSchema);
-  assert.ok(nameSchema.schema.safeParse({
+  expect(nameSchema).toBeDefined();
+  expect(nameSchema.schema.safeParse({
     name: 'Valid Name'
-  }).success);
-  assert.ok(!nameSchema.schema.safeParse({
-    name: 123 // Invalid type
-  }).success);
+  }).success).toBe(true);
+  expect(nameSchema.schema.safeParse({
+    name: 123
+  }).success).toBe(false);
 });
 
 test('decomposeSchema - shorthand slice notation', () => {
@@ -566,60 +555,60 @@ test('decomposeSchema - shorthand slice notation', () => {
 
   const decomposed = decomposeSchema(schema, plan);
 
-  assert.equal(decomposed.length, 3);
+  expect(decomposed.length).toBe(3);
 
   // Verify the shorthand slices work correctly
   const itemSchemas = decomposed.filter((d) => d.name.includes('items'));
-  assert.equal(itemSchemas.length, 2);
+  expect(itemSchemas.length).toBe(2);
 
   // First slice should have 50 items
   const firstSlice = itemSchemas.find((d) => d.name.includes('0'));
-  assert.ok(firstSlice);
+  expect(firstSlice).toBeDefined();
   const firstSchemaShape = (firstSlice.schema as z.ZodObject).shape;
   const firstEnum = firstSchemaShape.items;
-  assert.equal(firstEnum.options.length, 50);
+  expect(firstEnum.options.length).toBe(50);
 
   // Second slice should have 50 items (100 - 50)
   const secondSlice = itemSchemas.find((d) => d.name.includes('end'));
-  assert.ok(secondSlice);
+  expect(secondSlice).toBeDefined();
   const secondSchemaShape = (secondSlice.schema as z.ZodObject).shape;
   const secondEnum = secondSchemaShape.items;
-  assert.equal(secondEnum.options.length, 50);
+  expect(secondEnum.options.length).toBe(50);
 
   // Test safeParse validation for shorthand slices
   // Test first slice (items[:50])
   const firstValidOption = firstEnum.options[0]; // Should be 'item0'
-  assert.ok(firstSlice.schema.safeParse({
+  expect(firstSlice.schema.safeParse({
     items: firstValidOption,
     description: 'First slice test'
-  }).success, `First slice should accept ${firstValidOption}`);
+  }).success).toBe(true);
 
-  assert.ok(!firstSlice.schema.safeParse({
-    items: 'item75', // Should be in second slice, not first
+  expect(firstSlice.schema.safeParse({
+    items: 'item75',
     description: 'First slice test'
-  }).success, 'First slice should reject items from second slice');
+  }).success).toBe(false);
 
   // Test second slice (items[50:])
   const secondValidOption = secondEnum.options[0]; // Should be 'item50'
-  assert.ok(secondSlice.schema.safeParse({
+  expect(secondSlice.schema.safeParse({
     items: secondValidOption,
     description: 'Second slice test'
-  }).success, `Second slice should accept ${secondValidOption}`);
+  }).success).toBe(true);
 
-  assert.ok(!secondSlice.schema.safeParse({
-    items: 'item25', // Should be in first slice, not second
+  expect(secondSlice.schema.safeParse({
+    items: 'item25',
     description: 'Second slice test'
-  }).success, 'Second slice should reject items from first slice');
+  }).success).toBe(false);
 
   // Test the description schema
   const descriptionSchema = decomposed.find(d => d.name === 'description');
-  assert.ok(descriptionSchema);
-  assert.ok(descriptionSchema.schema.safeParse({
+  expect(descriptionSchema).toBeDefined();
+  expect(descriptionSchema.schema.safeParse({
     description: 'Valid description string'
-  }).success);
-  assert.ok(!descriptionSchema.schema.safeParse({
-    description: 42 // Invalid type
-  }).success);
+  }).success).toBe(true);
+  expect(descriptionSchema.schema.safeParse({
+    description: 42
+  }).success).toBe(false);
 });
 
 test('validatePlan - validates slice completeness', () => {
@@ -632,23 +621,23 @@ test('validatePlan - validates slice completeness', () => {
   // Valid complete slices
   const validPlan = ['name', 'category[0:50]', 'category[50:100]'];
   const validErrors = validatePlan(validPlan, schema);
-  assert.equal(validErrors.length, 0);
+  expect(validErrors.length).toBe(0);
 
   // Invalid incomplete slices
   const invalidPlan = ['name', 'category[0:50]', 'category[60:100]']; // Gap 50-60
   const invalidErrors = validatePlan(invalidPlan, schema);
-  assert.ok(invalidErrors.length > 0);
-  assert.ok(
+  expect(invalidErrors.length > 0).toBe(true);
+  expect(
     invalidErrors.some((error) => error.includes('Gap in enum slices')),
-  );
+  ).toBe(true);
 
   // Invalid overlapping slices
   const overlapPlan = ['name', 'category[0:60]', 'category[50:100]']; // Overlap 50-60
   const overlapErrors = validatePlan(overlapPlan, schema);
-  assert.ok(overlapErrors.length > 0);
-  assert.ok(
+  expect(overlapErrors.length > 0).toBe(true);
+  expect(
     overlapErrors.some((error) => error.includes('Overlapping enum slices')),
-  );
+  ).toBe(true);
 });
 
 test('validatePlan - validates slice bounds', () => {
@@ -660,28 +649,28 @@ test('validatePlan - validates slice bounds', () => {
   // Out of bounds end index
   const outOfBoundsPlan = ['category[0:100]']; // Enum only has 50 options
   const errors = validatePlan(outOfBoundsPlan, schema);
-  assert.ok(errors.length > 0);
-  assert.ok(errors.some((error) => error.includes('exceeds enum length')));
+  expect(errors.length > 0).toBe(true);
+  expect(errors.some((error) => error.includes('exceeds enum length'))).toBe(true);
 
   // Negative start index
   const negativePlan = ['category[-5:10]'];
   const negativeErrors = validatePlan(negativePlan, schema);
-  assert.ok(negativeErrors.length > 0);
-  assert.ok(
+  expect(negativeErrors.length > 0).toBe(true);
+  expect(
     negativeErrors.some((error) =>
       error.includes('Start index cannot be negative'),
     ),
-  );
+  ).toBe(true);
 
   // Start >= end
   const invalidRangePlan = ['category[10:5]'];
   const rangeErrors = validatePlan(invalidRangePlan, schema);
-  assert.ok(rangeErrors.length > 0);
-  assert.ok(
+  expect(rangeErrors.length > 0).toBe(true);
+  expect(
     rangeErrors.some((error) =>
       error.includes('Start index must be less than end index'),
     ),
-  );
+  ).toBe(true);
 });
 
 test('decomposeSchema - mixed chunk and slice notation', () => {
@@ -703,15 +692,15 @@ test('decomposeSchema - mixed chunk and slice notation', () => {
   const decomposed = decomposeSchema(schema, plan);
 
   // Should have name + multiple largeCat chunks + 2 smallCat slices
-  assert.ok(decomposed.length >= 4);
+  expect(decomposed.length >= 4).toBe(true);
 
   // Check that we have multiple largeCat chunks (since 300 options > 50 chunk size)
   const largeCatChunks = decomposed.filter((d) => d.name.includes('largeCat'));
-  assert.ok(largeCatChunks.length > 1);
+  expect(largeCatChunks.length > 1).toBe(true);
 
   // Check that we have exactly 2 smallCat slices
   const smallCatSlices = decomposed.filter((d) => d.name.includes('smallCat'));
-  assert.equal(smallCatSlices.length, 2);
+  expect(smallCatSlices.length).toBe(2);
 });
 
 test('decomposeSchema - array[] split notation', () => {
@@ -725,7 +714,7 @@ test('decomposeSchema - array[] split notation', () => {
   });
 
   // Test that the schema is valid
-  assert.ok(schema.safeParse({
+  expect(schema.safeParse({
     users: [
       {
         name: 'John Doe',
@@ -734,49 +723,49 @@ test('decomposeSchema - array[] split notation', () => {
       }
     ],
     title: 'Hello, world!'
-  }).success);
+  }).success).toBe(true);
 
   const plan = ['title', 'users[]'];
   const decomposed = decomposeSchema(schema, plan);
 
-  assert.equal(decomposed.length, 2);
+  expect(decomposed.length).toBe(2);
 
   // Check title schema
   const titleSchema = decomposed.find(d => d.name === 'title');
-  assert.ok(titleSchema);
-  assert.deepEqual(titleSchema.targetPaths, ['title']);
-  assert.ok(titleSchema.schema.safeParse({
+  expect(titleSchema).toBeDefined();
+  expect(titleSchema.targetPaths).toEqual(['title']);
+  expect(titleSchema.schema.safeParse({
     title: 'Hello, world!'
-  }).success);
+  }).success).toBe(true);
 
   // Check users array split schema
   const usersSchema = decomposed.find(d => d.name === 'users-item');
-  assert.ok(usersSchema);
-  assert.deepEqual(usersSchema.targetPaths, ['users[]']);
-  assert.ok(usersSchema.schema.safeParse({
+  expect(usersSchema).toBeDefined();
+  expect(usersSchema.targetPaths).toEqual(['users[]']);
+  expect(usersSchema.schema.safeParse({
     index: 0,
     value: {
       name: 'John Doe',
       email: 'john.doe@example.com',
       age: 30,
     }
-  }).success);
+  }).success).toBe(true);
 
   // Verify the array split creates { index: number, value: T } structure
   const usersSchemaShape = (usersSchema.schema as z.ZodObject).shape;
-  assert.ok(usersSchemaShape.index);
-  assert.ok(usersSchemaShape.value);
+  expect(usersSchemaShape.index).toBeDefined();
+  expect(usersSchemaShape.value).toBeDefined();
 
   // Check that index is a number
-  assert.ok(usersSchemaShape.index instanceof z.ZodNumber);
+  expect(usersSchemaShape.index instanceof z.ZodNumber).toBe(true);
 
   // Check that value has the original array element structure
   const valueSchema = usersSchemaShape.value as z.ZodObject;
-  assert.ok(valueSchema instanceof z.ZodObject);
+  expect(valueSchema instanceof z.ZodObject).toBe(true);
   const valueShape = valueSchema.shape;
-  assert.ok(valueShape.name);
-  assert.ok(valueShape.email);
-  assert.ok(valueShape.age);
+  expect(valueShape.name).toBeDefined();
+  expect(valueShape.email).toBeDefined();
+  expect(valueShape.age).toBeDefined();
 });
 
 test('decomposeSchema - record{} split notation', () => {
@@ -791,59 +780,59 @@ test('decomposeSchema - record{} split notation', () => {
   const plan = ['metadata', 'configs{}'];
   const decomposed = decomposeSchema(schema, plan);
 
-  assert.equal(decomposed.length, 2);
+  expect(decomposed.length).toBe(2);
 
   // Check metadata schema
   const metadataSchema = decomposed.find(d => d.name === 'metadata');
-  assert.ok(metadataSchema);
-  assert.deepEqual(metadataSchema.targetPaths, ['metadata']);
+  expect(metadataSchema).toBeDefined();
+  expect(metadataSchema.targetPaths).toEqual(['metadata']);
 
   // Check configs record split schema
   const configsSchema = decomposed.find(d => d.name === 'configs-entry');
-  assert.ok(configsSchema);
-  assert.deepEqual(configsSchema.targetPaths, ['configs{}']);
+  expect(configsSchema).toBeDefined();
+  expect(configsSchema.targetPaths).toEqual(['configs{}']);
 
   // Verify the record split creates { key: K, value: V } structure
   const configsSchemaShape = (configsSchema.schema as z.ZodObject).shape;
-  assert.ok(configsSchemaShape.key);
-  assert.ok(configsSchemaShape.value);
+  expect(configsSchemaShape.key).toBeDefined();
+  expect(configsSchemaShape.value).toBeDefined();
 
   // Check that key is a string (default for z.record)
-  assert.ok(configsSchemaShape.key instanceof z.ZodString);
+  expect(configsSchemaShape.key instanceof z.ZodString).toBe(true);
 
   // Check that value has the original record value structure
   const valueSchema = configsSchemaShape.value as z.ZodObject;
-  assert.ok(valueSchema instanceof z.ZodObject);
+  expect(valueSchema instanceof z.ZodObject).toBe(true);
   const valueShape = valueSchema.shape;
-  assert.ok(valueShape.enabled);
-  assert.ok(valueShape.value);
+  expect(valueShape.enabled).toBeDefined();
+  expect(valueShape.value).toBeDefined();
 
   // Test safeParse validation for record split
-  assert.ok(metadataSchema.schema.safeParse({
+  expect(metadataSchema.schema.safeParse({
     metadata: 'Test metadata string'
-  }).success);
+  }).success).toBe(true);
 
-  assert.ok(!metadataSchema.schema.safeParse({
-    metadata: 123 // Invalid type
-  }).success);
+  expect(metadataSchema.schema.safeParse({
+    metadata: 123
+  }).success).toBe(false);
 
   // Test the record entry schema
-  assert.ok(configsSchema.schema.safeParse({
+  expect(configsSchema.schema.safeParse({
     key: 'database',
     value: {
       enabled: true,
       value: 'localhost:5432'
     }
-  }).success);
+  }).success).toBe(true);
 
   // Test invalid record entry
-  assert.ok(!configsSchema.schema.safeParse({
+  expect(configsSchema.schema.safeParse({
     key: 'database',
     value: {
-      enabled: 'invalid', // Should be boolean
+      enabled: 'invalid',
       value: 'localhost:5432'
     }
-  }).success);
+  }).success).toBe(false);
 });
 
 test('decomposeSchema - record{} with enum key split notation', () => {
@@ -859,67 +848,67 @@ test('decomposeSchema - record{} with enum key split notation', () => {
   const plan = ['name', 'permissions{}'];
   const decomposed = decomposeSchema(schema, plan);
 
-  assert.equal(decomposed.length, 2);
+  expect(decomposed.length).toBe(2);
 
   // Check permissions record split schema
   const permissionsSchema = decomposed.find(d => d.name === 'permissions-entry');
-  assert.ok(permissionsSchema);
+  expect(permissionsSchema).toBeDefined();
 
   // Verify the record split creates { key: CategoryEnum, value: V } structure
   const permissionsSchemaShape = (permissionsSchema.schema as z.ZodObject).shape;
-  assert.ok(permissionsSchemaShape.key);
-  assert.ok(permissionsSchemaShape.value);
+  expect(permissionsSchemaShape.key).toBeDefined();
+  expect(permissionsSchemaShape.value).toBeDefined();
 
   // Check that key is the enum type
-  assert.ok(permissionsSchemaShape.key instanceof z.ZodEnum);
+  expect(permissionsSchemaShape.key instanceof z.ZodEnum).toBe(true);
   const keyEnum = permissionsSchemaShape.key;
-  assert.deepEqual(keyEnum.options, ['user', 'admin', 'guest']);
+  expect(keyEnum.options).toEqual(['user', 'admin', 'guest']);
 
   // Check that value has the original record value structure
   const valueSchema = permissionsSchemaShape.value as z.ZodObject;
-  assert.ok(valueSchema instanceof z.ZodObject);
+  expect(valueSchema instanceof z.ZodObject).toBe(true);
   const valueShape = valueSchema.shape;
-  assert.ok(valueShape.read);
-  assert.ok(valueShape.write);
+  expect(valueShape.read).toBeDefined();
+  expect(valueShape.write).toBeDefined();
 
   // Test safeParse validation for enum record split
   const nameSchema = decomposed.find(d => d.name === 'name');
   if (nameSchema) {
-    assert.ok(nameSchema.schema.safeParse({
+    expect(nameSchema.schema.safeParse({
       name: 'User Management System'
-    }).success);
+    }).success).toBe(true);
 
-    assert.ok(!nameSchema.schema.safeParse({
-      name: 42 // Invalid type
-    }).success);
+    expect(nameSchema.schema.safeParse({
+      name: 42
+    }).success).toBe(false);
   }
 
   // Test the permissions entry schema with valid enum key
-  assert.ok(permissionsSchema.schema.safeParse({
+  expect(permissionsSchema.schema.safeParse({
     key: 'admin',
     value: {
       read: true,
       write: true
     }
-  }).success);
+  }).success).toBe(true);
 
   // Test with invalid enum key
-  assert.ok(!permissionsSchema.schema.safeParse({
-    key: 'invalid-role', // Not in enum
+  expect(permissionsSchema.schema.safeParse({
+    key: 'invalid-role',
     value: {
       read: true,
       write: true
     }
-  }).success);
+  }).success).toBe(false);
 
   // Test with invalid value structure
-  assert.ok(!permissionsSchema.schema.safeParse({
+  expect(permissionsSchema.schema.safeParse({
     key: 'user',
     value: {
-      read: 'yes', // Should be boolean
+      read: 'yes',
       write: true
     }
-  }).success);
+  }).success).toBe(false);
 });
 
 test('decomposeSchema - mixed array and record splits', () => {
@@ -941,49 +930,49 @@ test('decomposeSchema - mixed array and record splits', () => {
   const plan = ['metadata', 'users[]', 'settings{}'];
   const decomposed = decomposeSchema(schema, plan);
 
-  assert.equal(decomposed.length, 3);
+  expect(decomposed.length).toBe(3);
 
   // Check all three schemas exist
   const metadataSchema = decomposed.find(d => d.name === 'metadata');
   const usersSchema = decomposed.find(d => d.name === 'users-item');
   const settingsSchema = decomposed.find(d => d.name === 'settings-entry');
 
-  assert.ok(metadataSchema);
-  assert.ok(usersSchema);
-  assert.ok(settingsSchema);
+  expect(metadataSchema).toBeDefined();
+  expect(usersSchema).toBeDefined();
+  expect(settingsSchema).toBeDefined();
 
   // Verify target paths
-  assert.deepEqual(metadataSchema.targetPaths, ['metadata']);
-  assert.deepEqual(usersSchema.targetPaths, ['users[]']);
-  assert.deepEqual(settingsSchema.targetPaths, ['settings{}']);
+  expect(metadataSchema.targetPaths).toEqual(['metadata']);
+  expect(usersSchema.targetPaths).toEqual(['users[]']);
+  expect(settingsSchema.targetPaths).toEqual(['settings{}']);
 });
 
 test('parseEnumSplit - handles array and record split notation', () => {
   // Test array split parsing
   const arrayResult = parseEnumSplit('users[]');
-  assert.equal(arrayResult.path, 'users');
-  assert.equal(arrayResult.isArraySplit, true);
-  assert.equal(arrayResult.isRecordSplit, undefined);
+  expect(arrayResult.path).toBe('users');
+  expect(arrayResult.isArraySplit).toBe(true);
+  expect(arrayResult.isRecordSplit).toBeUndefined();
 
   // Test record split parsing
   const recordResult = parseEnumSplit('configs{}');
-  assert.equal(recordResult.path, 'configs');
-  assert.equal(recordResult.isRecordSplit, true);
-  assert.equal(recordResult.isArraySplit, undefined);
+  expect(recordResult.path).toBe('configs');
+  expect(recordResult.isRecordSplit).toBe(true);
+  expect(recordResult.isArraySplit).toBeUndefined();
 
   // Test regular path parsing (should not match array/record patterns)
   const regularResult = parseEnumSplit('metadata');
-  assert.equal(regularResult.path, 'metadata');
-  assert.equal(regularResult.isArraySplit, undefined);
-  assert.equal(regularResult.isRecordSplit, undefined);
+  expect(regularResult.path).toBe('metadata');
+  expect(regularResult.isArraySplit).toBeUndefined();
+  expect(regularResult.isRecordSplit).toBeUndefined();
 
   // Test nested path array split
   const nestedArrayResult = parseEnumSplit('user.preferences.items[]');
-  assert.equal(nestedArrayResult.path, 'user.preferences.items');
-  assert.equal(nestedArrayResult.isArraySplit, true);
+  expect(nestedArrayResult.path).toBe('user.preferences.items');
+  expect(nestedArrayResult.isArraySplit).toBe(true);
 
   // Test nested path record split
   const nestedRecordResult = parseEnumSplit('config.settings.values{}');
-  assert.equal(nestedRecordResult.path, 'config.settings.values');
-  assert.equal(nestedRecordResult.isRecordSplit, true);
+  expect(nestedRecordResult.path).toBe('config.settings.values');
+  expect(nestedRecordResult.isRecordSplit).toBe(true);
 });

@@ -1,3 +1,19 @@
+export type {
+  QueryAcceptedMessage,
+  QueryCompleteBridgeMessage,
+  QueryCompleteClientMessage,
+  QueryFailureMessage,
+  QueryMessage,
+  QueryProgressMessage
+} from '@mcp-web/types';
+export {
+  InternalErrorCode,
+  InvalidAuthenticationErrorCode,
+  MissingAuthenticationErrorCode,
+  QueryNotActiveErrorCode,
+  QueryNotFoundErrorCode,
+  UnknownMethodErrorCode,
+} from '@mcp-web/types';
 export { MCPWebBridge } from './bridge.js';
 export type {
   ActivityMessage,
@@ -5,17 +21,9 @@ export type {
   AuthenticateMessage,
   BridgeMessage,
   FrontendMessage,
+  QueryTracking,
   RegisterToolMessage,
   ToolCallMessage,
   ToolResponseMessage,
-  QueryTracking,
   TrackedToolCall
 } from './types.js';
-export type {
-  QueryMessage,
-  QueryAcceptedMessage,
-  QueryProgressMessage,
-  QueryCompleteBridgeMessage,
-  QueryCompleteClientMessage,
-  QueryFailureMessage
-} from '@mcp-web/types';

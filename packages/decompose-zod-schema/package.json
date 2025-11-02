@@ -20,7 +20,6 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "test": "node --test --import tsx src/**/*.test.ts",
     "cli": "tsx src/cli.ts",
     "example": "tsx src/cli.ts -i examples/example-schema.ts -s userSchema -v"
   },

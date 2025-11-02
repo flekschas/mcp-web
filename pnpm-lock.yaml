@@ -29,9 +29,6 @@ importers:
       '@biomejs/biome':
         specifier: ^2.2.1
         version: 2.2.2
-      typescript:
-        specifier: ~5.8.3
-        version: 5.8.3
 
   demos/checkers:
     devDependencies:
@@ -473,6 +470,34 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
+
+  tests:
+    dependencies:
+      '@mcp-web/bridge':
+        specifier: workspace:*
+        version: link:../packages/bridge
+      '@mcp-web/client':
+        specifier: workspace:*
+        version: link:../packages/client
+      '@mcp-web/decompose-zod-schema':
+        specifier: workspace:*
+        version: link:../packages/decompose-zod-schema
+      '@mcp-web/types':
+        specifier: workspace:*
+        version: link:../packages/types
+      '@mcp-web/web':
+        specifier: workspace:*
+        version: link:../packages/web
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.0.4
+        version: 1.17.5
+      zod:
+        specifier: 'catalog:'
+        version: 4.1.12
+    devDependencies:
+      '@types/bun':
+        specifier: ^1.3.0
+        version: 1.3.0(@types/react@18.3.24)
 
 packages:
 
@@ -1386,6 +1411,9 @@ packages:
   '@types/babel__traverse@7.28.0':
     resolution: {integrity: sha512-8PvcXf70gTDZBgt9ptxJ8elBeBjcLOAcOtoO/mPJjtji1+CdGbHgm77om1GrsPxsiE+uXIpNSK64UYaIwQXd4Q==}
 
+  '@types/bun@1.3.0':
+    resolution: {integrity: sha512-+lAGCYjXjip2qY375xX/scJeVRmZ5cY0wyHYyCYxNcdEXrQ4AOe3gACgd4iQ8ksOslJtW4VNxBJ8llUwc3a6AA==}
+
   '@types/earcut@2.1.4':
     resolution: {integrity: sha512-qp3m9PPz4gULB9MhjGID7wpo3gJ4bTGXm7ltNDsmOvsPduTeHp8wSW9YckBj3mljeOh4F0m2z/0JKAALRKbmLQ==}
 
@@ -1536,6 +1564,11 @@ packages:
 
   buffer@6.0.3:
     resolution: {integrity: sha512-FTiCpNxtwiZZHEZbcbTIcZjERVICn9yq/pDFkTl95/AxzD1naBctN7YO68riM/gLSDY7sdrMby8hofADYuuqOA==}
+
+  bun-types@1.3.0:
+    resolution: {integrity: sha512-u8X0thhx+yJ0KmkxuEo9HAtdfgCBaM/aI9K90VQcQioAmkVp3SG3FkwWGibUFz3WdXAdcsqOcbU40lK7tbHdkQ==}
+    peerDependencies:
+      '@types/react': ^19
 
   bytes@3.1.2:
     resolution: {integrity: sha512-/Nf7TyzTx6S3yRJObOAV7956r8cr2+Oj8AC5dt8wSP3BQAoeX58NoHyCU8P8zGkNXStjTSi6fzO6F0pBdcYbEg==}
@@ -3907,6 +3940,12 @@ snapshots:
     dependencies:
       '@babel/types': 7.28.2
 
+  '@types/bun@1.3.0(@types/react@18.3.24)':
+    dependencies:
+      bun-types: 1.3.0(@types/react@18.3.24)
+    transitivePeerDependencies:
+      - '@types/react'
+
   '@types/earcut@2.1.4': {}
 
   '@types/estree@1.0.8': {}
@@ -4068,6 +4107,11 @@ snapshots:
     dependencies:
       base64-js: 1.5.1
       ieee754: 1.2.1
+
+  bun-types@1.3.0(@types/react@18.3.24):
+    dependencies:
+      '@types/node': 24.7.1
+      '@types/react': 18.3.24
 
   bytes@3.1.2: {}
 

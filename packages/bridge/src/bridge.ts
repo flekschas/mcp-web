@@ -5,17 +5,24 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { dirname, join } from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
 import {
+  InternalErrorCode,
+  InvalidAuthenticationErrorCode,
   type MCPWebConfig,
-  type MCPWebConfigInput,
+  type MCPWebConfigOutput,
   McpWebConfigSchema,
-  type QueryMessage,
+  MissingAuthenticationErrorCode,
   QueryAcceptedMessageSchema,
   QueryCancelMessageSchema,
   QueryCompleteBridgeMessageSchema,
   QueryCompleteClientMessageSchema,
   QueryFailureMessageSchema,
+  type QueryMessage,
   QueryMessageSchema,
-  QueryProgressMessageSchema
+  QueryNotActiveErrorCode,
+  QueryNotFoundErrorCode,
+  QueryProgressMessageSchema,
+  UnknownMethodErrorCode,
+  QueryCancelMessage,
 } from '@mcp-web/types';
 import { WebSocket, WebSocketServer } from 'ws';
 import type {
@@ -31,14 +38,17 @@ import type {
   ToolDefinition,
   ToolResponseMessage,
 } from './types.js';
+import type { z } from 'zod';
 
 export class MCPWebBridge {
   private sessions = new Map<string, SessionData>();
   private queries = new Map<string, QueryTracking>();
-  private config: MCPWebConfig;
+  private config: MCPWebConfigOutput;
+  private wsServer?: WebSocketServer;
+  private mcpServer?: ReturnType<typeof createServer>;
 
   constructor(
-    config: MCPWebConfigInput = {
+    config: MCPWebConfig = {
       wsPort: 3001,
       mcpPort: 3002,
       name: "Web App Controller",
@@ -53,11 +63,8 @@ export class MCPWebBridge {
 
     this.config = parsedConfig.data;
 
-    this.setupWebSocketServer(this.config.wsPort);
-    this.setupMCPServer(this.config.mcpPort);
-
-    console.log(`WebSocket server running on port ${this.config.wsPort}`);
-    console.log(`MCP server running on port ${this.config.mcpPort}`);
+    this.wsServer = this.setupWebSocketServer(this.config.wsPort);
+    this.mcpServer = this.setupMCPServer(this.config.mcpPort);
   }
 
   private setupWebSocketServer(wsPort: number) {
@@ -83,8 +90,6 @@ export class MCPWebBridge {
         return;
       }
 
-      console.log(`New WebSocket connection for session: ${sessionKey}`);
-
       ws.on('message', (data) => {
         try {
           const message = JSON.parse(data.toString());
@@ -96,7 +101,6 @@ export class MCPWebBridge {
       });
 
       ws.on('close', () => {
-        console.log(`Session disconnected: ${sessionKey}`);
         this.sessions.delete(sessionKey);
       });
 
@@ -197,7 +201,8 @@ export class MCPWebBridge {
         this.handleActivity(sessionKey, message);
         break;
       case 'tool-response':
-        this.handleToolResponse(sessionKey, message);
+        // tool-response messages are handled by per-request listeners
+        // in handleToolCall() at line ~770, not here in the main router
         break;
       case 'query':
         this.handleQuery(sessionKey, message, ws);
@@ -232,8 +237,6 @@ export class MCPWebBridge {
       sessionKey,
       success: true
     }));
-
-    console.log(`Session authenticated: ${sessionKey} from ${message.origin}`);
   }
 
   private handleToolRegistration(sessionKey: string, message: RegisterToolMessage) {
@@ -244,7 +247,6 @@ export class MCPWebBridge {
     }
 
     session.tools.set(message.tool.name, message.tool);
-    console.log(`Tool registered: ${message.tool.name} for session ${sessionKey}`);
   }
 
   private handleActivity(sessionKey: string, message: ActivityMessage) {
@@ -254,13 +256,7 @@ export class MCPWebBridge {
     }
   }
 
-  private handleToolResponse(sessionKey: string, message: ToolResponseMessage) {
-    // Handle responses from frontend tool execution
-    // This would be used for async tool calls
-    console.log(`Tool response from ${sessionKey}:`, message);
-  }
-
-  private handleQueryCancel(message: { type: 'query_cancel'; uuid: string }) {
+  private async handleQueryCancel(message: QueryCancelMessage) {
     const cancelMessage = QueryCancelMessageSchema.parse(message);
     const { uuid } = cancelMessage;
     const query = this.queries.get(uuid);
@@ -270,19 +266,20 @@ export class MCPWebBridge {
       return;
     }
 
-    console.log(`Cancelling query ${uuid}`);
-
     // Mark query as cancelled
     query.state = 'cancelled';
 
-    // Send cancellation message to frontend
-    const cancellationMessage = QueryFailureMessageSchema.parse({
-      uuid,
-      error: 'Query cancelled by user'
-    });
-
-    if (query.ws.readyState === WebSocket.OPEN) {
-      query.ws.send(JSON.stringify(cancellationMessage));
+    // Notify agent that query no longer exists (optional - agent may not implement DELETE)
+    if (this.config.agentUrl) {
+      try {
+        await fetch(`${this.config.agentUrl}/query/${uuid}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } catch (error) {
+        // Agent may not implement DELETE endpoint, which is fine
+        console.debug(`Failed to notify agent of query deletion (optional): ${error instanceof Error ? error.message : String(error)}`);
+      }
     }
 
     this.queries.delete(uuid);
@@ -311,8 +308,6 @@ export class MCPWebBridge {
         restrictTools
       });
 
-      console.log(`Forwarding query ${uuid} to agent: ${this.config.agentUrl}`);
-
       // Forward query to agent
       const response = await fetch(`${this.config.agentUrl}/query/${uuid}`, {
         method: 'PUT',
@@ -329,13 +324,6 @@ export class MCPWebBridge {
 
       // Send immediate acceptance back to frontend
       ws.send(JSON.stringify(QueryAcceptedMessageSchema.parse({ uuid })));
-
-      // TODO: Set up streaming response from agent
-      // For now, we'll just indicate that the query was forwarded
-      ws.send(JSON.stringify(QueryProgressMessageSchema.parse({
-        uuid,
-        message: 'Query forwarded to agent'
-      })));
 
     } catch (error) {
       console.error(`Error forwarding query ${uuid}:`, error);
@@ -355,7 +343,7 @@ export class MCPWebBridge {
       const query = this.queries.get(uuid);
       if (!query) {
         res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Query not found' }));
+        res.end(JSON.stringify({ error: QueryNotFoundErrorCode }));
         return;
       }
 
@@ -381,7 +369,7 @@ export class MCPWebBridge {
       const query = this.queries.get(uuid);
       if (!query) {
         res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Query not found or already completed' }));
+        res.end(JSON.stringify({ error: QueryNotFoundErrorCode }));
         return;
       }
 
@@ -434,7 +422,7 @@ export class MCPWebBridge {
       const query = this.queries.get(uuid);
       if (!query) {
         res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Query not found or already completed' }));
+        res.end(JSON.stringify({ error: QueryNotFoundErrorCode }));
         return;
       }
 
@@ -456,12 +444,17 @@ export class MCPWebBridge {
     }
   }
 
-  private handleQueryCancelEndpoint(_req: IncomingMessage, res: ServerResponse, uuid: string, _body: string) {
+  private handleQueryCancelEndpoint(
+    _req: IncomingMessage,
+    res: ServerResponse,
+    uuid: string,
+    body: string
+  ) {
     try {
       const query = this.queries.get(uuid);
       if (!query) {
         res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Query not found or already completed' }));
+        res.end(JSON.stringify({ error: QueryNotFoundErrorCode }));
         return;
       }
 
@@ -469,10 +462,10 @@ export class MCPWebBridge {
       query.state = 'cancelled';
 
       // Send cancellation message to frontend (as a failure with specific message)
-      const cancellationMessage = QueryFailureMessageSchema.parse({
+      const cancellationMessage = QueryCancelMessageSchema.parse({
         uuid,
-        error: 'Query cancelled by user'
-      });
+        reason: body ? JSON.parse(body).reason : undefined
+      } satisfies z.input<typeof QueryCancelMessageSchema>);
 
       if (query.ws.readyState === WebSocket.OPEN) {
         query.ws.send(JSON.stringify(cancellationMessage));
@@ -503,11 +496,11 @@ export class MCPWebBridge {
         // Authenticate via query context
         const query = this.queries.get(queryId);
         if (!query) {
-          this.sendMCPError(res, mcpRequest.id, -32600, 'Query not found or expired');
+          this.sendMCPError(res, mcpRequest.id, -32600, QueryNotFoundErrorCode);
           return;
         }
         if (query.state !== 'active') {
-          this.sendMCPError(res, mcpRequest.id, -32600, `Query is ${query.state}, not active`);
+          this.sendMCPError(res, mcpRequest.id, -32600, QueryNotActiveErrorCode);
           return;
         }
         session = this.sessions.get(query.sessionKey);
@@ -517,16 +510,14 @@ export class MCPWebBridge {
         session = Array.from(this.sessions.values())
           .find((s) => s.authToken === authToken);
       } else {
-        this.sendMCPError(res, mcpRequest.id, -32600, 'Missing authentication');
+        this.sendMCPError(res, mcpRequest.id, -32600, MissingAuthenticationErrorCode);
         return;
       }
 
       if (!session) {
-        this.sendMCPError(res, mcpRequest.id, -32600, 'Invalid authentication');
+        this.sendMCPError(res, mcpRequest.id, -32600, InvalidAuthenticationErrorCode);
         return;
       }
-
-      console.log('mcp request', mcpRequest);
 
       let result: unknown;
       switch (mcpRequest.method) {
@@ -546,7 +537,7 @@ export class MCPWebBridge {
           result = await this.handlePromptsList();
           break;
         default: {
-          this.sendMCPError(res, mcpRequest.id, -32601, `Method not found: ${mcpRequest.method}`);
+          this.sendMCPError(res, mcpRequest.id, -32601, UnknownMethodErrorCode);
           return;
         }
       }
@@ -554,7 +545,7 @@ export class MCPWebBridge {
       this.sendMCPResponse(res, mcpRequest.id, result);
     } catch (error) {
       console.error('MCP request error:', error);
-      this.sendMCPError(res, 0, -32603, 'Internal error');
+      this.sendMCPError(res, 0, -32603, InternalErrorCode);
     }
   }
 
@@ -715,8 +706,6 @@ export class MCPWebBridge {
       };
     }
 
-    console.log('tool call', toolName, toolInput, params);
-
     // Forward tool call to frontend
     return this.forwardToSession(sessionKey, toolName, toolInput, queryId);
   }
@@ -838,8 +827,6 @@ export class MCPWebBridge {
         }
       };
 
-      console.log('sending tool call', toolCall);
-
       session.ws.addListener('message', handleResponse);
       session.ws.send(JSON.stringify(toolCall));
     });
@@ -865,5 +852,50 @@ export class MCPWebBridge {
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(response));
+  }
+
+  /**
+   * Close the bridge servers and cleanup all connections
+   */
+  async close(): Promise<void> {
+    // Close all WebSocket connections first
+    for (const session of this.sessions.values()) {
+      if (session.ws.readyState === WebSocket.OPEN) {
+        session.ws.close(1000, 'Server shutting down');
+      }
+    }
+    this.sessions.clear();
+
+    // Clear queries
+    this.queries.clear();
+
+    // Close servers with timeout to prevent hanging
+    const closeWithTimeout = (
+      closePromise: Promise<void>,
+      timeoutMs = 1000
+    ): Promise<void> => {
+      return Promise.race([
+        closePromise,
+        new Promise<void>((resolve) => setTimeout(resolve, timeoutMs))
+      ]);
+    };
+
+    // Close WebSocket server
+    if (this.wsServer) {
+      await closeWithTimeout(
+        new Promise<void>((resolve) => {
+          this.wsServer?.close(() => resolve());
+        })
+      );
+    }
+
+    // Close MCP server
+    if (this.mcpServer) {
+      await closeWithTimeout(
+        new Promise<void>((resolve) => {
+          this.mcpServer?.close(() => resolve());
+        })
+      );
+    }
   }
 }

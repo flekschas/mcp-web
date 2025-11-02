@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@mcp-web/types": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.15.1",
+    "@modelcontextprotocol/sdk": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
