@@ -24,17 +24,6 @@ export const MCPWebClientConfigSchema = z.object({
   timeout: z.number().optional().default(30000)
 });
 
-export const MCPWebBridgeResponseSchema = z.object({
-  error: z.string().optional(),
-  data: z.unknown().optional(),
-  success: z.boolean().optional(),
-  available_sessions: z.array(z.unknown()).optional(),
-  available_tools: z.array(z.string()).optional(),
-  tools: z.array(z.unknown()).optional(),
-  resources: z.array(z.unknown()).optional(),
-  prompts: z.array(z.unknown()).optional()
-});
-
 export const TextContentSchema = z.object({
   type: z.literal('text').default('text'),
   text: z.string(),

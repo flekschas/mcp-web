@@ -6,6 +6,9 @@ settings:
 
 catalogs:
   default:
+    '@modelcontextprotocol/sdk':
+      specifier: ^1.15.1
+      version: 1.17.5
     '@types/node':
       specifier: ^24.7.0
       version: 24.7.1
@@ -275,6 +278,9 @@ importers:
       '@mcp-web/types':
         specifier: workspace:*
         version: link:../types
+      '@modelcontextprotocol/sdk':
+        specifier: 'catalog:'
+        version: 1.17.5
       ws:
         specifier: ^8.18.0
         version: 8.18.3
@@ -298,7 +304,7 @@ importers:
         specifier: workspace:*
         version: link:../types
       '@modelcontextprotocol/sdk':
-        specifier: ^1.15.1
+        specifier: 'catalog:'
         version: 1.17.5
       zod:
         specifier: 'catalog:'
@@ -424,7 +430,7 @@ importers:
   packages/types:
     dependencies:
       '@modelcontextprotocol/sdk':
-        specifier: ^1.15.1
+        specifier: 'catalog:'
         version: 1.17.5
       ajv:
         specifier: 'catalog:'
@@ -489,7 +495,7 @@ importers:
         specifier: workspace:*
         version: link:../packages/web
       '@modelcontextprotocol/sdk':
-        specifier: ^1.0.4
+        specifier: 'catalog:'
         version: 1.17.5
       zod:
         specifier: 'catalog:'

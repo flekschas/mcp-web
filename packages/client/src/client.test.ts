@@ -132,14 +132,14 @@ test('callTool includes query context in request', async () => {
   const contextClient = client.contextualize(query);
   await contextClient.callTool('test_tool', { arg: 'value' });
 
-  // Verify _queryContext was included in request body
+  // Verify _meta was included in request body
   expect(capturedBody).toBeDefined();
   const requestBody = capturedBody as Record<string, unknown>;
   expect(requestBody.params).toBeDefined();
   const params = requestBody.params as Record<string, unknown>;
-  expect(params._queryContext).toBeDefined();
-  const queryContext = params._queryContext as Record<string, unknown>;
-  expect(queryContext.queryId).toBe('test-query-123');
+  expect(params._meta).toBeDefined();
+  const metaParams = params._meta as Record<string, unknown>;
+  expect(metaParams.queryId).toBe('test-query-123');
 
   globalThis.fetch = originalFetch;
 });

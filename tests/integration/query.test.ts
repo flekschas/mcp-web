@@ -6,7 +6,6 @@ import { MCPWebClient, type MCPWebClientConfig } from '@mcp-web/client';
 import {
   defineTool,
   type MCPWebConfig,
-  MissingAuthenticationErrorCode,
   QueryDoneErrorCode,
   QueryNotFoundErrorCode,
   type Query,
@@ -15,6 +14,8 @@ import {
 import { MCPWeb } from '@mcp-web/web';
 import { ListPromptsResultSchema, ListResourcesResultSchema, ListToolsResultSchema } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
+import { MockAgentServer } from '../helpers/mock-agent';
+import { killProcess } from '../helpers/kill-process';
 
 // Get the directory of the current file
 const __filename = fileURLToPath(import.meta.url);
@@ -37,7 +38,7 @@ const mcpWebClientConfig: MCPWebClientConfig = {
 
 let bridgeProcess: ReturnType<typeof spawn> | undefined;
 let mcpWeb: MCPWeb | undefined;
-let mockAgentServer: ReturnType<typeof Bun.serve> | undefined;
+let mockAgentServer: MockAgentServer | undefined;
 
 // Start bridge as separate process using Bun
 const spawnBridge = () => spawn(
@@ -70,7 +71,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   if (bridgeProcess) {
-    bridgeProcess.kill();
+    await killProcess(bridgeProcess);
   }
 });
 
@@ -84,9 +85,7 @@ afterEach(async () => {
     mcpWeb.disconnect();
   }
   if (mockAgentServer) {
-    mockAgentServer.stop(true);
-    // Wait a bit for the port to be released
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await mockAgentServer.stop();
   }
 });
 
@@ -94,22 +93,11 @@ test('MCPWebBridge accepts query-contextualized client requests', async () => {
   // Start a mock agent server
   let capturedQuery: Query | undefined;
 
-  mockAgentServer = Bun.serve({
-    port: 3003,
-    async fetch(req) {
-      const url = new URL(req.url);
+  const queryHandler = async (_client: MCPWebClient, query: Query) => {
+    capturedQuery = query;
+  };
 
-      if (req.method === 'PUT' && url.pathname.startsWith('/query/')) {
-        capturedQuery = await req.json() as Query;
-        return new Response(JSON.stringify({ success: true }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-
-      return new Response('Not found', { status: 404 });
-    }
-  });
+  mockAgentServer = new MockAgentServer(mcpWebClientConfig, queryHandler);
 
   // Create MCPWeb with agentUrl pointing to mock agent
   mcpWeb = new MCPWeb({
@@ -166,62 +154,42 @@ test('MCPWebBridge accepts query-contextualized client requests', async () => {
 
 
 test('Query events are emitted correctly', async () => {
-  mockAgentServer = Bun.serve({
-    port: 3003,
-    async fetch(req) {
-      const url = new URL(req.url);
+  const queryHandler = async (client: MCPWebClient) => {
+    await client.sendProgress('Progress');
 
-      const client = new MCPWebClient(mcpWebClientConfig);
+    const listResult = await client.listTools();
+    expect(listResult.tools.length).toBe(3);
 
-      const handleQuery = async (query: Query) => {
-        const contextClient = client.contextualize(query);
+    const testTool1 = listResult.tools.find((t) => t.name === 'test_1');
+    expect(testTool1).toBeDefined();
+    if (!testTool1) throw new Error('Expected testTool1 to be defined');
 
-        await contextClient.sendProgress('Progress');
+    const callResult1 = await client.callTool(testTool1.name, {});
+    expect(callResult1.isError).toBeUndefined();
+    expect(callResult1.content).toBeDefined();
+    expect(callResult1.content.length).toBeGreaterThan(0);
+    expect(callResult1.content[0].type).toBe('text');
+    const data1 = callResult1.content[0].type === 'text' ? callResult1.content[0].text : '';
+    expect(data1).toBe('test_1');
 
-        const listResult = await contextClient.listTools();
-        expect(listResult.tools.length).toBe(3);
+    await client.sendProgress('Progress 2');
 
-        const testTool1 = listResult.tools.find((t) => t.name === 'test_1');
-        expect(testTool1).toBeDefined();
-        if (!testTool1) throw new Error('Expected testTool1 to be defined');
+    const testTool2 = listResult.tools.find((t) => t.name === 'test_2');
+    expect(testTool2).toBeDefined();
+    if (!testTool2) throw new Error('Expected testTool2 to be defined');
 
-        const callResult1 = await contextClient.callTool(testTool1.name, {});
-        expect(callResult1.isError).toBeUndefined();
-        expect(callResult1.content).toBeDefined();
-        expect(callResult1.content.length).toBeGreaterThan(0);
-        expect(callResult1.content[0].type).toBe('text');
-        const data1 = callResult1.content[0].type === 'text' ? callResult1.content[0].text : '';
-        expect(data1).toBe('test_1');
+    const callResult2 = await client.callTool(testTool2.name, { value: 123 });
+    expect(callResult2.isError).toBeUndefined();
+    expect(callResult2.content).toBeDefined();
+    expect(callResult2.content.length).toBeGreaterThan(0);
+    expect(callResult2.content[0].type).toBe('text');
+    const data2 = callResult2.content[0].type === 'text' ? callResult2.content[0].text : '';
+    expect(data2).toBe('test_2:123');
 
-        await contextClient.sendProgress('Progress 2');
+    await client.complete(`Tool call result: ${data1} and ${data2}`);
+  };
 
-        const testTool2 = listResult.tools.find((t) => t.name === 'test_2');
-        expect(testTool2).toBeDefined();
-        if (!testTool2) throw new Error('Expected testTool2 to be defined');
-
-        const callResult2 = await contextClient.callTool(testTool2.name, { value: 123 });
-        expect(callResult2.isError).toBeUndefined();
-        expect(callResult2.content).toBeDefined();
-        expect(callResult2.content.length).toBeGreaterThan(0);
-        expect(callResult2.content[0].type).toBe('text');
-        const data2 = callResult2.content[0].type === 'text' ? callResult2.content[0].text : '';
-        expect(data2).toBe('test_2:123');
-
-        await contextClient.complete(`Tool call result: ${data1} and ${data2}`);
-      };
-
-      if (req.method === 'PUT' && url.pathname.startsWith('/query/')) {
-        const query = await req.json() as Query;
-        setTimeout(() => { handleQuery(query) }, 0);
-        return new Response(JSON.stringify({ success: true }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-
-      return new Response('Not found', { status: 404 });
-    }
-  });
+  mockAgentServer = new MockAgentServer(mcpWebClientConfig, queryHandler);
 
   // Create MCPWeb with agentUrl pointing to mock agent
   mcpWeb = new MCPWeb({
@@ -271,10 +239,10 @@ test('Query events are emitted correctly', async () => {
   expect(fourthEvent.value.toolCalls?.length).toBe(2);
   expect(fourthEvent.value.toolCalls?.[0].tool).toBe('test_1');
   expect(fourthEvent.value.toolCalls?.[0].arguments).toBeDefined();
-  expect(fourthEvent.value.toolCalls?.[0].result.data).toBe('test_1');
+  expect(fourthEvent.value.toolCalls?.[0].result).toBe('test_1');
   expect(fourthEvent.value.toolCalls?.[1].tool).toBe('test_2');
   expect(fourthEvent.value.toolCalls?.[1].arguments).toEqual({ value: 123 });
-  expect(fourthEvent.value.toolCalls?.[1].result.data).toBe('test_2:123');
+  expect(fourthEvent.value.toolCalls?.[1].result).toBe('test_2:123');
 
   // Verify the iterator is complete (no more events)
   const lastEvent = await responseIterator.next();
@@ -284,67 +252,47 @@ test('Query events are emitted correctly', async () => {
 
 
 test('Response tool automatically completes a query', async () => {
-  mockAgentServer = Bun.serve({
-    port: 3003,
-    async fetch(req) {
-      const url = new URL(req.url);
+  const queryHandler = async (client: MCPWebClient, query: Query) => {
+    expect(query.responseTool).toBeDefined();
+    if (!query.responseTool) throw new Error('Expected responseTool to be defined');
 
-      const client = new MCPWebClient(mcpWebClientConfig);
+    const callResult1 = await client.callTool('tool_1', {});
+    expect(callResult1.isError).toBeUndefined();
+    expect(callResult1.content).toBeDefined();
+    expect(callResult1.content.length).toBeGreaterThan(0);
+    expect(callResult1.content[0].type).toBe('text');
+    const data1 = JSON.parse(callResult1.content[0].type === 'text' ? callResult1.content[0].text : '{}');
+    expect(data1).toEqual({ theAnswerToEverything: 42 });
 
-      const handleQuery = async (query: Query) => {
-        const contextClient = client.contextualize(query);
+    await client.sendProgress('Progress 1');
 
-        expect(query.responseTool).toBeDefined();
-        if (!query.responseTool) throw new Error('Expected responseTool to be defined');
+    const callResult2 = await client.callTool('tool_1', {});
+    expect(callResult2.isError).toBeUndefined();
+    expect(callResult2.content).toBeDefined();
+    expect(callResult2.content.length).toBeGreaterThan(0);
+    expect(callResult2.content[0].type).toBe('text');
+    const data2 = JSON.parse(callResult2.content[0].type === 'text' ? callResult2.content[0].text : '{}');
+    expect(data2).toEqual({ theAnswerToEverything: 42 });
 
-        const callResult1 = await contextClient.callTool('tool_1', {});
-        expect(callResult1.isError).toBeUndefined();
-        expect(callResult1.content).toBeDefined();
-        expect(callResult1.content.length).toBeGreaterThan(0);
-        expect(callResult1.content[0].type).toBe('text');
-        const data1 = JSON.parse(callResult1.content[0].type === 'text' ? callResult1.content[0].text : '{}');
-        expect(data1).toEqual({ theAnswerToEverything: 42 });
+    const responseToolResult = await client.callTool(
+      query.responseTool.name,
+      { number: 123 }
+    );
+    expect(responseToolResult.isError).toBeUndefined();
+    expect(responseToolResult.content).toBeDefined();
+    expect(responseToolResult.content.length).toBeGreaterThan(0);
+    expect(responseToolResult.content[0].type).toBe('text');
+    const responseData = JSON.parse(responseToolResult.content[0].type === 'text' ? responseToolResult.content[0].text : '{}');
+    expect(responseData).toEqual({ double: 246 });
 
-        await contextClient.sendProgress('Progress 1');
+    // Query should be automatically completed by the responseTool call.
+    // All subsequent progress and tool calls should be rejected.
+    expect(client.sendProgress('Progress 2')).rejects.toThrow(QueryDoneErrorCode);
+    expect(client.callTool('tool_1', {})).rejects.toThrow(QueryDoneErrorCode);
+    expect(client.complete('This should not be passed to the MCP Web instance')).rejects.toThrow(QueryDoneErrorCode);
+  };
 
-        const callResult2 = await contextClient.callTool('tool_1', {});
-        expect(callResult2.isError).toBeUndefined();
-        expect(callResult2.content).toBeDefined();
-        expect(callResult2.content.length).toBeGreaterThan(0);
-        expect(callResult2.content[0].type).toBe('text');
-        const data2 = JSON.parse(callResult2.content[0].type === 'text' ? callResult2.content[0].text : '{}');
-        expect(data2).toEqual({ theAnswerToEverything: 42 });
-
-        const responseToolResult = await contextClient.callTool(
-          query.responseTool.name,
-          { number: 123 }
-        );
-        expect(responseToolResult.isError).toBeUndefined();
-        expect(responseToolResult.content).toBeDefined();
-        expect(responseToolResult.content.length).toBeGreaterThan(0);
-        expect(responseToolResult.content[0].type).toBe('text');
-        const responseData = JSON.parse(responseToolResult.content[0].type === 'text' ? responseToolResult.content[0].text : '{}');
-        expect(responseData).toEqual({ double: 246 });
-
-        // Query should be automatically completed by the responseTool call.
-        // All subsequent progress and tool calls should be rejected.
-        expect(contextClient.sendProgress('Progress 2')).rejects.toThrow(QueryDoneErrorCode);
-        expect(contextClient.callTool('tool_1', {})).rejects.toThrow(QueryDoneErrorCode);
-        expect(contextClient.complete('This should not be passed to the MCP Web instance')).rejects.toThrow(QueryDoneErrorCode);
-      };
-
-      if (req.method === 'PUT' && url.pathname.startsWith('/query/')) {
-        const query = await req.json() as Query;
-        setTimeout(() => { handleQuery(query) }, 0);
-        return new Response(JSON.stringify({ success: true }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-
-      return new Response('Not found', { status: 404 });
-    }
-  });
+  mockAgentServer = new MockAgentServer(mcpWebClientConfig, queryHandler);
 
   // Create MCPWeb with agentUrl pointing to mock agent
   mcpWeb = new MCPWeb({
@@ -395,13 +343,13 @@ test('Response tool automatically completes a query', async () => {
   expect(fourthEvent.value.toolCalls?.length).toBe(3);
   expect(fourthEvent.value.toolCalls?.[0].tool).toBe('tool_1');
   expect(fourthEvent.value.toolCalls?.[0].arguments).toBeDefined();
-  expect(fourthEvent.value.toolCalls?.[0].result.data).toEqual({ theAnswerToEverything: 42 });
+  expect(fourthEvent.value.toolCalls?.[0].result).toEqual({ theAnswerToEverything: 42 });
   expect(fourthEvent.value.toolCalls?.[1].tool).toBe('tool_1');
   expect(fourthEvent.value.toolCalls?.[1].arguments).toBeDefined();
-  expect(fourthEvent.value.toolCalls?.[1].result.data).toEqual({ theAnswerToEverything: 42 });
+  expect(fourthEvent.value.toolCalls?.[1].result).toEqual({ theAnswerToEverything: 42 });
   expect(fourthEvent.value.toolCalls?.[2].tool).toBe('response_tool');
   expect(fourthEvent.value.toolCalls?.[2].arguments).toEqual({ number: 123 });
-  expect(fourthEvent.value.toolCalls?.[2].result.data).toEqual({ double: 246 });
+  expect(fourthEvent.value.toolCalls?.[2].result).toEqual({ double: 246 });
 
   // Verify the iterator is complete (no more events)
   const lastEvent = await responseIterator.next();
@@ -411,39 +359,23 @@ test('Response tool automatically completes a query', async () => {
 
 
 test('Query can be cancelled by the MCP Web client', async () => {
-  mockAgentServer = Bun.serve({
-    port: 3003,
-    async fetch(req) {
-      const url = new URL(req.url);
+  const queryHandler = async (_client: MCPWebClient, query: Query) => {
+    const client = new MCPWebClient(mcpWebClientConfig);
 
-      const client = new MCPWebClient(mcpWebClientConfig);
+    expect(client.cancel()).rejects.toThrow(ClientNotConextualizedErrorCode);
+    const contextClient = client.contextualize(query);
+    expect(contextClient.cancel('I am tired')).resolves.toBeUndefined();
 
-      const handleQuery = async (query: Query) => {
-        expect(client.cancel()).rejects.toThrow(ClientNotConextualizedErrorCode);
-        const contextClient = client.contextualize(query);
-        expect(contextClient.cancel('I am tired')).resolves.toBeUndefined();
+    // All subsequent progress and tool calls should be rejected.
+    expect(contextClient.listTools()).rejects.toThrow(QueryDoneErrorCode);
+    expect(contextClient.listResources()).rejects.toThrow(QueryDoneErrorCode);
+    expect(contextClient.listPrompts()).rejects.toThrow(QueryDoneErrorCode);
+    expect(contextClient.sendProgress('progress')).rejects.toThrow(QueryDoneErrorCode);
+    expect(contextClient.callTool('tool_1', {})).rejects.toThrow(QueryDoneErrorCode);
+    expect(contextClient.complete('complete')).rejects.toThrow(QueryDoneErrorCode);
+  };
 
-        // All subsequent progress and tool calls should be rejected.
-        expect(contextClient.listTools()).rejects.toThrow(QueryDoneErrorCode);
-        expect(contextClient.listResources()).rejects.toThrow(QueryDoneErrorCode);
-        expect(contextClient.listPrompts()).rejects.toThrow(QueryDoneErrorCode);
-        expect(contextClient.sendProgress('progress')).rejects.toThrow(QueryDoneErrorCode);
-        expect(contextClient.callTool('tool_1', {})).rejects.toThrow(QueryDoneErrorCode);
-        expect(contextClient.complete('complete')).rejects.toThrow(QueryDoneErrorCode);
-      };
-
-      if (req.method === 'PUT' && url.pathname.startsWith('/query/')) {
-        const query = await req.json() as Query;
-        setTimeout(() => { handleQuery(query) }, 0);
-        return new Response(JSON.stringify({ success: true }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-
-      return new Response('Not found', { status: 404 });
-    }
-  });
+  mockAgentServer = new MockAgentServer(mcpWebClientConfig, queryHandler);
 
   // Create MCPWeb with agentUrl pointing to mock agent
   mcpWeb = new MCPWeb({
@@ -477,48 +409,28 @@ test('Query can be cancelled by the MCP Web client', async () => {
 });
 
 test('Query can be cancelled by the frontend', async () => {
-  mockAgentServer = Bun.serve({
-    port: 3003,
-    async fetch(req) {
-      const url = new URL(req.url);
+  const queryHandler = async (client: MCPWebClient) => {
+    // Before the query is cancelled, the client should be able to
+    // list tools, resources, prompts, send progress, call tools
+    expect(client.listTools()).resolves.toBeDefined();
+    expect(client.listResources()).resolves.toBeDefined();
+    expect(client.listPrompts()).resolves.toBeDefined();
+    expect(client.sendProgress('progress 1')).resolves.toBeUndefined();
+    expect(client.callTool('tool_1', {})).resolves.toBeDefined();
 
-      const client = new MCPWebClient(mcpWebClientConfig);
+    // Wait for the query to be cancelled by the frontend.
+    await new Promise(resolve => setTimeout(resolve, 100));
 
-      const handleQuery = async (query: Query) => {
-        const contextClient = client.contextualize(query);
+    // All subsequent progress and tool calls should be rejected.
+    expect(client.listTools()).rejects.toThrow(QueryNotFoundErrorCode);
+    expect(client.listResources()).rejects.toThrow(QueryNotFoundErrorCode);
+    expect(client.listPrompts()).rejects.toThrow(QueryNotFoundErrorCode);
+    expect(client.sendProgress('progress 2')).rejects.toThrow(QueryNotFoundErrorCode);
+    expect(client.callTool('tool_1', {})).rejects.toThrow(QueryNotFoundErrorCode);
+    expect(client.complete('complete')).rejects.toThrow(QueryNotFoundErrorCode);
+  };
 
-        // Before the query is cancelled, the client should be able to
-        // list tools, resources, prompts, send progress, call tools
-        expect(contextClient.listTools()).resolves.toBeDefined();
-        expect(contextClient.listResources()).resolves.toBeDefined();
-        expect(contextClient.listPrompts()).resolves.toBeDefined();
-        expect(contextClient.sendProgress('progress 1')).resolves.toBeUndefined();
-        expect(contextClient.callTool('tool_1', {})).resolves.toBeDefined();
-
-        // Wait for the query to be cancelled by the frontend.
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        // All subsequent progress and tool calls should be rejected.
-        expect(contextClient.listTools()).rejects.toThrow(QueryNotFoundErrorCode);
-        expect(contextClient.listResources()).rejects.toThrow(QueryNotFoundErrorCode);
-        expect(contextClient.listPrompts()).rejects.toThrow(QueryNotFoundErrorCode);
-        expect(contextClient.sendProgress('progress 2')).rejects.toThrow(QueryNotFoundErrorCode);
-        expect(contextClient.callTool('tool_1', {})).rejects.toThrow(QueryNotFoundErrorCode);
-        expect(contextClient.complete('complete')).rejects.toThrow(QueryNotFoundErrorCode);
-      };
-
-      if (req.method === 'PUT' && url.pathname.startsWith('/query/')) {
-        const query = await req.json() as Query;
-        setTimeout(() => { handleQuery(query) }, 0);
-        return new Response(JSON.stringify({ success: true }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-
-      return new Response('Not found', { status: 404 });
-    }
-  });
+  mockAgentServer = new MockAgentServer(mcpWebClientConfig, queryHandler);
 
   // Create MCPWeb with agentUrl pointing to mock agent
   mcpWeb = new MCPWeb({
@@ -556,8 +468,179 @@ test('Query can be cancelled by the frontend', async () => {
   expect(secondEvent.value.type).toBe('query_progress');
   expect(secondEvent.value.message).toBe('progress 1');
 
-  // Get the second event (should be progress)
+  // The third event should be a cancel
   const thirdEvent = await responseIterator.next();
   expect(thirdEvent.value.type).toBe('query_cancel');
   expect(thirdEvent.value.reason).toBeUndefined();
+
+  // Verify the iterator is complete (no more events)
+  const lastEvent = await responseIterator.next();
+  expect(lastEvent.done).toBe(true);
+  expect(lastEvent.value).toBeUndefined();
+});
+
+test('Query can complete despite unsuccessful tool calls', async () => {
+  const queryHandler = async (client: MCPWebClient) => {
+    const callToolResult1 = await client.callTool('tool_1', { value: 123 });
+    expect(callToolResult1.isError).toBe(true);
+    expect(callToolResult1.content).toBeDefined();
+    expect(callToolResult1.content.length).toBeGreaterThan(0);
+    expect(callToolResult1.content[0].type).toBe('text');
+    const callToolResult1Content = JSON.parse(callToolResult1.content[0].type === 'text' ? callToolResult1.content[0].text : '{}');
+    expect(callToolResult1Content).toEqual({ error: 'Tool execution failed: Don\'t call me with 123' });
+
+    const callToolResult2 = await client.callTool('tool_1', { value: 42 });
+    expect(callToolResult2.content).toBeDefined();
+    expect(callToolResult2.content.length).toBeGreaterThan(0);
+    expect(callToolResult2.content[0].type).toBe('text');
+    const callToolResult2Content = JSON.parse(callToolResult2.content[0].type === 'text' ? callToolResult2.content[0].text : '{}');
+    expect(callToolResult2Content).toEqual({ theAnswerToAnything: 42 });
+
+    await client.complete('The answer to anything is 42');
+  };
+
+  mockAgentServer = new MockAgentServer(mcpWebClientConfig, queryHandler);
+
+  // Create MCPWeb with agentUrl pointing to mock agent
+  mcpWeb = new MCPWeb({
+    ...mcpWebConfig,
+    autoConnect: false,
+  });
+
+  // Register discoverable tools
+  const tool1 = defineTool({
+    name: 'tool_1',
+    description: 'Tool 1',
+    handler: ({ value }) => {
+      if (value === 123) throw new Error('Don\'t call me with 123');
+      return { theAnswerToAnything: value };
+    },
+    inputSchema: z.object({ value: z.int() }),
+    outputSchema: z.object({ theAnswerToAnything: z.int() })
+  });
+  mcpWeb.addTool(tool1);
+
+  // Connect and wait for authentication
+  await mcpWeb.connect();
+
+  const responseIterator = mcpWeb.query({ prompt: 'Test prompt' });
+
+  // Get the first event (should be acceptance)
+  const firstEvent = await responseIterator.next();
+  expect(firstEvent.value.type).toBe('query_accepted');
+
+  // Get the second event (should be progress)
+  const secondEvent = await responseIterator.next();
+  expect(secondEvent.value.type).toBe('query_complete');
+  expect(secondEvent.value.message).toBe('The answer to anything is 42');
+  expect(secondEvent.value.toolCalls).toBeDefined();
+  expect(secondEvent.value.toolCalls?.length).toBe(2);
+  expect(secondEvent.value.toolCalls?.[0].tool).toBe('tool_1');
+  expect(secondEvent.value.toolCalls?.[0].arguments).toEqual({ value: 123 });
+  expect(secondEvent.value.toolCalls?.[0].result).toEqual({ error: 'Tool execution failed: Don\'t call me with 123' });
+  expect(secondEvent.value.toolCalls?.[1].tool).toBe('tool_1');
+  expect(secondEvent.value.toolCalls?.[1].arguments).toEqual({ value: 42 });
+  expect(secondEvent.value.toolCalls?.[1].result).toEqual({ theAnswerToAnything: 42 });
+
+  // Verify the iterator is complete (no more events)
+  const lastEvent = await responseIterator.next();
+  expect(lastEvent.done).toBe(true);
+  expect(lastEvent.value).toBeUndefined();
+});
+
+
+test('Unsuccesful response tool calls don\'t complete the query', async () => {
+  const queryHandler = async (client: MCPWebClient, query: Query) => {
+    // This call should not complete the query because the call will fail
+    const callToolResult1 = await client.callTool('response_tool', { value: 123 });
+    expect(callToolResult1.isError).toBe(true);
+    expect(callToolResult1.content).toBeDefined();
+    expect(callToolResult1.content.length).toBeGreaterThan(0);
+    expect(callToolResult1.content[0].type).toBe('text');
+    const callToolResult1Content = JSON.parse(callToolResult1.content[0].type === 'text' ? callToolResult1.content[0].text : '{}');
+    expect(callToolResult1Content).toEqual({ error: 'Tool execution failed: Wrong answer to nothing' });
+
+    // The query should stiull be active and accept other tool calls.
+    const callToolResult2 = await client.callTool('tool', { number: 42 });
+    expect(callToolResult2.content).toBeDefined();
+    expect(callToolResult2.content.length).toBeGreaterThan(0);
+    expect(callToolResult2.content[0].type).toBe('text');
+    const callToolResult2Content = JSON.parse(callToolResult2.content[0].type === 'text' ? callToolResult2.content[0].text : '{}');
+    expect(callToolResult2Content).toEqual({ double: 84 });
+
+    // The response tool should succeed and complete the query.
+    const callToolResult3 = await client.callTool('response_tool', { value: 42 });
+    expect(callToolResult3.content).toBeDefined();
+    expect(callToolResult3.content.length).toBeGreaterThan(0);
+    expect(callToolResult3.content[0].type).toBe('text');
+    const callToolResult3Content = JSON.parse(callToolResult3.content[0].type === 'text' ? callToolResult3.content[0].text : '{}');
+    expect(callToolResult3Content).toEqual({ theAnswerToNothing: 42 });
+
+    // The query should be completed already because the response tool succeeded.
+    // Attempting to complete it again should throw an error.
+    expect(client.complete('The answer to nothing is 123!!')).rejects.toThrow(QueryDoneErrorCode);
+  };
+
+  mockAgentServer = new MockAgentServer(mcpWebClientConfig, queryHandler);
+
+  // Create MCPWeb with agentUrl pointing to mock agent
+  mcpWeb = new MCPWeb({
+    ...mcpWebConfig,
+    autoConnect: false,
+  });
+
+  // Register discoverable tools
+  const tool = defineTool({
+    name: 'tool',
+    description: 'Tool',
+    handler: ({ number }) => ({ double: number * 2 }),
+    inputSchema: z.object({ number: z.int() }),
+    outputSchema: z.object({ double: z.int() })
+  });
+  mcpWeb.addTool(tool);
+
+  const responseTool = defineTool({
+    name: 'response_tool',
+    description: 'Response tool',
+    handler: ({ value }) => {
+      if (value !== 42) throw new Error('Wrong answer to nothing');
+      return { theAnswerToNothing: value };
+    },
+    inputSchema: z.object({ value: z.int() }),
+    outputSchema: z.object({ theAnswerToNothing: z.int() })
+  });
+  mcpWeb.addTool(responseTool);
+
+  // Connect and wait for authentication
+  await mcpWeb.connect();
+
+  const responseIterator = mcpWeb.query({
+    prompt: 'Test prompt',
+    responseTool,
+  });
+
+  // Get the first event (should be acceptance)
+  const firstEvent = await responseIterator.next();
+  expect(firstEvent.value.type).toBe('query_accepted');
+
+  // Get the second event (should be progress)
+  const secondEvent = await responseIterator.next();
+  expect(secondEvent.value.type).toBe('query_complete');
+  expect(secondEvent.value.message).toBeUndefined();
+  expect(secondEvent.value.toolCalls).toBeDefined();
+  expect(secondEvent.value.toolCalls?.length).toBe(3);
+  expect(secondEvent.value.toolCalls?.[0].tool).toBe('response_tool');
+  expect(secondEvent.value.toolCalls?.[0].arguments).toEqual({ value: 123 });
+  expect(secondEvent.value.toolCalls?.[0].result).toEqual({ error: 'Tool execution failed: Wrong answer to nothing' });
+  expect(secondEvent.value.toolCalls?.[1].tool).toBe('tool');
+  expect(secondEvent.value.toolCalls?.[1].arguments).toEqual({ number: 42 });
+  expect(secondEvent.value.toolCalls?.[1].result).toEqual({ double: 84 });
+  expect(secondEvent.value.toolCalls?.[2].tool).toBe('response_tool');
+  expect(secondEvent.value.toolCalls?.[2].arguments).toEqual({ value: 42 });
+  expect(secondEvent.value.toolCalls?.[2].result).toEqual({ theAnswerToNothing: 42 });
+
+  // Verify the iterator is complete (no more events)
+  const lastEvent = await responseIterator.next();
+  expect(lastEvent.done).toBe(true);
+  expect(lastEvent.value).toBeUndefined();
 });

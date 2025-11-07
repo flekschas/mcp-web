@@ -1,4 +1,4 @@
-import type { BridgeMessage } from '@mcp-web/bridge';
+import type { BridgeMessage, RegisterToolMessage } from '@mcp-web/bridge';
 import {
   type MCPWebConfig,
   type MCPWebConfigOutput,
@@ -17,7 +17,7 @@ import { toJSONSchema, toSerializableToolMetadata } from './utils';
 
 export class MCPWeb {
   private ws: WebSocket | null = null;
-  readonly sessionKey: string;
+  readonly sessionId: string;
   readonly authToken: string;
   readonly tools = new Map<string, ProcessedToolDefinition>();
   private connected = false;
@@ -36,7 +36,7 @@ export class MCPWeb {
 
   constructor(config: MCPWebConfig) {
     this.config = McpWebConfigSchema.parse(config);
-    this.sessionKey = this.generateSessionKey();
+    this.sessionId = this.generatesessionId();
     this.authToken = this.resolveAuthToken(this.config);
 
     this.mcpConfig = {
@@ -62,13 +62,13 @@ export class MCPWeb {
     return `${protocol}//${this.config.host}:${this.config.wsPort}`;
   }
 
-  private generateSessionKey(): string {
-    let sessionKey = globalThis.localStorage?.getItem('mcp-web-session-key');
-    if (!sessionKey) {
-      sessionKey = crypto.randomUUID();
-      globalThis.localStorage?.setItem('mcp-web-session-key', sessionKey);
+  private generatesessionId(): string {
+    let sessionId = globalThis.localStorage?.getItem('mcp-web-session-id');
+    if (!sessionId) {
+      sessionId = crypto.randomUUID();
+      globalThis.localStorage?.setItem('mcp-web-session-id', sessionId);
     }
-    return sessionKey;
+    return sessionId;
   }
 
   private generateAuthToken(): string {
@@ -146,7 +146,7 @@ export class MCPWeb {
     this.isConnecting = true;
     return new Promise((resolve, reject) => {
       try {
-        const wsUrl = `${this.getBridgeWsUrl()}?session=${this.sessionKey}`;
+        const wsUrl = `${this.getBridgeWsUrl()}?session=${this.sessionId}`;
         this.ws = new WebSocket(wsUrl);
 
         this.ws.onopen = () => {
@@ -198,7 +198,7 @@ export class MCPWeb {
 
     const authMessage = {
       type: 'authenticate',
-      sessionKey: this.sessionKey,
+      sessionId: this.sessionId,
       authToken: this.authToken,
       origin: globalThis.window?.location?.origin,
       pageTitle: globalThis.document?.title,
@@ -256,10 +256,14 @@ export class MCPWeb {
       // Execute the tool
       const result = await tool.handler(toolInput);
 
-      this.sendToolResponse(requestId, { success: true, data: result });
+      // Send the raw result - the bridge will handle formatting
+      this.sendToolResponse(requestId, result);
 
     } catch (error) {
-      console.error(`Tool execution error for ${toolName}:`, error);
+      // Only log in non-test environments
+      if (globalThis.process?.env?.NODE_ENV !== 'test') {
+        console.debug(`Tool execution error for ${toolName}:`, error);
+      }
       this.sendToolResponse(requestId, {
         error: `Tool execution failed: ${error instanceof Error ? error.message : String(error)}`
       });
@@ -287,7 +291,7 @@ export class MCPWeb {
     });
   }
 
-  private registerTool(tool: ToolDefinition) {
+  private registerTool(tool: ProcessedToolDefinition) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       return;
     }
@@ -297,10 +301,10 @@ export class MCPWeb {
       tool: {
         name: tool.name,
         description: tool.description,
-        inputSchema: tool.inputSchema,
-        outputSchema: tool.outputSchema
+        inputSchema: tool.inputJsonSchema,
+        outputSchema: tool.outputJsonSchema
       }
-    };
+    } satisfies RegisterToolMessage;
 
     this.ws.send(JSON.stringify(message));
   }

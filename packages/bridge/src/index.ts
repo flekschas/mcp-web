@@ -25,5 +25,5 @@ export type {
   RegisterToolMessage,
   ToolCallMessage,
   ToolResponseMessage,
-  TrackedToolCall
+  TrackedToolCall,
 } from './types.js';

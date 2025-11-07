@@ -6,10 +6,11 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
 import {
   InternalErrorCode,
-  InvalidAuthenticationErrorCode,
+  NoSessionsFoundErrorCode,
   type MCPWebConfig,
   type MCPWebConfigOutput,
   McpWebConfigSchema,
+  SessionNotFoundErrorCode,
   MissingAuthenticationErrorCode,
   QueryAcceptedMessageSchema,
   QueryCancelMessageSchema,
@@ -23,7 +24,23 @@ import {
   QueryProgressMessageSchema,
   UnknownMethodErrorCode,
   QueryCancelMessage,
+  InvalidSessionErrorCode,
+  SessionNotSpecifiedErrorCode,
+  ToolNotFoundErrorCode,
+  ToolNameRequiredErrorCode,
+  ToolNotAllowedErrorCode,
+  FatalError,
+  ErroredListToolsResult,
+  ErroredListResourcesResult,
+  ErroredListPromptsResult,
 } from '@mcp-web/types';
+import type {
+  ListPromptsResult,
+  ListResourcesResult,
+  ListToolsResult,
+  Resource,
+  Tool,
+} from '@modelcontextprotocol/sdk/types.js';
 import { WebSocket, WebSocketServer } from 'ws';
 import type {
   ActivityMessage,
@@ -35,10 +52,11 @@ import type {
   RegisterToolMessage,
   SessionData,
   ToolCallMessage,
-  ToolDefinition,
   ToolResponseMessage,
 } from './types.js';
 import type { z } from 'zod';
+
+const SessionNotSpecifiedErrorDetails = 'Multiple sessions available. See `availableSessions` or call the `list_sessions` tool to discover available sessions and specify the session using `_meta.sessionId`.';
 
 export class MCPWebBridge {
   private sessions = new Map<string, SessionData>();
@@ -83,9 +101,9 @@ export class MCPWebBridge {
       }
 
       const url = new URL(req.url, 'ws://localhost');
-      const sessionKey = url.searchParams.get('session');
+      const sessionId = url.searchParams.get('session');
 
-      if (!sessionKey) {
+      if (!sessionId) {
         ws.close(1008, 'Missing session key');
         return;
       }
@@ -93,7 +111,7 @@ export class MCPWebBridge {
       ws.on('message', (data) => {
         try {
           const message = JSON.parse(data.toString());
-          this.handleFrontendMessage(sessionKey, message, ws);
+          this.handleFrontendMessage(sessionId, message, ws);
         } catch (error) {
           console.error('Invalid JSON message:', error);
           ws.close(1003, 'Invalid JSON');
@@ -101,11 +119,11 @@ export class MCPWebBridge {
       });
 
       ws.on('close', () => {
-        this.sessions.delete(sessionKey);
+        this.sessions.delete(sessionId);
       });
 
       ws.on('error', (error) => {
-        console.error(`WebSocket error for session ${sessionKey}:`, error);
+        console.error(`WebSocket error for session ${sessionId}:`, error);
       });
     });
 
@@ -189,23 +207,23 @@ export class MCPWebBridge {
     return mcpServer;
   }
 
-  private handleFrontendMessage(sessionKey: string, message: FrontendMessage, ws: WebSocket) {
+  private handleFrontendMessage(sessionId: string, message: FrontendMessage, ws: WebSocket) {
     switch (message.type) {
       case 'authenticate':
-        this.handleAuthentication(sessionKey, message, ws);
+        this.handleAuthentication(sessionId, message, ws);
         break;
       case 'register-tool':
-        this.handleToolRegistration(sessionKey, message);
+        this.handleToolRegistration(sessionId, message);
         break;
       case 'activity':
-        this.handleActivity(sessionKey, message);
+        this.handleActivity(sessionId, message);
         break;
       case 'tool-response':
         // tool-response messages are handled by per-request listeners
         // in handleToolCall() at line ~770, not here in the main router
         break;
       case 'query':
-        this.handleQuery(sessionKey, message, ws);
+        this.handleQuery(sessionId, message, ws);
         break;
       case 'query_cancel':
         this.handleQueryCancel(message);
@@ -216,7 +234,7 @@ export class MCPWebBridge {
     }
   }
 
-  private handleAuthentication(sessionKey: string, message: AuthenticateMessage, ws: WebSocket) {
+  private handleAuthentication(sessionId: string, message: AuthenticateMessage, ws: WebSocket) {
     const sessionData: SessionData = {
       ws,
       authToken: message.authToken,
@@ -228,29 +246,31 @@ export class MCPWebBridge {
       tools: new Map()
     };
 
-    this.sessions.set(sessionKey, sessionData);
+    this.sessions.set(sessionId, sessionData);
 
     ws.send(JSON.stringify({
       type: 'authenticated',
       // @ts-expect-error We know the port exists.
       mcpPort: this.mcpServer.address()?.port,
-      sessionKey,
+      sessionId,
       success: true
     }));
   }
 
-  private handleToolRegistration(sessionKey: string, message: RegisterToolMessage) {
-    const session = this.sessions.get(sessionKey);
+  private handleToolRegistration(sessionId: string, message: RegisterToolMessage) {
+    const session = this.sessions.get(sessionId);
     if (!session) {
-      console.warn(`Tool registration for unknown session: ${sessionKey}`);
+      console.warn(`Tool registration for unknown session: ${sessionId}`);
       return;
     }
+
+    console.log('registering tool for session', sessionId, message);
 
     session.tools.set(message.tool.name, message.tool);
   }
 
-  private handleActivity(sessionKey: string, message: ActivityMessage) {
-    const session = this.sessions.get(sessionKey);
+  private handleActivity(sessionId: string, message: ActivityMessage) {
+    const session = this.sessions.get(sessionId);
     if (session) {
       session.lastActivity = message.timestamp;
     }
@@ -285,7 +305,7 @@ export class MCPWebBridge {
     this.queries.delete(uuid);
   }
 
-  private async handleQuery(sessionKey: string, message: QueryMessage, ws: WebSocket) {
+  private async handleQuery(sessionId: string, message: QueryMessage, ws: WebSocket) {
     const { uuid, responseTool, tools, restrictTools } = message;
 
     if (!this.config.agentUrl) {
@@ -299,7 +319,7 @@ export class MCPWebBridge {
     try {
       // Track this query
       this.queries.set(uuid, {
-        sessionKey,
+        sessionId,
         responseTool: responseTool?.name,
         toolCalls: [],
         ws,
@@ -488,9 +508,9 @@ export class MCPWebBridge {
       // Extract auth from header OR query context
       const authHeader = req.headers.authorization;
       const authToken = authHeader?.replace('Bearer ', '');
-      const queryId = mcpRequest.params?._queryContext?.queryId;
+      const queryId = mcpRequest.params?._meta?.queryId;
 
-      let session: SessionData | undefined;
+      const sessions = new Map<string, SessionData>();
 
       if (queryId) {
         // Authenticate via query context
@@ -503,19 +523,26 @@ export class MCPWebBridge {
           this.sendMCPError(res, mcpRequest.id, -32600, QueryNotActiveErrorCode);
           return;
         }
-        session = this.sessions.get(query.sessionKey);
-
+        const session = this.sessions.get(query.sessionId);
+        if (!session) {
+          this.sendMCPError(res, mcpRequest.id, -32600, InvalidSessionErrorCode);
+          return;
+        }
+        sessions.set(query.sessionId, session);
       } else if (authToken) {
         // Traditional authentication
-        session = Array.from(this.sessions.values())
-          .find((s) => s.authToken === authToken);
+        Array.from(this.sessions.entries())
+          .filter(([_, session]) => session.authToken === authToken)
+          .forEach(([sessionId, session]) => {
+            sessions.set(sessionId, session);
+          });
       } else {
         this.sendMCPError(res, mcpRequest.id, -32600, MissingAuthenticationErrorCode);
         return;
       }
 
-      if (!session) {
-        this.sendMCPError(res, mcpRequest.id, -32600, InvalidAuthenticationErrorCode);
+      if (sessions.size === 0) {
+        this.sendMCPError(res, mcpRequest.id, -32600, NoSessionsFoundErrorCode);
         return;
       }
 
@@ -525,16 +552,19 @@ export class MCPWebBridge {
           result = await this.handleInitialize();
           break;
         case 'tools/list':
-          result = await this.handleToolsList();
+          result = await this.handleToolsList(sessions, mcpRequest.params);
           break;
         case 'tools/call':
-          result = await this.handleToolCall(mcpRequest.params);
+          result = await this.handleToolCall(sessions, mcpRequest.params);
           break;
         case 'resources/list':
-          result = await this.handleResourcesList();
+          result = await this.handleResourcesList(sessions, mcpRequest.params);
+          break;
+        case 'resources/read':
+          result = await this.handleResourceRead(sessions, mcpRequest.params);
           break;
         case 'prompts/list':
-          result = await this.handlePromptsList();
+          result = await this.handlePromptsList(sessions, mcpRequest.params);
           break;
         default: {
           this.sendMCPError(res, mcpRequest.id, -32601, UnknownMethodErrorCode);
@@ -542,6 +572,16 @@ export class MCPWebBridge {
         }
       }
 
+      // Check if result contains a fatal error (has errorIsFatal: true)
+      // Recoverable errors have isError: true with partial data and go in result
+      if (result && typeof result === 'object' && 'errorIsFatal' in result && result.errorIsFatal === true) {
+        const fatalError = result as FatalError;
+        // Use -32602 (Invalid params) for client errors like missing sessionId
+        this.sendMCPError(res, mcpRequest.id, -32602, fatalError.errorMessage, fatalError);
+        return;
+      }
+
+      // Everything else (including soft errors with isError: true) goes in result
       this.sendMCPResponse(res, mcpRequest.id, result);
     } catch (error) {
       console.error('MCP request error:', error);
@@ -579,39 +619,91 @@ export class MCPWebBridge {
     };
   }
 
-  private async handleToolsList() {
-    const activeSessions = Array.from(this.sessions.values());
-
-    if (activeSessions.length === 0) {
-      return { tools: [] };
+  private getSessionAndSessionId(
+    sessions: Map<string, SessionData>,
+    sessionId?: string
+  ): [string, SessionData] | undefined {
+    if (!sessionId) {
+      if (sessions.size === 1) {
+        sessionId = sessions.keys().next().value;
+        if (!sessionId) {
+          return undefined;
+        }
+      } else {
+        return undefined;
+      }
     }
 
-    const tools: ToolDefinition[] = [
-      {
-        name: "list_active_sessions",
-        description: "List all active browser sessions",
-        inputSchema: {
-          type: "object",
-          properties: {},
-          required: []
-        }
+    const session = sessions.get(sessionId);
+
+    if (!session) {
+      return undefined;
+    }
+
+    return [sessionId, session];
+  }
+
+  private getSessionFromMetaParams(
+    sessions: Map<string, SessionData>,
+    params?: McpRequest['params']
+  ): SessionData | undefined {
+    let sessionId = params?._meta?.sessionId as string | undefined;
+
+    return this.getSessionAndSessionId(sessions, sessionId)?.[1];
+  }
+
+  private createSessionNotFoundError(sessions: Map<string, SessionData>) {
+    if (sessions.size > 1) {
+      return {
+        error: SessionNotSpecifiedErrorCode,
+        errorMessage: SessionNotSpecifiedErrorDetails,
+        availableSessions: this.listSessions(sessions)
+      };
+    }
+    return { error: SessionNotFoundErrorCode };
+  }
+
+  private async handleToolsList(
+    sessions: Map<string, SessionData>,
+    params?: McpRequest['params']
+  ): Promise<ListToolsResult | ErroredListToolsResult | FatalError> {
+    const session = this.getSessionFromMetaParams(sessions, params);
+
+    const listSessionsTool: Tool = {
+      name: "list_sessions",
+      description: "List all browser sessions with their available tools",
+      inputSchema: {
+        type: "object",
+        properties: {},
+        required: []
       }
-    ];
+    };
 
-    // Collect all unique tools from all sessions
-    const toolMap = new Map<string, ToolDefinition>();
+    // If no session found and multiple sessions exist, return list_sessions tool only with isError
+    if (!session && sessions.size > 1) {
+      return {
+        tools: [listSessionsTool],
+        isError: true,
+        error: SessionNotSpecifiedErrorCode,
+        errorMessage: SessionNotSpecifiedErrorDetails,
+        errorIsFatal: false,
+        availableSessions: this.listSessions(sessions)
+      } satisfies ErroredListToolsResult;
+    }
 
-    activeSessions.forEach((session) => {
-      session.tools.forEach((tool, toolName) => {
-        if (!toolMap.has(toolName)) {
-          toolMap.set(toolName, tool);
-        }
-      });
-    });
+    // If no session at all (shouldn't happen with proper auth), return fatal error
+    if (!session) {
+      return {
+        error: SessionNotFoundErrorCode,
+        errorMessage: 'No session found for the provided authentication',
+        errorIsFatal: true
+      } satisfies FatalError;
+    }
 
-    // Add session-aware versions of tools
-    toolMap.forEach((tool) => {
-      const sessionAwareTool: ToolDefinition = {
+    const tools: Tool[] = [listSessionsTool];
+
+    for (const tool of session.tools.values()) {
+      const sessionAwareTool: Tool = {
         name: tool.name,
         description: tool.description,
         inputSchema: {
@@ -627,31 +719,32 @@ export class MCPWebBridge {
         }
       };
       tools.push(sessionAwareTool);
-    });
+    }
 
-    return { tools };
+    return { tools } satisfies ListToolsResult;
   }
 
-  private async handleToolCall(params: McpRequest['params']) {
-    const { name: toolName, arguments: toolInput, _queryContext } = params || {};
+  private async handleToolCall(
+    sessions: Map<string, SessionData>,
+    params?: McpRequest['params']
+  ): Promise<unknown> {
+    const { name: toolName, arguments: toolInput, _meta } = params || {};
 
     if (!toolName) {
-      return { error: "Tool name is required" };
+      return { error: ToolNameRequiredErrorCode };
     }
 
     // Extract query ID from context if available
-    const queryId = _queryContext?.queryId;
+    const queryId = _meta?.queryId;
 
     // If this is part of a query, validate the query state and restrictions
     if (queryId) {
       const query = this.queries.get(queryId);
       if (!query) {
-        return { error: `Query ${queryId} not found` };
+        return { error: QueryNotFoundErrorCode };
       }
       if (query.state !== 'active') {
-        return {
-          error: `Cannot call tools on ${query.state} query. Query ${queryId} is no longer active.`
-        };
+        return { error: QueryNotActiveErrorCode };
       }
 
       // Check tool restrictions if query has them
@@ -659,73 +752,114 @@ export class MCPWebBridge {
         const allowed = query.tools.some(t => t.name === toolName);
         if (!allowed) {
           return {
-            error: `Tool '${toolName}' not allowed by query restrictions. Allowed tools: ${query.tools.map(t => t.name).join(', ')}`
+            error: ToolNotAllowedErrorCode,
+            details: 'The query restricts the allowed tool calls. Use one of `allowedTools`.',
+            allowedTools: query.tools.map(t => t.name)
           };
         }
       }
     }
 
-    if (toolName === 'list_active_sessions') {
-      return this.listActiveSessions();
+    if (toolName === 'list_sessions') {
+      return { sessions: this.listSessions(sessions) };
     }
 
-    // Handle session-specific tools
-    let sessionKey = toolInput?.session_id as string | undefined;
-    const sessions = Array.from(this.sessions.entries());
+    // Handle session-specific tool
+    const [sessionId, session] = this.getSessionAndSessionId(
+      sessions,
+      toolInput?.session_id as string | undefined || _meta?.sessionId
+    ) || [];
 
-    if (!sessionKey) {
-      if (sessions.length === 1) {
-        sessionKey = sessions[0][0];
-      } else if (sessions.length > 1) {
-        return {
-          error: "Multiple sessions active. Please specify session_id or use list_active_sessions to see available sessions.",
-          available_sessions: this.listActiveSessions()
-        };
-      } else {
-        return { error: "No active sessions" };
-      }
-    }
-
-    if (!sessionKey) {
-      return { error: "Session key is required" };
-    }
-
-    const session = this.sessions.get(sessionKey);
-    if (!session) {
-      return {
-        error: "Session not found",
-        available_sessions: this.listActiveSessions()
-      };
+    if (!sessionId || !session) {
+      return this.createSessionNotFoundError(sessions);
     }
 
     // Check if tool exists in this session
     if (!session.tools.has(toolName)) {
       return {
-        error: `Tool '${toolName}' not available in session ${sessionKey.slice(0, 8)}`,
-        available_tools: Array.from(session.tools.keys())
+        error: ToolNotFoundErrorCode,
+        availableTools: Array.from(session.tools.keys())
       };
     }
 
     // Forward tool call to frontend
-    return this.forwardToSession(sessionKey, toolName, toolInput, queryId);
+    return this.forwardToolCallToSession(sessionId, toolName, toolInput, queryId);
   }
 
-  private async handleResourcesList() {
-    // Return available sessions as resources
-    const sessions = Array.from(this.sessions.entries()).map(([key, session]) => ({
-      uri: `session://${key}`,
-      name: `Session ${key.slice(0, 8)}`,
-      description: `Browser session from ${session.origin}`,
+  private async handleResourcesList(
+    sessions: Map<string, SessionData>,
+    params?: McpRequest['params']
+  ): Promise<ListResourcesResult | ErroredListResourcesResult | FatalError> {
+    const session = this.getSessionFromMetaParams(sessions, params);
+
+    // Built-in resource that provides session discovery (like list_sessions tool)
+    const sessionListResource: Resource = {
+      uri: "sessions://list",
+      name: "sessions",
+      title: "Active Browser Sessions",
+      description: "List of all active browser sessions for this authentication context",
       mimeType: "application/json"
-    }));
+    };
 
-    return { resources: sessions };
+    // If no session found and multiple sessions exist, return discovery resource only with isError
+    if (!session && sessions.size > 1) {
+      return {
+        resources: [sessionListResource],
+        isError: true,
+        error: SessionNotSpecifiedErrorCode,
+        errorMessage: SessionNotSpecifiedErrorDetails,
+        errorIsFatal: false,
+        availableSessions: this.listSessions(sessions)
+      } satisfies ErroredListResourcesResult;
+    }
+
+    // If no session at all (shouldn't happen with proper auth), return fatal error
+    if (!session) {
+      return {
+        error: SessionNotFoundErrorCode,
+        errorMessage: 'No session found for the provided authentication',
+        errorIsFatal: true
+      } satisfies FatalError;
+    }
+
+    // TODO: Add session-specific resources
+    const resources: Resource[] = [
+      sessionListResource,
+      // ...session.resources (future)
+    ];
+
+    return { resources } satisfies ListResourcesResult;
   }
 
-  private listActiveSessions() {
-    const sessions = Array.from(this.sessions.entries()).map(([key, session]) => ({
+  private async handleResourceRead(
+    sessions: Map<string, SessionData>,
+    params?: McpRequest['params']
+  ) {
+    const { uri } = params as { uri?: string } || {};
+
+    if (!uri) {
+      return { error: "Resource URI is required" };
+    }
+
+    // Handle built-in sessions resource
+    if (uri === "sessions://list") {
+      const sessionData = this.listSessions(sessions);
+      return {
+        contents: [{
+          uri: "sessions://list",
+          mimeType: "application/json",
+          text: JSON.stringify(sessionData, null, 2)
+        }]
+      };
+    }
+
+    // TODO: Handle session-specific resources
+    return { error: "Resource not found" };
+  }
+
+  private listSessions(sessions: Map<string, SessionData>) {
+    const sessionList = Array.from(sessions.entries()).map(([key, session]) => ({
       session_id: key,
-      short_id: key.slice(0, 8),
       origin: session.origin,
       page_title: session.pageTitle,
       connected_at: new Date(session.connectedAt).toISOString(),
@@ -733,21 +867,47 @@ export class MCPWebBridge {
       available_tools: Array.from(session.tools.keys())
     }));
 
-    return { active_sessions: sessions };
+    return sessionList;
   }
 
-  private async handlePromptsList() {
-    // Return empty prompts list for now - can be extended later
-    return { prompts: [] };
+  private async handlePromptsList(
+    sessions: Map<string, SessionData>,
+    params?: McpRequest['params']
+  ): Promise<ListPromptsResult | ErroredListPromptsResult | FatalError> {
+    const session = this.getSessionFromMetaParams(sessions, params);
+
+    // If no session found and multiple sessions exist, return empty prompts with isError
+    if (!session && sessions.size > 1) {
+      return {
+        prompts: [],
+        isError: true,
+        error: SessionNotSpecifiedErrorCode,
+        errorMessage: SessionNotSpecifiedErrorDetails,
+        errorIsFatal: false,
+        availableSessions: this.listSessions(sessions),
+      } satisfies ErroredListPromptsResult;
+    }
+
+    // If no session at all (shouldn't happen with proper auth), return fatal error
+    if (!session) {
+      return {
+        error: SessionNotFoundErrorCode,
+        errorMessage: 'No session found for the provided authentication',
+        errorIsFatal: true
+      } satisfies FatalError;
+    }
+
+    // TO DO: implement prompt exposure
+    return { prompts: [] } satisfies ListPromptsResult;
   }
 
-  private async forwardToSession(
-    sessionKey: string,
+  private async forwardToolCallToSession(
+    sessionId: string,
     toolName: string,
     toolInput?: Record<string, unknown>,
     queryId?: string
   ): Promise<unknown> {
-    const session = this.sessions.get(sessionKey);
+    const session = this.sessions.get(sessionId);
     if (!session || session.ws.readyState !== WebSocket.OPEN) {
       return { error: "Session not available" };
     }
@@ -792,17 +952,7 @@ export class MCPWebBridge {
                 // Check if this was the responseTool - auto-complete query
                 if (query.responseTool === toolName) {
                   // Check if tool call succeeded
-                  if (toolResult && typeof toolResult === 'object' && 'error' in toolResult) {
-                    // Tool failed - send query_failure
-                    const errorMessage = QueryFailureMessageSchema.parse({
-                      uuid: queryId,
-                      error: `responseTool '${toolName}' failed: ${String(toolResult.error)}`
-                    });
-
-                    if (query.ws.readyState === WebSocket.OPEN) {
-                      query.ws.send(JSON.stringify(errorMessage));
-                    }
-                  } else {
+                  if (!(toolResult && typeof toolResult === 'object' && 'error' in toolResult)) {
                     // Tool succeeded - auto-complete query
                     const bridgeMessage = QueryCompleteBridgeMessageSchema.parse({
                       uuid: queryId,
@@ -813,9 +963,10 @@ export class MCPWebBridge {
                     if (query.ws.readyState === WebSocket.OPEN) {
                       query.ws.send(JSON.stringify(bridgeMessage));
                     }
-                  }
 
-                  this.queries.delete(queryId);
+                    // Only delete query on success
+                    this.queries.delete(queryId);
+                  }
                 }
               }
             }

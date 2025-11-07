@@ -1,4 +1,5 @@
 import type {
+  McpRequestMetaParams,
   QueryAcceptedMessage,
   QueryCancelMessage,
   QueryCompleteBridgeMessage,
@@ -13,7 +14,7 @@ import type { z } from 'zod';
 
 export interface AuthenticateMessage {
   type: 'authenticate';
-  sessionKey: string;
+  sessionId: string;
   authToken: string;
   origin: string;
   pageTitle?: string;
@@ -24,7 +25,7 @@ export interface AuthenticateMessage {
 export interface AuthenticatedMessage {
   type: 'authenticated';
   mcpPort?: number;
-  sessionKey: string;
+  sessionId: string;
   success: boolean;
 }
 
@@ -85,7 +86,7 @@ export interface TrackedToolCall {
 export type QueryState = 'active' | 'completed' | 'failed' | 'cancelled';
 
 export interface QueryTracking {
-  sessionKey: string;
+  sessionId: string;
   responseTool?: string;
   toolCalls: TrackedToolCall[];
   ws: WS.WebSocket;
@@ -101,9 +102,7 @@ export interface McpRequest {
   params?: {
     name?: string;
     arguments?: Record<string, unknown>;
-    _queryContext?: {
-      queryId: string;
-    };
+    _meta?: McpRequestMetaParams;
   };
 }
 

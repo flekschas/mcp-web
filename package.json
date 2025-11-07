@@ -13,7 +13,7 @@
     "test:client": "bun test packages/client/src",
     "test:bridge": "bun test packages/bridge/src",
     "test:decompose": "bun test packages/decompose-zod-schema/src",
-    "test:integration": "bun test tests",
+    "test:integration": "bun test --max-concurrency=1 tests",
     "test:watch": "bun test --watch packages"
   },
   "keywords": [
