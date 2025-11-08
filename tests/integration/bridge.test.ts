@@ -170,7 +170,7 @@ test('Tools from differently authenticated clients are isolated', async () => {
   expect(result3).toEqual({
     content: [{
       type: 'text',
-      text: JSON.stringify({ error: ToolNotFoundErrorCode, availableTools: ['tool1'] }, null, 2)
+      text: JSON.stringify({ error: ToolNotFoundErrorCode, available_tools: ['tool1'] }, null, 2)
     }],
     isError: true,
   });
@@ -179,7 +179,7 @@ test('Tools from differently authenticated clients are isolated', async () => {
   expect(result4).toEqual({
     content: [{
       type: 'text',
-      text: JSON.stringify({ error: ToolNotFoundErrorCode, availableTools: ['tool2'] }, null, 2)
+      text: JSON.stringify({ error: ToolNotFoundErrorCode, available_tools: ['tool2'] }, null, 2)
     }],
     isError: true,
   });
@@ -245,14 +245,14 @@ test('Tools from different sessions are isolated', async () => {
     throw new Error('Expected error result');
   }
 
-  // Should have availableSessions data
-  const availableSessions = toolListResult.availableSessions;
-  expect(availableSessions).toBeDefined();
-  expect(availableSessions).toHaveLength(2);
-  expect(availableSessions[0].session_id).toBe(mcpWeb1.sessionId);
-  expect(availableSessions[1].session_id).toBe(mcpWeb2.sessionId);
-  expect(availableSessions[0].available_tools).toContain('tool1');
-  expect(availableSessions[1].available_tools).toContain('tool2');
+  // Should have available_sessions data
+  const available_sessions = toolListResult.available_sessions;
+  expect(available_sessions).toBeDefined();
+  expect(available_sessions).toHaveLength(2);
+  expect(available_sessions[0].session_id).toBe(mcpWeb1.sessionId);
+  expect(available_sessions[1].session_id).toBe(mcpWeb2.sessionId);
+  expect(available_sessions[0].available_tools).toContain('tool1');
+  expect(available_sessions[1].available_tools).toContain('tool2');
 
   const session1Tools = await client.listTools(mcpWeb1.sessionId);
   expect(session1Tools.tools.length).toBe(2);
@@ -284,13 +284,13 @@ test('Tools from different sessions are isolated', async () => {
   expect(callToolResult1.isError).toEqual(true);
   const callToolResult1Content = JSON.parse((callToolResult1.content[0] as TextContent).text);
   expect(callToolResult1Content.error).toEqual(SessionNotSpecifiedErrorCode);
-  expect(callToolResult1Content.availableSessions.length).toEqual(2);
+  expect(callToolResult1Content.available_sessions.length).toEqual(2);
 
   const callToolResult2 = await client.callTool('tool2', { name: 'Jane' });
   expect(callToolResult2.isError).toEqual(true);
   const callToolResult2Content = JSON.parse((callToolResult2.content[0] as TextContent).text);
   expect(callToolResult2Content.error).toEqual(SessionNotSpecifiedErrorCode);
-  expect(callToolResult2Content.availableSessions.length).toEqual(2);
+  expect(callToolResult2Content.available_sessions.length).toEqual(2);
 
   // Calling tools with an invalid session ID should fail with error result
   // Since there are multiple sessions, error will be SessionNotSpecified

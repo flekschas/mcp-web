@@ -56,7 +56,7 @@ import type {
 } from './types.js';
 import type { z } from 'zod';
 
-const SessionNotSpecifiedErrorDetails = 'Multiple sessions available. See `availableSessions` or call the `list_sessions` tool to discover available sessions and specify the session using `_meta.sessionId`.';
+const SessionNotSpecifiedErrorDetails = 'Multiple sessions available. See `available_sessions` or call the `list_sessions` tool to discover available sessions and specify the session using `_meta.sessionId`.';
 
 export class MCPWebBridge {
   private sessions = new Map<string, SessionData>();
@@ -572,12 +572,12 @@ export class MCPWebBridge {
         }
       }
 
-      // Check if result contains a fatal error (has errorIsFatal: true)
+      // Check if result contains a fatal error (has error_is_fatal: true)
       // Recoverable errors have isError: true with partial data and go in result
-      if (result && typeof result === 'object' && 'errorIsFatal' in result && result.errorIsFatal === true) {
+      if (result && typeof result === 'object' && 'error_is_fatal' in result && result.error_is_fatal === true) {
         const fatalError = result as FatalError;
         // Use -32602 (Invalid params) for client errors like missing sessionId
-        this.sendMCPError(res, mcpRequest.id, -32602, fatalError.errorMessage, fatalError);
+        this.sendMCPError(res, mcpRequest.id, -32602, fatalError.error_message, fatalError);
         return;
       }
 
@@ -656,8 +656,8 @@ export class MCPWebBridge {
     if (sessions.size > 1) {
       return {
         error: SessionNotSpecifiedErrorCode,
-        errorMessage: SessionNotSpecifiedErrorDetails,
-        availableSessions: this.listSessions(sessions)
+        error_message: SessionNotSpecifiedErrorDetails,
+        available_sessions: this.listSessions(sessions)
       };
     }
     return { error: SessionNotFoundErrorCode };
@@ -685,9 +685,9 @@ export class MCPWebBridge {
         tools: [listSessionsTool],
         isError: true,
         error: SessionNotSpecifiedErrorCode,
-        errorMessage: SessionNotSpecifiedErrorDetails,
-        errorIsFatal: false,
-        availableSessions: this.listSessions(sessions)
+        error_message: SessionNotSpecifiedErrorDetails,
+        error_is_fatal: false,
+        available_sessions: this.listSessions(sessions)
       } satisfies ErroredListToolsResult;
     }
 
@@ -695,8 +695,8 @@ export class MCPWebBridge {
     if (!session) {
       return {
         error: SessionNotFoundErrorCode,
-        errorMessage: 'No session found for the provided authentication',
-        errorIsFatal: true
+        error_message: 'No session found for the provided authentication',
+        error_is_fatal: true
       } satisfies FatalError;
     }
 
@@ -753,8 +753,8 @@ export class MCPWebBridge {
         if (!allowed) {
           return {
             error: ToolNotAllowedErrorCode,
-            details: 'The query restricts the allowed tool calls. Use one of `allowedTools`.',
-            allowedTools: query.tools.map(t => t.name)
+            details: 'The query restricts the allowed tool calls. Use one of `allowed_tools`.',
+            allowed_tools: query.tools.map(t => t.name)
           };
         }
       }
@@ -778,7 +778,7 @@ export class MCPWebBridge {
     if (!session.tools.has(toolName)) {
       return {
         error: ToolNotFoundErrorCode,
-        availableTools: Array.from(session.tools.keys())
+        available_tools: Array.from(session.tools.keys())
       };
     }
 
@@ -807,9 +807,9 @@ export class MCPWebBridge {
         resources: [sessionListResource],
         isError: true,
         error: SessionNotSpecifiedErrorCode,
-        errorMessage: SessionNotSpecifiedErrorDetails,
-        errorIsFatal: false,
-        availableSessions: this.listSessions(sessions)
+        error_message: SessionNotSpecifiedErrorDetails,
+        error_is_fatal: false,
+        available_sessions: this.listSessions(sessions)
       } satisfies ErroredListResourcesResult;
     }
 
@@ -817,8 +817,8 @@ export class MCPWebBridge {
     if (!session) {
       return {
         error: SessionNotFoundErrorCode,
-        errorMessage: 'No session found for the provided authentication',
-        errorIsFatal: true
+        error_message: 'No session found for the provided authentication',
+        error_is_fatal: true
       } satisfies FatalError;
     }
 
@@ -882,9 +882,9 @@ export class MCPWebBridge {
         prompts: [],
         isError: true,
         error: SessionNotSpecifiedErrorCode,
-        errorMessage: SessionNotSpecifiedErrorDetails,
-        errorIsFatal: false,
-        availableSessions: this.listSessions(sessions),
+        error_message: SessionNotSpecifiedErrorDetails,
+        error_is_fatal: false,
+        available_sessions: this.listSessions(sessions),
       } satisfies ErroredListPromptsResult;
     }
 
@@ -892,8 +892,8 @@ export class MCPWebBridge {
     if (!session) {
       return {
         error: SessionNotFoundErrorCode,
-        errorMessage: 'No session found for the provided authentication',
-        errorIsFatal: true
+        error_message: 'No session found for the provided authentication',
+        error_is_fatal: true
       } satisfies FatalError;
     }
 

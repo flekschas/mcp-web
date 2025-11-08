@@ -27,21 +27,21 @@ export interface AvailableSession {
  */
 export interface FatalError {
   error: string;              // Error code (e.g., "SessionNotFound")
-  errorMessage: string;       // Human-readable description
-  errorIsFatal: true;         // Discriminant
-  errorDetails?: string;      // Optional additional context
+  error_message: string;      // Human-readable description
+  error_is_fatal: true;       // Discriminant
+  error_details?: string;     // Optional additional context
 }
 
 /**
  * Recoverable error with partial data.
  * These should be returned in the JSON-RPC result with isError: true.
- * Includes [key: string]: unknown for context like availableSessions.
+ * Includes [key: string]: unknown for context like available_sessions.
  */
 export interface RecoverableError {
-  isError: true;              // MCP-style soft error flag
+  isError: true;              // MCP-style soft error flag (exception: matches MCP SDK)
   error: string;              // Error code (e.g., "SessionNotSpecified")
-  errorMessage: string;       // Human-readable description
-  errorIsFatal: false;        // Discriminant
+  error_message: string;      // Human-readable description
+  error_is_fatal: false;      // Discriminant
   [key: string]: unknown;     // Context fields at top level for discoverability
 }
 
@@ -49,21 +49,21 @@ export interface RecoverableError {
  * List tools result with recoverable error and session context.
  */
 export type ErroredListToolsResult = ListToolsResult & RecoverableError & {
-  availableSessions: AvailableSession[];
+  available_sessions: AvailableSession[];
 };
 
 /**
  * List resources result with recoverable error and session context.
  */
 export type ErroredListResourcesResult = ListResourcesResult & RecoverableError & {
-  availableSessions: AvailableSession[];
+  available_sessions: AvailableSession[];
 };
 
 /**
  * List prompts result with recoverable error and session context.
  */
 export type ErroredListPromptsResult = ListPromptsResult & RecoverableError & {
-  availableSessions: AvailableSession[];
+  available_sessions: AvailableSession[];
 };
 
 /**

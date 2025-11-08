@@ -198,7 +198,7 @@ export class MCPWebClient {
     const response = await this.makeRequest<ListToolsResult | ErroredListToolsResult | FatalError>('tools/list', this.getParams(sessionId));
 
     if (isFatalError(response)) {
-      throw new Error(response.errorMessage);
+      throw new Error(response.error_message);
     }
 
     return response;
@@ -208,7 +208,7 @@ export class MCPWebClient {
     const response = await this.makeRequest<ListResourcesResult | ErroredListResourcesResult | FatalError>('resources/list', this.getParams(sessionId));
 
     if (isFatalError(response)) {
-      throw new Error(response.errorMessage);
+      throw new Error(response.error_message);
     }
 
     return response;
@@ -218,7 +218,7 @@ export class MCPWebClient {
     const response = await this.makeRequest<ListPromptsResult | ErroredListPromptsResult | FatalError>('prompts/list', this.getParams(sessionId));
 
     if (isFatalError(response)) {
-      throw new Error(response.errorMessage);
+      throw new Error(response.error_message);
     }
 
     return response;
