@@ -51,8 +51,8 @@ const ToolDefinitionBaseSchema = z.object({
 export const ToolDefinitionZodSchema = ToolDefinitionBaseSchema.extend({
   /** The input schema for the tool (Zod object schema). */
   inputSchema: z.instanceof(z.ZodObject).optional(),
-  /** The output schema for the tool (Zod object schema). */
-  outputSchema: z.instanceof(z.ZodObject).optional()
+  /** The output schema for the tool (any Zod schema type). */
+  outputSchema: z.instanceof(z.ZodType).optional()
 });
 
 /** Schema for tool definitions with JSON Schema */
@@ -72,58 +72,8 @@ export interface ToolDefinition {
   description: string;
   // biome-ignore lint/suspicious/noExplicitAny: Handler can accept/return anything
   handler: (input?: any) => any | Promise<any>;
-  inputSchema?: z.ZodObject | Record<string, unknown>;
-  outputSchema?: z.ZodObject | Record<string, unknown>;
-}
-
-/**
- * Helper function for type-safe tool definition.
- * When you provide Zod schemas, TypeScript will enforce that your handler
- * signature matches the inferred input/output types.
- *
- * @example
- * const tool = defineTool({
- *   name: 'example',
- *   description: 'Example tool',
- *   handler: ({ value }) => ({ result: value * 2 }),
- *   inputSchema: z.object({ value: z.number() }),
- *   outputSchema: z.object({ result: z.number() })
- * });
- */
-export function defineTool<
-  TInputSchema extends z.ZodObject | undefined = undefined,
-  TOutputSchema extends z.ZodObject | undefined = undefined
->(
-  def: {
-    name: string;
-    description: string;
-  } & (TInputSchema extends z.ZodObject
-    ? TOutputSchema extends z.ZodObject
-      ? {
-          handler: (input: z.infer<TInputSchema>) => z.infer<TOutputSchema> | Promise<z.infer<TOutputSchema>>;
-          inputSchema: TInputSchema;
-          outputSchema: TOutputSchema;
-        }
-      : {
-          // biome-ignore lint/suspicious/noExplicitAny: Output untyped when no output schema
-          handler: (input: z.infer<TInputSchema>) => any | Promise<any>;
-          inputSchema: TInputSchema;
-          outputSchema?: TOutputSchema;
-        }
-    : TOutputSchema extends z.ZodObject
-    ? {
-        handler: () => z.infer<TOutputSchema> | Promise<z.infer<TOutputSchema>>;
-        inputSchema?: TInputSchema;
-        outputSchema: TOutputSchema;
-      }
-    : {
-        // biome-ignore lint/suspicious/noExplicitAny: Untyped tool
-        handler: (input?: any) => any | Promise<any>;
-        inputSchema?: TInputSchema;
-        outputSchema?: TOutputSchema;
-      })
-): ToolDefinition {
-  return def as ToolDefinition;
+  inputSchema?: z.ZodObject<z.ZodRawShape> | Record<string, unknown>;
+  outputSchema?: z.ZodType | Record<string, unknown>;
 }
 
 /**
@@ -166,7 +116,7 @@ export const SerializableToolMetadataSchema = z.object({
 
 export type ProcessedToolDefinition = ToolDefinition & {
   inputZodSchema?: z.ZodObject;
-  outputZodSchema?: z.ZodObject;
+  outputZodSchema?: z.ZodType;
   inputJsonSchema?: Record<string, unknown>;
   outputJsonSchema?: Record<string, unknown>;
 }

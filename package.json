@@ -1,7 +1,7 @@
 {
   "name": "mcp-web",
   "version": "0.1.0",
-  "description": "MCP integration for frontend web apps - expose state and actions as tools",
+  "description": "MCP integration for frontend web apps: expose state and actions as tools",
   "type": "module",
   "scripts": {
     "build": "pnpm -r build",

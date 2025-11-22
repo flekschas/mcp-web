@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@mcp-web/decompose-zod-schema": "workspace:*",
+    "@mcp-web/types": "workspace:*",
     "@mcp-web/web": "workspace:*",
     "zod": "catalog:"
   },

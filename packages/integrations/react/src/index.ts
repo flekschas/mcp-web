@@ -1,6 +1,13 @@
-import { applyPartialUpdate, type DecomposedSchema, type DecompositionOptions, decomposeSchema, type SplitPlan } from '@mcp-web/decompose-zod-schema';
-import { isObjectValue, isSupportedValue, isZodSchema, type MCPWeb, toToolSchema, validateInput } from '@mcp-web/web';
-import { useEffect, useRef } from "react";
+import {
+  applyPartialUpdate,
+  type DecomposedSchema,
+  type DecompositionOptions,
+  decomposeSchema,
+  type SplitPlan,
+} from '@mcp-web/decompose-zod-schema';
+import { type ToolDefinition } from '@mcp-web/types';
+import { isSupportedValue, isZodSchema, type MCPWeb, validateInput } from '@mcp-web/web';
+import { useEffect, useRef, useState } from 'react';
 import { ZodObject, z } from 'zod';
 
 export interface UseToolConfig<T> {
@@ -28,38 +35,37 @@ export function useTool<T>({
   setValue,
   valueSchema,
   valueSchemaSplit,
-}: UseToolConfig<T>) {
+}: UseToolConfig<T>): ToolDefinition[] {
+  const [tools, setTools] = useState<ToolDefinition[]>([]);
+
   const valueRef = useRef<T>(value);
   valueRef.current = value;
 
   useEffect(() => {
     // Validate the value type is supported
     if (!isSupportedValue(valueSchema)) {
-      throw new Error(`Unsupported value type for '${name}'. Only primitive values, arrays, and objects are supported.`);
+      throw new Error(
+        `Unsupported value type for '${name}'. Only primitive values, arrays, and objects are supported.`
+      );
     }
 
     console.log('adding react state tools', name);
 
-    const tools: string[] = [];
+    const tools: ToolDefinition[] = [];
 
     // Always add a getter tool
-    const getterToolName = `get_${name}`;
-    mcp.addTool({
-      name: getterToolName,
+    const getterToolDefinition = mcp.addTool({
+      name: `get_${name}`,
       description: `Get the current value of ${name}. ${description}`,
       handler: () => valueRef.current,
-      outputSchema: toToolSchema(valueSchema),
+      outputSchema: valueSchema as z.ZodType<T>,
     });
-    tools.push(getterToolName);
+    tools.push(getterToolDefinition);
 
     // Add setter tools if setValue is provided
     if (setValue) {
-      const isObjectSchema = isObjectValue(valueSchema);
-      const isZodObjectSchema = valueSchema &&
-        isZodSchema(valueSchema) &&
-        valueSchema instanceof ZodObject;
-
-      const shouldDecompose = isObjectSchema && isZodObjectSchema && valueSchemaSplit !== undefined;
+      const isZodObjectSchema = isZodSchema(valueSchema) && valueSchema instanceof ZodObject;
+      const shouldDecompose = isZodObjectSchema && valueSchemaSplit !== undefined;
 
       if (shouldDecompose && valueSchemaSplit) {
         // Add decomposed setter tools for object values
@@ -77,10 +83,9 @@ export function useTool<T>({
 
         if (decomposedSchemas.length > 0) {
           // Add decomposed setter tools
-          decomposedSchemas.forEach((decomposed) => {
-            const toolName = `set_${name}_${decomposed.name}`;
-            mcp.addTool({
-              name: toolName,
+          for (const decomposed of decomposedSchemas) {
+            const setterToolDefinition = mcp.addTool({
+              name: `set_${name}_${decomposed.name}`,
               description: `Set ${decomposed.name} properties of ${name}. ${description}`,
               handler: (partialValue: z.infer<typeof decomposed.schema>) => {
                 try {
@@ -92,7 +97,7 @@ export function useTool<T>({
                 } catch (error) {
                   return {
                     success: false,
-                    error: error instanceof Error ? error.message : 'Unknown error'
+                    error: error instanceof Error ? error.message : 'Unknown error',
                   };
                 }
               },
@@ -102,65 +107,77 @@ export function useTool<T>({
                 error: z.string().optional(),
               }),
             });
-            tools.push(toolName);
-          });
+            tools.push(setterToolDefinition);
+          }
         } else {
           // Fall back to single setter if decomposition failed
-          const setterToolName = `set_${name}`;
-          mcp.addTool({
-            name: setterToolName,
+          const inputSchema = isZodObjectSchema
+            ? (valueSchema as z.ZodObject<z.ZodRawShape>)
+            : z.object({ value: valueSchema as z.ZodType<T> });
+          const setterToolDefinition = mcp.addTool({
+            name: `set_${name}`,
             description: `Set the value of ${name}. ${description}`,
             handler: (newValue: unknown) => {
               try {
-                const validatedValue = validateInput(newValue, valueSchema);
+                const actualValue = isZodObjectSchema ? newValue : (newValue as { value: unknown }).value;
+                const validatedValue = validateInput(actualValue, valueSchema);
                 setValue(validatedValue as T);
                 return { success: true };
               } catch (error) {
                 return {
                   success: false,
-                  error: error instanceof Error ? error.message : 'Unknown error'
+                  error: error instanceof Error ? error.message : 'Unknown error',
                 };
               }
             },
-            inputSchema: toToolSchema(valueSchema),
+            inputSchema,
             outputSchema: z.object({
               success: z.boolean(),
               error: z.string().optional(),
             }),
           });
-          tools.push(setterToolName);
+          tools.push(setterToolDefinition);
         }
       } else {
         // Add single setter tool for non-object values or when decomposition is not requested
-        const setterToolName = `set_${name}`;
-        mcp.addTool({
-          name: setterToolName,
+        const inputSchema = isZodObjectSchema
+          ? (valueSchema as z.ZodObject<z.ZodRawShape>)
+          : z.object({ value: valueSchema as z.ZodType<T> });
+        const setterToolDefinition = mcp.addTool({
+          name: `set_${name}`,
           description: `Set the value of ${name}. ${description}`,
           handler: (newValue: unknown) => {
             try {
-              const validatedValue = validateInput(newValue, valueSchema);
+              const actualValue = isZodObjectSchema ? newValue : (newValue as { value: unknown }).value;
+              const validatedValue = validateInput(actualValue, valueSchema);
               setValue(validatedValue as T);
               return { success: true };
             } catch (error) {
               return {
                 success: false,
-                error: error instanceof Error ? error.message : 'Unknown error'
+                error: error instanceof Error ? error.message : 'Unknown error',
               };
             }
           },
-          inputSchema: toToolSchema(valueSchema),
+          inputSchema,
           outputSchema: z.object({
             success: z.boolean(),
             error: z.string().optional(),
           }),
         });
-        tools.push(setterToolName);
+        tools.push(setterToolDefinition);
       }
     }
 
+    setTools(tools);
+
     // Return cleanup function
     return () => {
-      tools.forEach((tool) => { mcp.removeTool(tool); });
+      for (const tool of tools) {
+        mcp.removeTool(tool.name);
+      }
     };
   }, [mcp, name, description, valueSchema, setValue, valueSchemaSplit]);
+
+  return tools;
 }

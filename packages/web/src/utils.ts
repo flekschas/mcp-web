@@ -1,6 +1,6 @@
 import type { SerializableToolMetadata, ToolDefinition } from '@mcp-web/types';
 import Ajv from 'ajv';
-import { ZodObject, z } from 'zod';
+import { z } from 'zod';
 
 const ajv = new Ajv({ strict: false });
 
@@ -9,7 +9,7 @@ export function isZodSchema(schema: z.ZodType<unknown> | z.core.JSONSchema.JSONS
   return typeof schema === 'object' && 'safeParse' in schema;
 }
 
-export function toJSONSchema(schema: z.ZodObject | z.core.JSONSchema.JSONSchema): z.core.JSONSchema.JSONSchema {
+export function toJSONSchema(schema: z.ZodType | z.core.JSONSchema.JSONSchema): z.core.JSONSchema.JSONSchema {
   if (schema && typeof schema === 'object' && 'safeParse' in schema) {
     const jsonSchema = z.toJSONSchema(schema as z.ZodSchema);
     // Remove $schema property to avoid AJV Draft 2020-12 validation errors
@@ -21,23 +21,6 @@ export function toJSONSchema(schema: z.ZodObject | z.core.JSONSchema.JSONSchema)
     return jsonSchema;
   }
   return schema;
-}
-
-// Type guard to check if a schema represents an object value (plain object, not array)
-export function isObjectValue<T>(schema?: z.ZodType<T> | z.core.JSONSchema.JSONSchema): boolean {
-  if (!schema) return false;
-
-  if (typeof schema === 'object' && 'safeParse' in schema) {
-    // Zod schema - check if it's specifically an object schema (not array)
-    return schema instanceof ZodObject;
-  }
-
-  // JSON Schema - check type property for 'object' specifically
-  if (typeof schema === 'object' && 'type' in schema) {
-    return schema.type === 'object';
-  }
-
-  return false;
 }
 
 // Validate that the schema represents a supported value type
@@ -64,6 +47,15 @@ export function isSupportedValue<T>(schema?: z.ZodType<T> | z.core.JSONSchema.JS
   return true;
 }
 
+export function toToolZodSchema<T>(schema?: z.ZodType<T> | z.core.JSONSchema.JSONSchema): z.ZodObject {
+  // If it's already an object schema, use as-is
+  if (schema instanceof z.ZodObject) {
+    return schema;
+  }
+  // For non-objects, wrap in a value property for consistent tool interface
+  return z.object({ value: schema as z.ZodSchema });
+}
+
 // Convert schema to appropriate format for tools
 export function toToolSchema<T>(schema?: z.ZodType<T> | z.core.JSONSchema.JSONSchema): z.ZodObject | z.core.JSONSchema.JSONSchema {
   if (!schema) {
@@ -71,12 +63,7 @@ export function toToolSchema<T>(schema?: z.ZodType<T> | z.core.JSONSchema.JSONSc
   }
 
   if (isZodSchema(schema)) {
-    // If it's already an object schema, use as-is
-    if (schema instanceof z.ZodObject) {
-      return schema;
-    }
-    // For non-objects, wrap in a value property for consistent tool interface
-    return z.object({ value: schema as z.ZodSchema });
+    return toToolZodSchema(schema);
   }
 
   // Handle JSON Schema case
@@ -120,7 +107,7 @@ export function toSerializableToolMetadata(tool: ToolDefinition): SerializableTo
   return {
     name: tool.name,
     description: tool.description,
-    inputSchema: tool.inputSchema ? toJSONSchema(tool.inputSchema as z.ZodObject) : undefined,
-    outputSchema: tool.outputSchema ? toJSONSchema(tool.outputSchema as z.ZodObject) : undefined,
+    inputSchema: tool.inputSchema ? toJSONSchema(tool.inputSchema as z.ZodType) : undefined,
+    outputSchema: tool.outputSchema ? toJSONSchema(tool.outputSchema as z.ZodType) : undefined,
   };
 }

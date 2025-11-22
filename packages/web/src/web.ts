@@ -1,5 +1,12 @@
 import type { BridgeMessage, RegisterToolMessage } from '@mcp-web/bridge';
 import {
+  applyPartialUpdate,
+  type DecomposedSchema,
+  type DecompositionOptions,
+  decomposeSchema,
+  type SplitPlan,
+} from '@mcp-web/decompose-zod-schema';
+import {
   type MCPWebConfig,
   type MCPWebConfigOutput,
   McpWebConfigSchema,
@@ -10,10 +17,10 @@ import {
   type ToolDefinition,
   ToolDefinitionSchema,
 } from '@mcp-web/types';
-import { z } from 'zod';
+import { ZodObject, z } from 'zod';
 import { QueryRequestSchema, QueryResponseSchema } from './schemas';
 import type { QueryRequest, QueryResponse } from './types';
-import { toJSONSchema, toSerializableToolMetadata } from './utils';
+import { isZodSchema, toJSONSchema, toSerializableToolMetadata, validateInput } from './utils';
 
 export class MCPWeb {
   private ws: WebSocket | null = null;
@@ -256,6 +263,15 @@ export class MCPWeb {
       // Execute the tool
       const result = await tool.handler(toolInput);
 
+      // Validate output if Zod schema is provided
+      if (tool.outputZodSchema) {
+        const parsedResult = tool.outputZodSchema.safeParse(result);
+        if (!parsedResult.success) {
+          this.sendToolResponse(requestId, { error: `Invalid output: ${parsedResult.error.message}` });
+          return;
+        }
+      }
+
       // Send the raw result - the bridge will handle formatting
       this.sendToolResponse(requestId, result);
 
@@ -340,10 +356,51 @@ export class MCPWeb {
   }
 
   /**
-   * Add a tool that can be called by Claude Desktop
-   * @returns The processed tool definition that can be used as responseTool in queries
+   * Add a tool that can be called by an MCP-compatible AI app/agent..
+   *
+   * Supports both Zod schemas (recommended - compile time and runtime type safety) and JSON Schemas (runtime validation only).
+   * When using Zod schemas, TypeScript will enforce that your handler signature matches the schemas.
+   *
+   * @returns The tool definition that can be used as context or responseTool in queries
+   *
+   * @example
+   * mcp.addTool({
+   *   name: 'double',
+   *   description: 'Double a number',
+   *   handler: ({ value }) => ({ result: value * 2 }),
+   *   inputSchema: z.object({ value: z.number() }),
+   *   outputSchema: z.object({ result: z.number() })
+   * });
    */
-  addTool(tool: ToolDefinition): ProcessedToolDefinition {
+  // Overload: Zod
+  addTool<
+    TInput extends z.ZodObject<z.ZodRawShape> | undefined = undefined,
+    TOutput extends z.ZodType | undefined = undefined
+  >(tool: {
+    name: string;
+    description: string;
+    handler:
+      TInput extends z.ZodObject<z.ZodRawShape>
+        ? (input: z.infer<TInput>) => TOutput extends z.ZodType
+          ? z.infer<TOutput> | Promise<z.infer<TOutput>>
+          : void | Promise<void>
+        : TOutput extends z.ZodType
+          ? () => z.infer<TOutput> | Promise<z.infer<TOutput>>
+          : () => void | Promise<void>;
+    inputSchema?: TInput;
+    outputSchema?: TOutput;
+  }): ToolDefinition;
+
+  // Overload: JSON Schema
+  addTool(tool: {
+    name: string;
+    description: string;
+    handler: (input?: unknown) => unknown | Promise<unknown> | void | Promise<void>;
+    inputSchema?: { type: string; [key: string]: unknown };
+    outputSchema?: { type: string; [key: string]: unknown };
+  }): ToolDefinition;
+
+  addTool(tool: ToolDefinition): ToolDefinition {
     // Validate the tool definition using Zod schema
     const validationResult = ToolDefinitionSchema.safeParse(tool);
     if (!validationResult.success) {
@@ -356,8 +413,8 @@ export class MCPWeb {
     // Create processed tool with both Zod and JSON schemas
     const processedTool: ProcessedToolDefinition = {
       ...validationResult.data,
-      inputZodSchema: isInputZodSchema ? (validationResult.data.inputSchema as z.ZodObject) : undefined,
-      outputZodSchema: isOutputZodSchema ? (validationResult.data.outputSchema as z.ZodObject) : undefined,
+      inputZodSchema: isInputZodSchema ? (validationResult.data.inputSchema as z.ZodObject<z.ZodRawShape>) : undefined,
+      outputZodSchema: isOutputZodSchema ? (validationResult.data.outputSchema as z.ZodType) : undefined,
       inputJsonSchema: validationResult.data.inputSchema ? toJSONSchema(validationResult.data.inputSchema) : undefined,
       outputJsonSchema: validationResult.data.outputSchema ? toJSONSchema(validationResult.data.outputSchema) : undefined
     };
@@ -366,11 +423,11 @@ export class MCPWeb {
     if (processedTool.inputZodSchema) {
       const originalHandler = processedTool.handler;
       processedTool.handler = async (input: unknown) => {
-        const validationResult = processedTool.inputZodSchema!.safeParse(input);
-        if (!validationResult.success) {
-          throw new Error(`Invalid tool input: ${validationResult.error.message}`);
+        const validationResult = processedTool.inputZodSchema?.safeParse(input);
+        if (!validationResult?.success) {
+          throw new Error(`Invalid tool input: ${validationResult?.error?.message}`);
         }
-        return originalHandler(validationResult.data);
+        return originalHandler(validationResult?.data);
       };
     }
 
@@ -381,7 +438,7 @@ export class MCPWeb {
       this.registerTool(processedTool);
     }
 
-    return processedTool;
+    return tool;
   }
 
   /**
@@ -389,6 +446,163 @@ export class MCPWeb {
    */
   removeTool(name: string) {
     this.tools.delete(name);
+  }
+
+  /**
+   * Add tools for getting and optionally setting state.
+   *
+   * Creates a getter tool and optionally setter tool(s) for state management.
+   * Supports schema decomposition to split large state into multiple focused setters.
+   *
+   * @returns Object containing all created tools and a cleanup function
+   *
+   * @example
+   * ```typescript
+   * // Basic read-write state
+   * const { tools, cleanup } = mcp.addStateTool({
+   *   name: 'counter',
+   *   description: 'Application counter',
+   *   get: () => count,
+   *   set: (val) => { count = val },
+   *   schema: z.number()
+   * });
+   *
+   * // Read-only state (omit set)
+   * mcp.addStateTool({
+   *   name: 'config',
+   *   description: 'App configuration',
+   *   get: () => appConfig,
+   *   schema: ConfigSchema
+   * });
+   *
+   * // With schema decomposition for large objects
+   * mcp.addStateTool({
+   *   name: 'game_state',
+   *   description: 'Game board state',
+   *   get: () => gameState,
+   *   set: (val) => { gameState = val },
+   *   schema: GameStateSchema,
+   *   schemaSplit: {
+   *     board: ['board'],
+   *     players: ['currentPlayer', 'scores']
+   *   }
+   * });
+   * // Creates: get_game_state, set_game_state_board, set_game_state_players
+   * ```
+   */
+  addStateTool<T>(config: {
+    name: string;
+    description: string;
+    get: () => T;
+    set?: (value: T) => void;
+    schema: z.ZodType<T> | z.core.JSONSchema.JSONSchema;
+    schemaSplit?: SplitPlan | DecompositionOptions;
+  }): { tools: ToolDefinition[]; cleanup: () => void } {
+    const { name, description, get, set, schema, schemaSplit } = config;
+
+    const tools: ToolDefinition[] = [];
+
+    // Always add a getter tool
+    const getterTool = this.addTool({
+      name: `get_${name}`,
+      description: `Get the current value of ${name}. ${description}`,
+      handler: get,
+      outputSchema: schema as z.ZodType<T>,
+    });
+    tools.push(getterTool);
+
+    // Add setter tools if set function is provided
+    if (set) {
+      const isZodObjectSchema = isZodSchema(schema) && schema instanceof ZodObject;
+      const shouldDecompose = isZodObjectSchema && schemaSplit !== undefined;
+
+      let decomposedSchemas: DecomposedSchema[] = [];
+
+      if (shouldDecompose && schemaSplit) {
+        try {
+          decomposedSchemas = decomposeSchema(
+            schema as unknown as Parameters<typeof decomposeSchema>[0],
+            schemaSplit
+          );
+        } catch (error) {
+          console.warn(`Failed to decompose schema for ${name}:`, error);
+        }
+      }
+
+      if (decomposedSchemas.length > 0) {
+        // Add decomposed setter tools
+        for (const decomposed of decomposedSchemas) {
+          const setterTool = this.addTool({
+            name: `set_${name}_${decomposed.name}`,
+            description: `Set ${decomposed.name} properties of ${name}. ${description}`,
+            handler: (partialValue: z.infer<typeof decomposed.schema>) => {
+              try {
+                const currentValue = get();
+                const updatedValue = applyPartialUpdate(
+                  currentValue,
+                  decomposed.targetPaths,
+                  partialValue
+                );
+                const validatedValue = validateInput(updatedValue, schema);
+                set(validatedValue);
+                return { success: true };
+              } catch (error) {
+                return {
+                  success: false,
+                  error: error instanceof Error ? error.message : 'Unknown error',
+                };
+              }
+            },
+            inputSchema: decomposed.schema,
+            outputSchema: z.object({
+              success: z.boolean(),
+              error: z.string().optional(),
+            }),
+          });
+          tools.push(setterTool);
+        }
+      } else {
+        // Add single setter tool
+        // Wrap non-object schemas in a value property (MCP requires object inputs)
+        const inputSchema = isZodObjectSchema
+          ? (schema as z.ZodObject<z.ZodRawShape>)
+          : z.object({ value: schema as z.ZodType<T> });
+        const setterTool = this.addTool({
+          name: `set_${name}`,
+          description: `Set the value of ${name}. ${description}`,
+          handler: (newValue: unknown) => {
+            try {
+              // Unwrap if we wrapped in value property
+              const actualValue = isZodObjectSchema ? newValue : (newValue as { value: unknown }).value;
+              const validatedValue = validateInput(actualValue, schema);
+              set(validatedValue);
+              return { success: true };
+            } catch (error) {
+              return {
+                success: false,
+                error: error instanceof Error ? error.message : 'Unknown error',
+              };
+            }
+          },
+          inputSchema,
+          outputSchema: z.object({
+            success: z.boolean(),
+            error: z.string().optional(),
+          }),
+        });
+        tools.push(setterTool);
+      }
+    }
+
+    // Return tools and cleanup function
+    return {
+      tools,
+      cleanup: () => {
+        for (const tool of tools) {
+          this.removeTool(tool.name);
+        }
+      },
+    };
   }
 
   /**
@@ -453,8 +667,8 @@ export class MCPWeb {
     const uuid = crypto?.randomUUID() ?? (() => {
       const fallbackUuid = `query-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
       console.warn(
-        '⚠️  Running in insecure context (http://). Using fallback UUID generation.',
-        '\n   For production, use https:// to enable secure crypto.randomUUID().'
+        '⚠️  Running in insecure context (http://). Using fallback UUID generation.\n',
+        '   For production, use https:// to enable secure crypto.randomUUID().'
       );
       return fallbackUuid;
     })();

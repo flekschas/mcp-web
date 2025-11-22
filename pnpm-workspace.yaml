@@ -1,17 +1,18 @@
 packages:
-  - 'demos/*'
-  - 'demos/*/app'
-  - 'demos/*/agent'
-  - 'demos/*/bridge'
-  - 'demos/*/shared'
-  - 'packages/*'
-  - 'packages/integrations/*'
-  - 'tests'
+  - demos/*
+  - demos/*/app
+  - demos/*/agent
+  - demos/*/bridge
+  - demos/*/shared
+  - docs
+  - packages/*
+  - packages/integrations/*
+  - tests
 
 catalog:
   '@modelcontextprotocol/sdk': ^1.15.1
-  '@types/node': ^24.7.0
+  '@types/node': ^24.10.1
   ajv: ^8.17.1
-  tsx: ^4.19.2
+  tsx: ^4.20.6
   typescript: ~5.9.3
   zod: ~4.1.12
