@@ -1,0 +1,12 @@
+# Ignore everything except .svelte files
+*.ts
+*.js
+*.json
+*.html
+*.css
+*.md
+
+# Keep node_modules and build artifacts ignored
+node_modules
+dist
+.svelte-kit
