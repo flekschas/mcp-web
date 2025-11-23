@@ -4,13 +4,21 @@ This system allows any web frontend application to be controlled by an AI tool (
 
 ## Architecture Overview
 
+MCP-Web provides the glue to enable an AI app or agent to control and interact
+with your frontend app via three packages: Web, Bridge, Client
+
 ```
-Frontend App ↔ MCP Bridge ↔ MCP Client ↔ AI Agent/App
+Frontend  ↔  MCP-Web/Web  ↔  MCP-Web/Bridge  ↔  MCP-Web/Client  ↔  AI App/Agent
+     ╰─ Runs ─╯     ╰─ WebSocket ─╯      ╰─ HTTP ─╯        ╰─ STDIO ─╯
 ```
+
+- Web: registers and executes frontend tools
+- Bridge: exposes tools and forwards calls as an MCP server
+- Client: issues requests to the MCP server
 
 ## Quick Start
 
-### 1. Install and Start the Bridge Server
+### Install
 
 ```bash
 # Install the bridge server
