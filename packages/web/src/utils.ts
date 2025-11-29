@@ -23,30 +23,6 @@ export function toJSONSchema(schema: z.ZodType | z.core.JSONSchema.JSONSchema): 
   return schema;
 }
 
-// Validate that the schema represents a supported value type
-export function isSupportedValue<T>(schema?: z.ZodType<T> | z.core.JSONSchema.JSONSchema): boolean {
-  if (!schema) return true;
-
-  if (typeof schema === 'object' && 'safeParse' in schema) {
-    // For Zod schemas, we support most basic types
-    // biome-ignore lint/suspicious/noExplicitAny: It's the internal zod definition
-    const zodDef = (schema as any)._def;
-    if (zodDef && 'typeName' in zodDef) {
-      const unsupportedTypes = ['ZodMap', 'ZodSet', 'ZodFunction', 'ZodLazy', 'ZodPromise'];
-      return !unsupportedTypes.includes(zodDef.typeName);
-    }
-    return true; // Default to supported if we can't determine type
-  }
-
-  // For JSON schemas, check for unsupported patterns
-  if (typeof schema === 'object') {
-    // We don't support schemas that explicitly define Map/Set-like structures
-    return true; // Most JSON schemas are supported
-  }
-
-  return true;
-}
-
 export function toToolZodSchema<T>(schema?: z.ZodType<T> | z.core.JSONSchema.JSONSchema): z.ZodObject {
   // If it's already an object schema, use as-is
   if (schema instanceof z.ZodObject) {

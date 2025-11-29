@@ -6,7 +6,7 @@ import {
   type SplitPlan,
 } from '@mcp-web/decompose-zod-schema';
 import { type ToolDefinition } from '@mcp-web/types';
-import { isSupportedValue, isZodSchema, type MCPWeb, validateInput } from '@mcp-web/web';
+import { isZodSchema, type MCPWeb, validateInput } from '@mcp-web/web';
 import { useEffect, useRef, useState } from 'react';
 import { ZodObject, z } from 'zod';
 
@@ -42,13 +42,6 @@ export function useTool<T>({
   valueRef.current = value;
 
   useEffect(() => {
-    // Validate the value type is supported
-    if (!isSupportedValue(valueSchema)) {
-      throw new Error(
-        `Unsupported value type for '${name}'. Only primitive values, arrays, and objects are supported.`
-      );
-    }
-
     console.log('adding react state tools', name);
 
     const tools: ToolDefinition[] = [];
