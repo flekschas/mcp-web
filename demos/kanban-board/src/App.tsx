@@ -1,5 +1,5 @@
 import { MCPWeb } from '@mcp-web/web';
-import { useTool } from '@mcp-web/web/integrations/react';
+import { useTool } from '@mcp-web/react';
 import { useCallback, useEffect, useState } from 'react';
 import { z } from 'zod';
 import BoardHeader from './components/BoardHeader';
