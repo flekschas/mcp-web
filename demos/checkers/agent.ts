@@ -7,11 +7,10 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { serve } from '@hono/node-server';
 import { MCPWebClient } from '@mcp-web/client';
 import { type Query, QuerySchema, type Tool, type ToolDefinition } from '@mcp-web/types';
-import { generateObject, generateText, stepCountIs } from 'ai';
+import { generateObject, generateText, jsonSchema, stepCountIs } from 'ai';
 import { config } from 'dotenv';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import type { z } from 'zod';
 import { PORTS } from './mcp-web.config.js';
 
 // Load environment variables
@@ -122,9 +121,7 @@ function mcpToAiSdkTools(
       toolDef.name,
       {
         description: toolDef.description || '',
-        // MCP tools have JSON Schema, AI SDK can accept both JSON Schema and Zod
-        // biome-ignore lint/suspicious/noExplicitAny: AI SDK tools accept JSON Schema or Zod
-        inputSchema: toolDef.inputSchema as any,
+        inputSchema: jsonSchema(toolDef.inputSchema),
         execute: async (args: Record<string, unknown>) => {
           return await mcpClient.callTool(toolDef.name, args);
         },
@@ -195,11 +192,28 @@ async function generateStructuredAnswer<T extends Record<string, unknown>>({
   model?: Parameters<typeof generateObject>[0]['model'];
   maxSteps?: number;
 }): Promise<{ object: T; contextMessages: unknown[] }> {
+  if (!query.responseTool) {
+    const error = new Error('Response tool is required for structured output generation');
+    mcpClient.fail(error);
+    throw error;
+  }
+
+  const responseToolInputSchema = query.responseTool.inputSchema;
+
+  if (!responseToolInputSchema) {
+    const error = new Error('Response tool input schema is required for structured output generation');
+    mcpClient.fail(error);
+    throw error;
+  }
+
+  // Wrap JSON Schema with jsonSchema() for AI SDK
+  const responseToolSchema = jsonSchema(responseToolInputSchema);
+
   const aiSdkTools = mcpToAiSdkTools(tools, mcpClient);
 
-  const nonResponseToolNames = tools
-    .filter((t) => t.name !== query.responseTool?.name)
-    .map((t) => t.name);
+  const nonResponseAiSdkTools = { ...aiSdkTools };
+
+  delete nonResponseAiSdkTools[query.responseTool.name];
 
   // Phase 1: Gather context (use all tools EXCEPT response tool)
   const contextGathering = await generateText({
@@ -224,21 +238,14 @@ async function generateStructuredAnswer<T extends Record<string, unknown>>({
     Your output will be provided to another agent that will generate the final answer.
     `),
     prompt: query.prompt,
-    tools: aiSdkTools,
-    activeTools: nonResponseToolNames,
+    tools: nonResponseAiSdkTools,
     stopWhen: stepCountIs(maxSteps),
   });
 
+  console.log('contextGathering: messages', contextGathering.response.messages);
+
   // Phase 2: Structured output - LLM generates the final response in the shape of response tool input
   // If no response tool specified, we can't generate structured output
-  if (!query.responseTool) {
-    const error = new Error('Response tool is required for structured output generation');
-    mcpClient.fail(error);
-    throw error;
-  }
-
-  // Get the response tool's input schema - this is the shape we want the LLM to generate
-  const responseToolSchema = query.responseTool.inputSchema as z.ZodType<T>;
 
   // Use generateObject to create structured data conforming to the response tool's input schema
   // NOTE: generateObject does NOT support tools/activeTools/toolChoice parameters
@@ -326,7 +333,7 @@ async function processQuery(query: Query, uuid: string): Promise<void> {
 
   try {
     // Send initial progress
-    await mcpClient.sendProgress('Analyzing game state...');
+    await queryClient.sendProgress('Analyzing game state...');
 
     // Get available tools
     const { tools } = await queryClient.listTools();

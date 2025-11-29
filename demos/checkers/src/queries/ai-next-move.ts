@@ -1,7 +1,15 @@
 import { makeMove } from "../game-logic";
-import { getLegalMoves } from "../game-logic";
 import { mcpWeb, getGameStateToolDefinition, makeMoveToolDefinition } from "../mcp";
 import { state } from "../state.svelte";
+
+function makeRandomMove() {
+  if (state.allValidMoves.length === 0) return;
+
+  const randomMove = state.allValidMoves[Math.floor(Math.random() * state.allValidMoves.length)];
+  const newState = makeMove(state.gameState, randomMove);
+  Object.assign(state.gameState, newState);
+  state.gameMessage = `AI made random move: ${randomMove.from.row},${randomMove.from.col} → ${randomMove.to.row},${randomMove.to.col}`;
+}
 
 export async function queryAIForMove() {
   try {
@@ -52,6 +60,7 @@ export async function queryAIForMove() {
         case 'query_failure':
           console.error('AI query failed:', event.error);
           state.gameMessage = `AI error: ${event.error}`;
+          makeRandomMove();
           break;
       }
     }
@@ -59,15 +68,7 @@ export async function queryAIForMove() {
   } catch (error) {
     console.error('AI query failed:', error);
     state.gameMessage = `AI error: ${error instanceof Error ? error.message : String(error)}`;
-
-    // Fallback: make random legal move
-    const legalMoves = getLegalMoves(state.gameState);
-    if (legalMoves.length > 0) {
-      const randomMove = legalMoves[Math.floor(Math.random() * legalMoves.length)];
-      const newState = makeMove(state.gameState, randomMove);
-      state.gameState = newState;
-      state.gameMessage = `AI made random move: ${randomMove.from.row},${randomMove.from.col} → ${randomMove.to.row},${randomMove.to.col}`;
-    }
+    makeRandomMove();
   } finally {
     state.aiThinking = false;
   }

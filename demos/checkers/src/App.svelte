@@ -29,8 +29,8 @@
   <div class="container mx-auto px-4 py-8">
     <!-- Header -->
     <header class="text-center mb-8">
-      <h1 class="text-4xl font-bold mb-2">Spanish Checkers: You vs AI</h1>
-      <p class="text-gray-400">Powered by MCP-Web</p>
+      <h1 class="text-4xl font-bold mb-2">Spanish Checkers</h1>
+      <p class="text-gray-400">Play against AI</p>
 
       <!-- Connection Status -->
       <div class="mt-4 flex justify-center items-center space-x-2">
@@ -85,8 +85,7 @@
     <!-- Footer -->
     <footer class="text-center mt-12 text-gray-500 text-sm">
       <p>
-        This demo showcases frontend-triggered queries with the MCP-Web
-        framework.
+        This demo showcases MCP-Web's frontend-triggered LLM queries.
       </p>
     </footer>
   </div>

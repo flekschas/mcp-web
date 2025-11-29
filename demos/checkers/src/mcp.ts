@@ -17,18 +17,23 @@ export const getGameStateToolDefinition = mcpWeb.addTool({
 export const makeMoveToolDefinition = mcpWeb.addTool({
   name: 'make_move',
   description: 'Make a move for the current player in the game',
-  handler: ({ player, moveIndex, move }) => {
-    console.log('AI making move:', move);
+  handler: (move) => {
+    console.log('make_move: player', player);
+    console.log('make_move: moveIndex', moveIndex);
+    console.log('make_move: move', move);
 
     if (moveIndex < state.gameState.moveHistory.length) {
+      console.error('This move has already been made. See \`moveHistory[${moveIndex}]\` of the \`get_game_state\` tool.');
       return { error: `This move has already been made. See \`moveHistory[${moveIndex}]\` of the \`get_game_state\` tool.` };
     }
 
     if (moveIndex > state.gameState.moveHistory.length) {
+      console.error('Cannot make future moves. The current move index is ${state.gameState.moveHistory.length}.');
       return { error: `Cannot make future moves. The current move index is ${state.gameState.moveHistory.length}.` };
     }
 
     if (player !== state.gameState.currentTurn) {
+      console.error('It\'s not your turn. The current player is ${state.gameState.currentTurn}');
       return { error: `It's not your turn. The current player is ${state.gameState.currentTurn}` };
     }
 
@@ -41,12 +46,16 @@ export const makeMoveToolDefinition = mcpWeb.addTool({
     );
 
     if (!isValid) {
+      console.error('Invalid move. The move is not legal. See \`allValidMoves\` of the \`get_game_state\` tool.');
       return { error: 'Invalid move' };
     }
 
     const currentCapturedPieces = state.gameState.capturedPieces[player];
 
-    state.gameState = makeMove(state.gameState, move);
+    console.log('Making move:', move);
+
+    const newState = makeMove(state.gameState, move);
+    Object.assign(state.gameState, newState);
 
     const newCapturedPieces = state.gameState.capturedPieces[player];
 
@@ -55,11 +64,7 @@ export const makeMoveToolDefinition = mcpWeb.addTool({
       gameStatus: state.gameState.gameStatus
     };
   },
-  inputSchema: z.object({
-    player: GameStateSchema.shape.currentTurn,
-    moveIndex: z.number().describe('The index of the move to make. The first move is at index 0.'),
-    move: MoveSchema,
-  }).describe('The move to make'),
+  inputSchema: MoveSchema,
   outputSchema: z.union([
     z.object({
       numCapturedPieces: z.number(),
