@@ -4,7 +4,6 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MCPWebClient, type MCPWebClientConfig } from '@mcp-web/client';
 import {
-  defineTool,
   type MCPWebConfig,
   QueryDoneErrorCode,
   QueryNotFoundErrorCode,
@@ -20,6 +19,7 @@ import { killProcess } from '../helpers/kill-process';
 // Get the directory of the current file
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
 
 const mcpWebConfig = {
   name: 'test',
@@ -116,10 +116,10 @@ test('MCPWebBridge accepts query-contextualized client requests', async () => {
   await mcpWeb.connect();
 
   // Start the query - this sends it to the bridge and mock agent
-  const queryIterator = mcpWeb.query({ prompt: 'Test query prompt' });
+  const response = mcpWeb.query({ prompt: 'Test query prompt' });
 
   // Get the first event (should be acceptance)
-  const firstEvent = await queryIterator.next();
+  const firstEvent = await response.stream.next();
   expect(firstEvent.value.type).toBe('query_accepted');
 
   // Wait a bit for the query to be captured by the agent
@@ -184,7 +184,7 @@ test('Query events are emitted correctly', async () => {
     expect(callResult2.content.length).toBeGreaterThan(0);
     expect(callResult2.content[0].type).toBe('text');
     const data2 = callResult2.content[0].type === 'text' ? callResult2.content[0].text : '';
-    expect(data2).toBe('test_2:123');
+    expect(JSON.parse(data2)).toEqual({ result: 'test_2:123' });
 
     await client.complete(`Tool call result: ${data1} and ${data2}`);
   };
@@ -206,7 +206,7 @@ test('Query events are emitted correctly', async () => {
   mcpWeb.addTool({
     name: 'test_2',
     description: 'Tool 2',
-    handler: ({ value }: { value: number }) => `test_2:${value}`,
+    handler: ({ value }) => ({ result: `test_2:${value}` }),
     inputSchema: z.object({ value: z.int() }),
     outputSchema: z.object({ result: z.string() })
   });
@@ -215,26 +215,26 @@ test('Query events are emitted correctly', async () => {
   await mcpWeb.connect();
 
   // Start the query - this sends it to the bridge and mock agent
-  const responseIterator = mcpWeb.query({ prompt: 'Test prompt' });
+  const response = mcpWeb.query({ prompt: 'Test prompt' });
 
   // Get the first event (should be acceptance)
-  const firstEvent = await responseIterator.next();
+  const firstEvent = await response.stream.next();
   expect(firstEvent.value.type).toBe('query_accepted');
 
   // Get the second event (should be progress)
-  const secondEvent = await responseIterator.next();
+  const secondEvent = await response.stream.next();
   expect(secondEvent.value.type).toBe('query_progress');
   expect(secondEvent.value.message).toBe('Progress');
 
   // Get the second event (should be progress)
-  const thirdEvent = await responseIterator.next();
+  const thirdEvent = await response.stream.next();
   expect(thirdEvent.value.type).toBe('query_progress');
   expect(thirdEvent.value.message).toBe('Progress 2');
 
   // Get the third and final event (should be complete)
-  const fourthEvent = await responseIterator.next();
+  const fourthEvent = await response.stream.next();
   expect(fourthEvent.value.type).toBe('query_complete');
-  expect(fourthEvent.value.message).toBe('Tool call result: test_1 and test_2:123');
+  expect(fourthEvent.value.message.replace(/\n/g, '')).toBe('Tool call result: test_1 and {  "result": "test_2:123"}');
   expect(fourthEvent.value.toolCalls).toBeDefined();
   expect(fourthEvent.value.toolCalls?.length).toBe(2);
   expect(fourthEvent.value.toolCalls?.[0].tool).toBe('test_1');
@@ -242,10 +242,10 @@ test('Query events are emitted correctly', async () => {
   expect(fourthEvent.value.toolCalls?.[0].result).toBe('test_1');
   expect(fourthEvent.value.toolCalls?.[1].tool).toBe('test_2');
   expect(fourthEvent.value.toolCalls?.[1].arguments).toEqual({ value: 123 });
-  expect(fourthEvent.value.toolCalls?.[1].result).toBe('test_2:123');
+  expect(fourthEvent.value.toolCalls?.[1].result).toEqual({ result: 'test_2:123' });
 
   // Verify the iterator is complete (no more events)
-  const lastEvent = await responseIterator.next();
+  const lastEvent = await response.stream.next();
   expect(lastEvent.done).toBe(true);
   expect(lastEvent.value).toBeUndefined();
 });
@@ -301,43 +301,41 @@ test('Response tool automatically completes a query', async () => {
   });
 
   // Register discoverable tools
-  const tool1 = defineTool({
+  const tool1 = mcpWeb.addTool({
     name: 'tool_1',
     description: 'Tool 1',
     handler: () => ({ theAnswerToEverything: 42 }),
     outputSchema: z.object({ theAnswerToEverything: z.int() })
   });
-  mcpWeb.addTool(tool1);
 
-  const responseTool = defineTool({
+  const responseTool = mcpWeb.addTool({
     name: 'response_tool',
     description: 'Response tool',
-    handler: ({ number }) => ({ double: number * 2 }),
+    handler: ({ number }: { number: number }) => ({ double: number * 2 }),
     inputSchema: z.object({ number: z.int() }),
     outputSchema: z.object({ double: z.int() })
   });
-  mcpWeb.addTool(responseTool);
 
   // Connect and wait for authentication
   await mcpWeb.connect();
 
   // Start the query - this sends it to the bridge and mock agent
-  const responseIterator = mcpWeb.query({
+  const response = mcpWeb.query({
     prompt: 'Test prompt',
     responseTool
   });
 
   // Get the first event (should be acceptance)
-  const firstEvent = await responseIterator.next();
+  const firstEvent = await response.stream.next();
   expect(firstEvent.value.type).toBe('query_accepted');
 
   // Get the second event (should be progress)
-  const secondEvent = await responseIterator.next();
+  const secondEvent = await response.stream.next();
   expect(secondEvent.value.type).toBe('query_progress');
   expect(secondEvent.value.message).toBe('Progress 1');
 
   // Get the third and final event (should be complete)
-  const fourthEvent = await responseIterator.next();
+  const fourthEvent = await response.stream.next();
   expect(fourthEvent.value.type).toBe('query_complete');
   expect(fourthEvent.value.toolCalls).toBeDefined();
   expect(fourthEvent.value.toolCalls?.length).toBe(3);
@@ -352,7 +350,7 @@ test('Response tool automatically completes a query', async () => {
   expect(fourthEvent.value.toolCalls?.[2].result).toEqual({ double: 246 });
 
   // Verify the iterator is complete (no more events)
-  const lastEvent = await responseIterator.next();
+  const lastEvent = await response.stream.next();
   expect(lastEvent.done).toBe(true);
   expect(lastEvent.value).toBeUndefined();
 });
@@ -384,26 +382,25 @@ test('Query can be cancelled by the MCP Web client', async () => {
   });
 
   // Register discoverable tools
-  const tool1 = defineTool({
+  mcpWeb.addTool({
     name: 'tool_1',
     description: 'Tool 1',
     handler: () => ({ theAnswerToLife: 42 }),
     outputSchema: z.object({ theAnswerToLife: z.int() })
   });
-  mcpWeb.addTool(tool1);
 
   // Connect and wait for authentication
   await mcpWeb.connect();
 
   // Start the query - this sends it to the bridge and mock agent
-  const responseIterator = mcpWeb.query({ prompt: 'Test prompt' });
+  const response = mcpWeb.query({ prompt: 'Test prompt' });
 
   // Get the first event (should be acceptance)
-  const firstEvent = await responseIterator.next();
+  const firstEvent = await response.stream.next();
   expect(firstEvent.value.type).toBe('query_accepted');
 
   // Get the second event (should be progress)
-  const secondEvent = await responseIterator.next();
+  const secondEvent = await response.stream.next();
   expect(secondEvent.value.type).toBe('query_cancel');
   expect(secondEvent.value.reason).toBe('I am tired');
 });
@@ -439,13 +436,12 @@ test('Query can be cancelled by the frontend', async () => {
   });
 
   // Register discoverable tools
-  const tool1 = defineTool({
+  mcpWeb.addTool({
     name: 'tool_1',
     description: 'Tool 1',
     handler: () => ({ theAnswerToLife: 42 }),
     outputSchema: z.object({ theAnswerToLife: z.int() })
   });
-  mcpWeb.addTool(tool1);
 
   // Connect and wait for authentication
   await mcpWeb.connect();
@@ -453,28 +449,28 @@ test('Query can be cancelled by the frontend', async () => {
   const abortController = new AbortController();
 
   // Start the query - this sends it to the bridge and mock agent
-  const responseIterator = mcpWeb.query({ prompt: 'Test prompt' }, abortController.signal);
+  const response = mcpWeb.query({ prompt: 'Test prompt' }, abortController.signal);
 
   setTimeout(() => {
     abortController.abort();
   }, 50);
 
   // Get the first event (should be acceptance)
-  const firstEvent = await responseIterator.next();
+  const firstEvent = await response.stream.next();
   expect(firstEvent.value.type).toBe('query_accepted');
 
   // Get the second event (should be progress)
-  const secondEvent = await responseIterator.next();
+  const secondEvent = await response.stream.next();
   expect(secondEvent.value.type).toBe('query_progress');
   expect(secondEvent.value.message).toBe('progress 1');
 
   // The third event should be a cancel
-  const thirdEvent = await responseIterator.next();
+  const thirdEvent = await response.stream.next();
   expect(thirdEvent.value.type).toBe('query_cancel');
   expect(thirdEvent.value.reason).toBeUndefined();
 
   // Verify the iterator is complete (no more events)
-  const lastEvent = await responseIterator.next();
+  const lastEvent = await response.stream.next();
   expect(lastEvent.done).toBe(true);
   expect(lastEvent.value).toBeUndefined();
 });
@@ -508,29 +504,28 @@ test('Query can complete despite unsuccessful tool calls', async () => {
   });
 
   // Register discoverable tools
-  const tool1 = defineTool({
+  mcpWeb.addTool({
     name: 'tool_1',
     description: 'Tool 1',
-    handler: ({ value }) => {
+    handler: ({ value }: { value: number }) => {
       if (value === 123) throw new Error('Don\'t call me with 123');
       return { theAnswerToAnything: value };
     },
     inputSchema: z.object({ value: z.int() }),
     outputSchema: z.object({ theAnswerToAnything: z.int() })
   });
-  mcpWeb.addTool(tool1);
 
   // Connect and wait for authentication
   await mcpWeb.connect();
 
-  const responseIterator = mcpWeb.query({ prompt: 'Test prompt' });
+  const response = mcpWeb.query({ prompt: 'Test prompt' });
 
   // Get the first event (should be acceptance)
-  const firstEvent = await responseIterator.next();
+  const firstEvent = await response.stream.next();
   expect(firstEvent.value.type).toBe('query_accepted');
 
   // Get the second event (should be progress)
-  const secondEvent = await responseIterator.next();
+  const secondEvent = await response.stream.next();
   expect(secondEvent.value.type).toBe('query_complete');
   expect(secondEvent.value.message).toBe('The answer to anything is 42');
   expect(secondEvent.value.toolCalls).toBeDefined();
@@ -543,7 +538,7 @@ test('Query can complete despite unsuccessful tool calls', async () => {
   expect(secondEvent.value.toolCalls?.[1].result).toEqual({ theAnswerToAnything: 42 });
 
   // Verify the iterator is complete (no more events)
-  const lastEvent = await responseIterator.next();
+  const lastEvent = await response.stream.next();
   expect(lastEvent.done).toBe(true);
   expect(lastEvent.value).toBeUndefined();
 });
@@ -590,41 +585,39 @@ test('Unsuccesful response tool calls don\'t complete the query', async () => {
   });
 
   // Register discoverable tools
-  const tool = defineTool({
+  mcpWeb.addTool({
     name: 'tool',
     description: 'Tool',
-    handler: ({ number }) => ({ double: number * 2 }),
+    handler: ({ number }: { number: number }) => ({ double: number * 2 }),
     inputSchema: z.object({ number: z.int() }),
     outputSchema: z.object({ double: z.int() })
   });
-  mcpWeb.addTool(tool);
 
-  const responseTool = defineTool({
+  const responseTool = mcpWeb.addTool({
     name: 'response_tool',
     description: 'Response tool',
-    handler: ({ value }) => {
+    handler: ({ value }: { value: number }) => {
       if (value !== 42) throw new Error('Wrong answer to nothing');
       return { theAnswerToNothing: value };
     },
     inputSchema: z.object({ value: z.int() }),
     outputSchema: z.object({ theAnswerToNothing: z.int() })
   });
-  mcpWeb.addTool(responseTool);
 
   // Connect and wait for authentication
   await mcpWeb.connect();
 
-  const responseIterator = mcpWeb.query({
+  const response = mcpWeb.query({
     prompt: 'Test prompt',
     responseTool,
   });
 
   // Get the first event (should be acceptance)
-  const firstEvent = await responseIterator.next();
+  const firstEvent = await response.stream.next();
   expect(firstEvent.value.type).toBe('query_accepted');
 
   // Get the second event (should be progress)
-  const secondEvent = await responseIterator.next();
+  const secondEvent = await response.stream.next();
   expect(secondEvent.value.type).toBe('query_complete');
   expect(secondEvent.value.message).toBeUndefined();
   expect(secondEvent.value.toolCalls).toBeDefined();
@@ -640,7 +633,7 @@ test('Unsuccesful response tool calls don\'t complete the query', async () => {
   expect(secondEvent.value.toolCalls?.[2].result).toEqual({ theAnswerToNothing: 42 });
 
   // Verify the iterator is complete (no more events)
-  const lastEvent = await responseIterator.next();
+  const lastEvent = await response.stream.next();
   expect(lastEvent.done).toBe(true);
   expect(lastEvent.value).toBeUndefined();
 });

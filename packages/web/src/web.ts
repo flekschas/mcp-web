@@ -18,8 +18,9 @@ import {
   ToolDefinitionSchema,
 } from '@mcp-web/types';
 import { ZodObject, z } from 'zod';
-import { QueryRequestSchema, QueryResponseSchema } from './schemas';
-import type { QueryRequest, QueryResponse } from './types';
+import { QueryResponse } from './query';
+import { QueryRequestSchema, QueryResponseResultSchema } from './schemas';
+import type { QueryRequest, QueryResponseResult } from './types';
 import { isZodSchema, toJSONSchema, toSerializableToolMetadata, validateInput } from './utils';
 
 export class MCPWeb {
@@ -639,8 +640,9 @@ export class MCPWeb {
    *
    * @param request - The query request object
    * @param signal - Optional AbortSignal for canceling the query
+   * @returns QueryResponse instance with uuid and async iterable stream
    */
-  async* query(request: QueryRequest, signal?: AbortSignal): AsyncIterableIterator<QueryResponse> {
+  query(request: QueryRequest, signal?: AbortSignal): QueryResponse {
     if (!this.config.agentUrl) {
       throw new Error('Agent URL not configured. Add agentUrl to MCPWeb config to enable queries.');
     }
@@ -673,6 +675,41 @@ export class MCPWeb {
       return fallbackUuid;
     })();
 
+    // Create internal AbortController if none provided
+    const internalAbortController = signal ? undefined : new AbortController();
+    const effectiveSignal = signal || internalAbortController?.signal;
+
+    // Create the async generator that will be wrapped in Query instance
+    const stream = this.createQueryStream(uuid, prompt, context, responseTool, timeout, effectiveSignal);
+
+    // Create cancel function that works with both external and internal AbortController
+    const cancelFn = () => {
+      if (internalAbortController) {
+        internalAbortController.abort();
+      } else if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        // If using external signal, send cancel directly to bridge
+        this.ws.send(JSON.stringify({
+          type: 'query_cancel',
+          uuid
+        }));
+      }
+    };
+
+    // Return QueryResponse instance with synchronous uuid access, async stream, and cancel function
+    return new QueryResponse(uuid, stream, cancelFn);
+  }
+
+  /**
+   * Internal method to create the query stream
+   */
+  private async *createQueryStream(
+    uuid: string,
+    prompt: string,
+    context: QueryRequest['context'],
+    responseTool: QueryRequest['responseTool'],
+    timeout: number,
+    signal?: AbortSignal
+  ): AsyncIterableIterator<QueryResponseResult> {
     // Process context items
     const processedContext: ProcessedContextItem[] = [];
 
@@ -718,8 +755,8 @@ export class MCPWeb {
     let timeoutId: number | null = null;
     let aborted = false;
 
-    const eventQueue: QueryResponse[] = [];
-    let resolveNext: ((value: IteratorResult<QueryResponse>) => void) | null = null;
+    const eventQueue: QueryResponseResult[] = [];
+    let resolveNext: ((value: IteratorResult<QueryResponseResult>) => void) | null = null;
 
     // Handle abort signal
     const handleAbort = () => {
@@ -739,7 +776,7 @@ export class MCPWeb {
       this.ws?.removeEventListener('message', handleMessage);
 
       // Yield a cancellation response
-      const cancelResponse: QueryResponse = {
+      const cancelResponse: QueryResponseResult = {
         type: 'query_cancel',
         uuid,
       };
@@ -765,7 +802,7 @@ export class MCPWeb {
       try {
         const message = JSON.parse(event.data);
 
-        const parsedMessage = QueryResponseSchema.parse(message);
+        const parsedMessage = QueryResponseResultSchema.parse(message);
 
         if (parsedMessage.uuid === uuid) {
           if (parsedMessage.type === 'query_complete' || parsedMessage.type === 'query_failure') {
@@ -801,7 +838,7 @@ export class MCPWeb {
     }, timeout) as unknown as number;
 
     // Async iterator implementation
-    const getNext = (): Promise<IteratorResult<QueryResponse>> => {
+    const getNext = (): Promise<IteratorResult<QueryResponseResult>> => {
       return new Promise((resolve) => {
         if (eventQueue.length > 0) {
           // biome-ignore lint/style/noNonNullAssertion: We just checked that the length is greater than 0

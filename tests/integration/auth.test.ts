@@ -4,7 +4,6 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MCPWebClient, type MCPWebClientConfig } from '@mcp-web/client';
 import {
-  defineTool,
   type MCPWebConfig,
   MissingAuthenticationErrorCode,
   type Query,
@@ -82,13 +81,11 @@ test('Bridge accepts authToken-authorized MCP requests', async () => {
   const authToken = 'authToken';
   const mcpWeb = new MCPWeb({ ...mcpWebConfig, authToken });
 
-  const tool = defineTool({
+  mcpWeb.addTool({
     name: 'tool-auth-1',
     description: 'Tool',
     handler: () => ({ result: 'Hello, world!' }),
   });
-
-  mcpWeb.addTool(tool);
 
   await mcpWeb.connect();
 
@@ -143,17 +140,18 @@ test('Bridge accepts query-contextualized MCP requests', async () => {
 
   const mockAgentServer = new MockAgentServer(mcpWebClientConfig, queryHandler);
 
-  const mcpWeb = new MCPWeb(mcpWebConfig);
+  const mcpWeb = new MCPWeb({
+    ...mcpWebConfig,
+    agentUrl: 'http://localhost:3003',
+  });
 
-  const tool = defineTool({
+  mcpWeb.addTool({
     name: 'tool',
     description: 'Tool',
     handler: ({ query }) => ({ prompt: `Prompt: ${query}` }),
     inputSchema: z.object({ query: z.string() }),
     outputSchema: z.object({ prompt: z.string() }),
   });
-
-  mcpWeb.addTool(tool);
 
   await mcpWeb.connect();
 

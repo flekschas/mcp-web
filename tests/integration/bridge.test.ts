@@ -4,7 +4,6 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MCPWebClient, type MCPWebClientConfig, type TextContent } from '@mcp-web/client';
 import {
-  defineTool,
   type MCPWebConfig,
   SessionNotSpecifiedErrorCode,
   ToolNotFoundErrorCode,
@@ -99,15 +98,13 @@ test('Tools from differently authenticated clients are isolated', async () => {
     authToken: mcpWeb1AuthToken,
   });
 
-  const tool1 = defineTool({
+  mcpWeb1.addTool({
     name: 'tool1',
     description: 'Tool 1',
     inputSchema: z.object({ name: z.string() }),
     outputSchema: z.object({ result: z.string() }),
     handler: async ({ name }) => ({ result: `Hello, ${name}!` }),
   });
-
-  mcpWeb1.addTool(tool1);
 
   await mcpWeb1.connect();
 
@@ -118,15 +115,13 @@ test('Tools from differently authenticated clients are isolated', async () => {
     authToken: mcpWeb2AuthToken,
   });
 
-  const tool2 = defineTool({
+  mcpWeb2.addTool({
     name: 'tool2',
     description: 'Tool 2',
     inputSchema: z.object({ name: z.string() }),
     outputSchema: z.object({ result: z.string() }),
     handler: async ({ name }) => ({ result: `Hallo, ${name}!` }),
   });
-
-  mcpWeb2.addTool(tool2);
 
   await mcpWeb2.connect();
 
@@ -196,15 +191,13 @@ test('Tools from different sessions are isolated', async () => {
     autoConnect: false,
   });
 
-  const tool1 = defineTool({
+  mcpWeb1.addTool({
     name: 'tool1',
     description: 'Tool 1',
     inputSchema: z.object({ name: z.string() }),
     outputSchema: z.object({ result: z.string() }),
     handler: async ({ name }) => ({ result: `Hello, ${name}!` }),
   });
-
-  mcpWeb1.addTool(tool1);
 
   await mcpWeb1.connect();
 
@@ -214,15 +207,13 @@ test('Tools from different sessions are isolated', async () => {
     autoConnect: false,
   });
 
-  const tool2 = defineTool({
+  mcpWeb2.addTool({
     name: 'tool2',
     description: 'Tool 2',
     inputSchema: z.object({ name: z.string() }),
     outputSchema: z.object({ result: z.string() }),
     handler: async ({ name }) => ({ result: `Hallo, ${name}!` }),
   });
-
-  mcpWeb2.addTool(tool2);
 
   await mcpWeb2.connect();
 

@@ -38,13 +38,18 @@ export async function queryAIForMove() {
     const lastMove = state.gameState.moveHistory.at(-1);
     const prompt = `Make your move as black. Analyze the position and choose the best move. ${lastMove ? `The human just moved from (${lastMove.from.row},${lastMove.from.col}) to (${lastMove.to.row},${lastMove.to.col}).` : 'This is the start of the game.'}`;
 
-    const queryStream = mcpWeb.query({
+    const query = mcpWeb.query({
       prompt,
       context: [getGameStateToolDefinition],
       responseTool: makeMoveToolDefinition
     });
 
-    for await (const event of queryStream) {
+    // Access UUID synchronously - now we can map make_move calls to this query!
+    console.log('Started AI query with UUID:', query.uuid);
+    state.activeQueryUuid = query.uuid;
+
+    // Use query.stream for fine-grained event handling
+    for await (const event of query.stream) {
       switch (event.type) {
         case 'query_accepted':
           console.log('AI query accepted:', event.uuid);
@@ -71,5 +76,6 @@ export async function queryAIForMove() {
     makeRandomMove();
   } finally {
     state.aiThinking = false;
+    state.activeQueryUuid = undefined;
   }
 }

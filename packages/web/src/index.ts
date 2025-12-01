@@ -3,11 +3,12 @@ export type {
   ContextItem,
   EphemeralContext,
   QueryRequest,
-  QueryResponse,
-  QueryResponseAccepted,
-  QueryResponseComplete,
-  QueryResponseFailure,
-  QueryResponseProgress,
+  QueryResponseResult,
+  QueryResponseResultAccepted,
+  QueryResponseResultComplete,
+  QueryResponseResultFailure,
+  QueryResponseResultProgress,
 } from './types.js';
+export { QueryResponse } from './query.js';
 export * from './utils';
 export { MCPWeb } from './web';

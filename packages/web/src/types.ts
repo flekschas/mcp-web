@@ -4,23 +4,23 @@ import type {
   ContextItemSchema,
   EphemeralContextSchema,
   QueryRequestSchema,
-  QueryResponseAcceptedSchema,
-  QueryResponseCompleteSchema,
-  QueryResponseFailureSchema,
-  QueryResponseProgressSchema,
-  QueryResponseSchema,
+  QueryResponseResultAcceptedSchema,
+  QueryResponseResultCompleteSchema,
+  QueryResponseResultFailureSchema,
+  QueryResponseResultProgressSchema,
+  QueryResponseResultSchema,
 } from './schemas.js';
 
-export type QueryResponse = z.infer<typeof QueryResponseSchema>;
+export type QueryResponseResult = z.infer<typeof QueryResponseResultSchema>;
 export type QueryRequest = Omit<z.input<typeof QueryRequestSchema>, 'responseTool' | 'tools' | 'context'> & {
   responseTool?: ToolDefinition;
   tools?: ToolDefinition[];
   context?: (ToolDefinition | EphemeralContext)[];
 };
 export type QueryRequestOutput = z.infer<typeof QueryRequestSchema>;
-export type QueryResponseAccepted = z.infer<typeof QueryResponseAcceptedSchema>;
-export type QueryResponseProgress = z.infer<typeof QueryResponseProgressSchema>;
-export type QueryResponseComplete = z.infer<typeof QueryResponseCompleteSchema>;
-export type QueryResponseFailure = z.infer<typeof QueryResponseFailureSchema>;
+export type QueryResponseResultAccepted = z.infer<typeof QueryResponseResultAcceptedSchema>;
+export type QueryResponseResultProgress = z.infer<typeof QueryResponseResultProgressSchema>;
+export type QueryResponseResultComplete = z.infer<typeof QueryResponseResultCompleteSchema>;
+export type QueryResponseResultFailure = z.infer<typeof QueryResponseResultFailureSchema>;
 export type ContextItem = z.infer<typeof ContextItemSchema>;
 export type EphemeralContext = z.infer<typeof EphemeralContextSchema>;

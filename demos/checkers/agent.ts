@@ -325,15 +325,32 @@ async function generateTextAnswer({
   return answer.text;
 }
 
-// Store active query contexts for progress updates
+// Store active query contexts and retry counts
 const activeQueries = new Map<string, Query>();
+const queryRetryCount = new Map<string, number>();
+
+const MAX_RETRIES = 3;
 
 async function processQuery(query: Query, uuid: string): Promise<void> {
   const queryClient = mcpClient.contextualize(query);
 
+  // Initialize retry count for this query
+  const currentRetries = queryRetryCount.get(uuid) || 0;
+
   try {
-    // Send initial progress
-    await queryClient.sendProgress('Analyzing game state...');
+    // Check if we've exceeded max retries
+    if (currentRetries >= MAX_RETRIES) {
+      const errorMessage = `Query failed after ${MAX_RETRIES} attempts. Please try again with different parameters.`;
+      console.error(`\n❌ ${errorMessage}`);
+      await queryClient.fail(errorMessage);
+      return;
+    }
+
+    // Send initial progress (include retry info if retrying)
+    const progressMessage = currentRetries > 0
+      ? `Retrying (attempt ${currentRetries + 1}/${MAX_RETRIES})...`
+      : 'Analyzing game state...';
+    await queryClient.sendProgress(progressMessage);
 
     // Get available tools
     const { tools } = await queryClient.listTools();
@@ -356,12 +373,26 @@ async function processQuery(query: Query, uuid: string): Promise<void> {
     }
 
     console.log(`✅ Query ${uuid} completed successfully`);
+    // Clear retry count on success
+    queryRetryCount.delete(uuid);
 
   } catch (error) {
-    console.error(`\n❌ Error in query ${uuid}:`, error);
+    console.error(`\n❌ Error in query ${uuid} (attempt ${currentRetries + 1}/${MAX_RETRIES}):`, error);
 
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    await queryClient.fail(errorMessage);
+    // Increment retry count
+    queryRetryCount.set(uuid, currentRetries + 1);
+
+    // Check if we should retry
+    if (currentRetries + 1 < MAX_RETRIES) {
+      console.log(`🔄 Retrying query ${uuid}...`);
+      // Retry the query
+      return processQuery(query, uuid);
+    } else {
+      // Max retries exceeded
+      const errorMessage = `Query failed after ${MAX_RETRIES} attempts: ${error instanceof Error ? error.message : String(error)}`;
+      await queryClient.fail(errorMessage);
+      queryRetryCount.delete(uuid);
+    }
   } finally {
     // Always clean up the active query
     activeQueries.delete(uuid);
