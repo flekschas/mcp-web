@@ -637,3 +637,89 @@ test('Unsuccesful response tool calls don\'t complete the query', async () => {
   expect(lastEvent.done).toBe(true);
   expect(lastEvent.value).toBeUndefined();
 });
+
+test('Query result promise resolves on successful completion', async () => {
+  const queryHandler = async (client: MCPWebClient) => {
+    await client.sendProgress('Processing...');
+    const callToolResult = await client.callTool('tool_1');
+    expect(callToolResult.isError).toBeUndefined();
+    expect(callToolResult.content).toBeDefined();
+    expect(callToolResult.content.length).toBeGreaterThan(0);
+    expect(callToolResult.content[0].type).toBe('text');
+    const data = callToolResult.content[0].type === 'text' ? callToolResult.content[0].text : '';
+    await client.complete(`Tool returned: ${data}`);
+  };
+
+  mockAgentServer = new MockAgentServer(mcpWebClientConfig, queryHandler);
+
+  // Create MCPWeb with agentUrl pointing to mock agent
+  mcpWeb = new MCPWeb({
+    ...mcpWebConfig,
+    autoConnect: false,
+  });
+
+  // Register discoverable tools
+  mcpWeb.addTool({
+    name: 'tool_1',
+    description: 'Tool 1',
+    handler: () => ({ answer: 42 }),
+    outputSchema: z.object({ answer: z.int() })
+  });
+
+  // Connect and wait for authentication
+  await mcpWeb.connect();
+
+  // Start the query
+  const response = mcpWeb.query({ prompt: 'Test prompt' });
+
+  // Await the final result
+  const result = await response.result;
+
+  // Verify it's a completion event
+  expect(result.type).toBe('query_complete');
+  if (result.type === 'query_complete') {
+    expect(result.message).toBeDefined();
+    expect(result.toolCalls).toBeDefined();
+    expect(result.toolCalls.length).toBe(1);
+    expect(result.toolCalls[0].tool).toBe('tool_1');
+    expect(result.toolCalls[0].result).toEqual({ answer: 42 });
+  }
+});
+
+test('Query result promise resolves on failure', async () => {
+  const queryHandler = async (client: MCPWebClient) => {
+    await client.sendProgress('Starting...');
+    await client.fail('Something went wrong');
+  };
+
+  mockAgentServer = new MockAgentServer(mcpWebClientConfig, queryHandler);
+
+  // Create MCPWeb with agentUrl pointing to mock agent
+  mcpWeb = new MCPWeb({
+    ...mcpWebConfig,
+    autoConnect: false,
+  });
+
+  // Register discoverable tools
+  mcpWeb.addTool({
+    name: 'tool_1',
+    description: 'Tool 1',
+    handler: () => ({ value: 'test' }),
+    outputSchema: z.object({ value: z.string() })
+  });
+
+  // Connect and wait for authentication
+  await mcpWeb.connect();
+
+  // Start the query
+  const response = mcpWeb.query({ prompt: 'Test prompt' });
+
+  // Await the final result
+  const result = await response.result;
+
+  // Verify it's a failure event
+  expect(result.type).toBe('query_failure');
+  if (result.type === 'query_failure') {
+    expect(result.error).toBe('Something went wrong');
+  }
+});
