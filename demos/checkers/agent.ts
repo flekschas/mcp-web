@@ -6,8 +6,8 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
 import { serve } from '@hono/node-server';
 import { MCPWebClient } from '@mcp-web/client';
-import { type Query, QuerySchema, type Tool, type ToolDefinition } from '@mcp-web/types';
-import { generateObject, generateText, jsonSchema, stepCountIs } from 'ai';
+import { type Query, QuerySchema, type Tool } from '@mcp-web/types';
+import { generateObject, generateText, jsonSchema, stepCountIs, type JSONSchema7 } from 'ai';
 import { config } from 'dotenv';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
@@ -121,7 +121,7 @@ function mcpToAiSdkTools(
       toolDef.name,
       {
         description: toolDef.description || '',
-        inputSchema: jsonSchema(toolDef.inputSchema),
+        inputSchema: jsonSchema(toolDef.inputSchema as JSONSchema7),
         execute: async (args: Record<string, unknown>) => {
           return await mcpClient.callTool(toolDef.name, args);
         },
@@ -148,8 +148,8 @@ function queryContextToXmlTemplate(query: Query) {
 
 const trim = (str: string) => str.replace(/\s+/g, ' ');
 
-type StructuredQuery = Query & { responseTool: ToolDefinition };
 type UnstructuredQuery = Omit<Query, 'responseTool'>;
+type StructuredQuery = Required<Pick<Query, 'responseTool'>> & UnstructuredQuery;
 
 const isStructuredQuery = (query: Query): query is StructuredQuery => 'responseTool' in query;
 
@@ -207,7 +207,7 @@ async function generateStructuredAnswer<T extends Record<string, unknown>>({
   }
 
   // Wrap JSON Schema with jsonSchema() for AI SDK
-  const responseToolSchema = jsonSchema(responseToolInputSchema);
+  const responseToolSchema = jsonSchema(responseToolInputSchema as JSONSchema7);
 
   const aiSdkTools = mcpToAiSdkTools(tools, mcpClient);
 

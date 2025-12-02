@@ -1,4 +1,4 @@
-import type { SerializableToolMetadata, ToolDefinition } from '@mcp-web/types';
+import type { ToolMetadataJson, ToolDefinition } from '@mcp-web/types';
 import Ajv from 'ajv';
 import { z } from 'zod';
 
@@ -73,13 +73,13 @@ export function validateInput<T>(
 }
 
 /**
- * Convert a ToolDefinition to SerializableToolMetadata for wire transmission.
+ * Convert a ToolDefinition to ToolMetadataJson for wire transmission.
  * Removes the handler and converts Zod schemas to JSON Schema.
  *
  * @param tool - The tool definition to convert
  * @returns Serializable tool metadata without handler, with JSON Schema schemas
  */
-export function toSerializableToolMetadata(tool: ToolDefinition): SerializableToolMetadata {
+export function toToolMetadataJson(tool: ToolDefinition): ToolMetadataJson {
   return {
     name: tool.name,
     description: tool.description,

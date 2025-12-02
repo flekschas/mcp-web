@@ -13,7 +13,7 @@ export type { ListToolsResult, Tool } from '@modelcontextprotocol/sdk/types.js';
 
 const ajv = new Ajv({ strict: false });
 
-const validateJsonSchema = (schema: unknown): schema is Record<string, unknown> => {
+const validateJsonSchema = (schema: unknown): schema is z.core.JSONSchema.JSONSchema => {
   // Check if it's a JSON Schema
   if (schema && typeof schema === 'object') {
     // Allow schemas with explicit $schema to validate against their declared version
@@ -58,9 +58,9 @@ export const ToolDefinitionZodSchema = ToolDefinitionBaseSchema.extend({
 /** Schema for tool definitions with JSON Schema */
 export const ToolDefinitionJsonSchema = ToolDefinitionBaseSchema.extend({
   /** The input schema for the tool (JSON Schema). */
-  inputSchema: z.custom<Record<string, unknown>>(validateJsonSchema, { message: "Must be valid JSON Schema Draft 7" }).optional(),
+  inputSchema: z.custom<z.core.JSONSchema.JSONSchema>(validateJsonSchema, { message: "Must be valid JSON Schema Draft 7" }).optional(),
   /** The output schema for the tool (JSON Schema). */
-  outputSchema: z.custom<Record<string, unknown>>(validateJsonSchema, { message: "Must be valid JSON Schema Draft 7" }).optional()
+  outputSchema: z.custom<z.core.JSONSchema.JSONSchema>(validateJsonSchema, { message: "Must be valid JSON Schema Draft 7" }).optional()
 });
 
 /** Runtime validation schema that accepts either Zod or JSON Schema */
@@ -80,43 +80,18 @@ export interface ToolDefinition {
  * Tool metadata without the handler for wire protocol transmission.
  * Schemas must be JSON Schema (not Zod objects) to be serializable over the wire.
  */
-export const ToolMetadataSchema = ToolDefinitionSchema.transform((tool) => {
-  const { handler: _handler, ...metadata } = tool;
-  return metadata;
-});
+export const ToolMetadataZodSchema = ToolDefinitionZodSchema.omit({ handler: true });
+export type ToolMetadataZod = z.infer<typeof ToolMetadataJsonSchema>;
 
-/**
- * Tool metadata without the handler.
- * Note: For wire transmission, schemas must be JSON Schema, not Zod objects.
- * Use `toSerializableToolMetadata()` to convert ToolDefinition to serializable format.
- */
-export type ToolMetadata = Omit<ToolDefinition, 'handler'>;
+export const ToolMetadataJsonSchema = ToolDefinitionJsonSchema.omit({ handler: true });
+export type ToolMetadataJson = z.infer<typeof ToolMetadataJsonSchema>;
 
-/**
- * Serializable tool metadata for wire transmission.
- * Schemas are JSON Schema objects, not Zod schemas.
- */
-export interface SerializableToolMetadata {
-  name: string;
-  description: string;
-  inputSchema?: Record<string, unknown>;
-  outputSchema?: Record<string, unknown>;
-}
-
-/**
- * Schema for validating serializable tool metadata.
- * Used for wire protocol transmission where schemas must be JSON Schema (not Zod).
- */
-export const SerializableToolMetadataSchema = z.object({
-  name: z.string().min(1, 'Tool name is required'),
-  description: z.string().min(1, 'Tool description is required'),
-  inputSchema: z.custom<Record<string, unknown>>(validateJsonSchema, { message: "Must be valid JSON Schema Draft 7" }).optional(),
-  outputSchema: z.custom<Record<string, unknown>>(validateJsonSchema, { message: "Must be valid JSON Schema Draft 7" }).optional()
-});
+export const ToolMetadataSchema = z.union([ToolMetadataZodSchema, ToolMetadataJsonSchema]);
+export type ToolMetadata = z.infer<typeof ToolMetadataSchema>;
 
 export type ProcessedToolDefinition = ToolDefinition & {
   inputZodSchema?: z.ZodObject;
   outputZodSchema?: z.ZodType;
-  inputJsonSchema?: Record<string, unknown>;
-  outputJsonSchema?: Record<string, unknown>;
+  inputJsonSchema?: z.core.JSONSchema.JSONSchema;
+  outputJsonSchema?: z.core.JSONSchema.JSONSchema;
 }

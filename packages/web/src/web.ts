@@ -21,7 +21,7 @@ import { ZodObject, z } from 'zod';
 import { QueryResponse } from './query';
 import { QueryRequestSchema, QueryResponseResultSchema } from './schemas';
 import type { QueryRequest, QueryResponseResult } from './types';
-import { isZodSchema, toJSONSchema, toSerializableToolMetadata, validateInput } from './utils';
+import { isZodSchema, toJSONSchema, toToolMetadataJson, validateInput } from './utils';
 
 export class MCPWeb {
   private ws: WebSocket | null = null;
@@ -738,7 +738,7 @@ export class MCPWeb {
     }
 
     // Convert responseTool to serializable metadata
-    const responseToolMetadata = responseTool ? toSerializableToolMetadata(responseTool) : undefined;
+    const responseToolMetadata = responseTool ? toToolMetadataJson(responseTool) : undefined;
 
     // Send query message to bridge
     const queryMessage = QueryMessageSchema.parse({

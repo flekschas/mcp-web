@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { SerializableToolMetadataSchema } from './tools';
+import { ToolMetadataJsonSchema } from './tools';
 
 export const ProcessedContextItemSchema = z.object({
   name: z.string(),
@@ -13,8 +13,8 @@ export const QuerySchema = z.object({
   uuid: z.string(),
   prompt: z.string(),
   context: z.array(ProcessedContextItemSchema),
-  responseTool: SerializableToolMetadataSchema.optional(),
-  tools: z.array(SerializableToolMetadataSchema).optional(),
+  responseTool: ToolMetadataJsonSchema.optional(),
+  tools: z.array(ToolMetadataJsonSchema).optional(),
   restrictTools: z.boolean().optional()
 });
 
