@@ -10,7 +10,7 @@ export const PORTS = {
 
 // MCPWeb configuration (to be used when creating instances)
 export const MCP_WEB_CONFIG: MCPWebConfig = {
-  name: 'Checkers Game',
+  name: 'MCP-Web Checkers Game',
   description: 'Interactive checkers game where human plays against AI',
   host: 'localhost',
   wsPort: PORTS.BRIDGE_WS,

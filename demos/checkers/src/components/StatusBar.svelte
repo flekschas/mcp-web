@@ -9,7 +9,7 @@
   const moveCount = $derived(state.gameState.moveHistory.length);
 </script>
 
-<div class="bg-gray-800 text-white p-4 rounded-lg space-y-4">
+<div class="bg-[#240115] text-white p-4 rounded-lg space-y-4">
   <!-- Game Status -->
   <div class="text-center">
     <h2 class="text-xl font-bold mb-2">Checkers Game</h2>

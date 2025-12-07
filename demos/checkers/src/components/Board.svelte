@@ -64,22 +64,21 @@
   }
 </script>
 
-<div class="grid grid-cols-8 gap-0 ring-4 ring-neutral-400 bg-neutral-400 w-96 h-96">
+<div class="grid grid-cols-8 gap-0 ring-4 ring-[#C99DA3] bg-[#C99DA3] w-96 h-96">
   {#each ROWS as row (row)}
     {#each COLS as col (col)}
       <button
         class={cn(
           'w-12 h-12 flex items-center justify-center transition-all',
-          isLightSquare(row, col) ? 'bg-yellow-900/40' : 'bg-yellow-800/60',
+          isSelected(row, col)
+            ? 'bg-green-500'
+            : isLightSquare(row, col)
+              ? 'bg-[#C99DA3]'
+              : 'bg-yellow-900/60',
           isValidMove(row, col) && !isSelected(row, col) ? 'ring-2 ring-green-400' : '',
           isValidMove(row, col) && !isSelected(row, col) ? 'hover:bg-green-200' : '',
           isSelectable(row, col) || isValidMove(row, col) ? 'cursor-pointer' : '',
         )}
-        class:bg-yellow-100={isLightSquare(row, col)}
-        class:bg-yellow-900={!isLightSquare(row, col)}
-        class:ring-2={isValidMove(row, col) && !isSelected(row, col)}
-        class:ring-green-400={isValidMove(row, col) && !isSelected(row, col)}
-        class:hover:bg-green-200={isValidMove(row, col)}
         onclick={() => handleSquareClick(row, col)}
         onkeydown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {

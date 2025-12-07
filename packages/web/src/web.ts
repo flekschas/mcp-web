@@ -29,7 +29,7 @@ export class MCPWeb {
   readonly authToken: string;
   readonly tools = new Map<string, ProcessedToolDefinition>();
   private connected = false;
-  public isConnecting = false;
+  isConnecting = false;
   readonly config: MCPWebConfigOutput;
   readonly mcpConfig: {
     [serverName: string]: {

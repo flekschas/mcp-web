@@ -26,8 +26,6 @@
     class:bg-zinc-800={isBlack}
     class:text-yellow-700={isBlack}
     class:border-black={isBlack}
-    class:ring-2={isSelected}
-    class:ring-blue-400={isSelected}
   >
     {#if isQueen}
       ♕
