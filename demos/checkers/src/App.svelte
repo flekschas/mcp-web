@@ -6,6 +6,8 @@
 
   let connectionStatus = $state('connecting');
   let mcpConnection = $state(false);
+  let showConfigModal = $state(false);
+  let copySuccess = $state(false);
 
   onMount(async () => {
     try {
@@ -23,6 +25,28 @@
   });
 
   const gameOver = $derived(gameState.gameState.gameStatus !== 'playing');
+
+  function toggleConfigModal() {
+    showConfigModal = !showConfigModal;
+    copySuccess = false;
+  }
+
+  async function copyToClipboard() {
+    try {
+      const configJson = JSON.stringify(
+        { mcpServers: mcpWeb.mcpConfig },
+        null,
+        2
+      );
+      await navigator.clipboard.writeText(configJson);
+      copySuccess = true;
+      setTimeout(() => {
+        copySuccess = false;
+      }, 2000);
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error);
+    }
+  }
 </script>
 
 <main class="w-full min-h-screen">
@@ -52,6 +76,14 @@
             Disconnected
           {/if}
         </span>
+        <button
+          onclick={toggleConfigModal}
+          class="w-5 h-5 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center text-xs text-gray-300 transition-colors cursor-pointer"
+          title="Show MCP configuration"
+          aria-label="Show MCP configuration"
+        >
+          ?
+        </button>
       </div>
     </header>
 
@@ -89,4 +121,60 @@
       </p>
     </footer>
   </div>
+
+  <!-- MCP Configuration Modal -->
+  {#if showConfigModal}
+    <div
+      class="fixed inset-0 bg-yellow-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      role="button"
+      tabindex="0"
+      onclick={toggleConfigModal}
+      onkeydown={(e) => e.key === 'Escape' && toggleConfigModal()}
+    >
+      <div
+        class="bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+        tabindex="-1"
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => e.stopPropagation()}
+      >
+        <div class="p-6">
+          <div class="flex justify-between items-start mb-4">
+            <h2 id="modal-title" class="text-2xl font-bold text-white">MCP Client Configuration</h2>
+            <button
+              onclick={toggleConfigModal}
+              class="text-gray-400 hover:text-white text-2xl leading-none"
+              aria-label="Close modal"
+            >
+              ×
+            </button>
+          </div>
+
+          <div class="space-y-4">
+            <p class="text-gray-300">
+              To interact this game via an AI host app like Claude Desktop, use the following configuration:
+            </p>
+
+            <div class="bg-gray-900 rounded p-4 relative">
+              <button
+                onclick={copyToClipboard}
+                class="absolute top-2 right-2 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors"
+              >
+                {copySuccess ? '✓ Copied!' : 'Copy'}
+              </button>
+              <pre class="text-sm text-gray-300 overflow-x-auto pr-20"><code>{JSON.stringify({ mcpServers: mcpWeb.mcpConfig }, null, 2)}</code></pre>
+            </div>
+
+            <div class="pt-4">
+              <p class="text-sm text-gray-400">
+                Once configured, your AI host app will be able to interact with this checkers game through the MCP protocol.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  {/if}
 </main>
