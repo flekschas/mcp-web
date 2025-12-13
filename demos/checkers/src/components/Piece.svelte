@@ -19,13 +19,15 @@
 
 {#if piece !== 0}
   <div
-    class="w-10 h-10 rounded-full border-b-2 border-x flex items-center justify-center font-bold text-sm shadow-sm"
+    class="w-9 h-9 rounded-full border-b-2 border-x flex items-center justify-center font-bold text-2xl shadow-sm"
     class:bg-white={isWhite}
-    class:text-yellow-500={isWhite}
+    class:text-[#240115]-500={isWhite}
     class:border-zinc-300={isWhite}
     class:bg-zinc-800={isBlack}
     class:text-yellow-700={isBlack}
     class:border-black={isBlack}
+    class:w-10={isQueen}
+    class:h-10={isQueen}
   >
     {#if isQueen}
       ♕

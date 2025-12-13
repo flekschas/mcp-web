@@ -278,7 +278,7 @@ async function generateStructuredAnswer<T extends Record<string, unknown>>({
   });
 
   return {
-    object: result.object,
+    object: result.object as T,
     contextMessages: contextGathering.response.messages
   };
 }

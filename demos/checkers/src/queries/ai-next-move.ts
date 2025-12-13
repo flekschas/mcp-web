@@ -1,6 +1,7 @@
 import { makeMove } from "../game-logic";
 import { mcpWeb, getGameStateToolDefinition, makeMoveToolDefinition } from "../mcp";
 import { state } from "../state.svelte";
+import type { Move } from "../types";
 
 function makeRandomMove() {
   if (state.allValidMoves.length === 0) return;
@@ -58,13 +59,15 @@ export async function queryAIForMove() {
         case 'query_progress':
           state.gameMessage = event.message;
           break;
-        case 'query_complete':
+        case 'query_complete': {
           console.log('AI query complete. Tool calls:', event.toolCalls);
-          state.gameMessage = 'AI made its move';
+          const move = event.toolCalls?.[0].arguments as Move;
+          state.gameMessage = `AI moved a piece from (${move.from.row + 1},${move.from.col + 1}) to (${move.to.row + 1},${move.to.col + 1})`;
           break;
+        }
         case 'query_failure':
           console.error('AI query failed:', event.error);
-          state.gameMessage = `AI error: ${event.error}`;
+          state.gameMessage = `AI failed to make a move: ${event.error}`;
           makeRandomMove();
           break;
       }

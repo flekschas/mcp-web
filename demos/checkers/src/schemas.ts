@@ -20,6 +20,7 @@ export const MoveWithStatsSchema = MoveSchema.extend({
 }).describe('A move from one position to another with the number of pieces captured by the player');
 
 export const GameStateSchema = z.object({
+  id: z.string().describe('Unique game identifier'),
   board: z.array(z.array(z.number().min(0).max(4)).length(BOARD_SIZE)).length(BOARD_SIZE).describe('8x8 board: 0=empty, 1=white, 2=white queen, 3=black, 4=black queen'),
   currentTurn: PlayerSchema.describe('The player whose turn it is'),
   moveHistory: z.array(MoveWithStatsSchema).describe('All moves made in the game'),

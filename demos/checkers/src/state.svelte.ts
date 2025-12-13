@@ -1,9 +1,9 @@
 
-import { INITIAL_GAME_STATE } from './constants';
 import { getLegalMoves } from './game-logic';
 import type { GameState } from './types';
+import { createNewGameState } from './utils';
 
-let gameState = $state<GameState>(INITIAL_GAME_STATE);
+let gameState = $state<GameState>(createNewGameState());
 let aiThinking = $state(false);
 let gameMessage = $state('');
 let activeQueryUuid = $state<string | undefined>(undefined);

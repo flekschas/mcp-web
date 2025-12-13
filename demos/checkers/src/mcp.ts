@@ -18,14 +18,6 @@ export const makeMoveToolDefinition = mcpWeb.addTool({
   name: 'make_move',
   description: 'Make a move for the current player in the game',
   handler: (move) => {
-    console.log('make_move called with:', move);
-
-    // Check if AI is already thinking (game state is locked)
-    if (!state.aiThinking) {
-      console.error('Cannot make move: game state is not locked (AI should be thinking)');
-      return { error: 'Game state not locked - this should only be called during AI turn' };
-    }
-
     const currentPlayer = state.gameState.currentTurn;
 
     // Validate the move is legal
@@ -42,8 +34,6 @@ export const makeMoveToolDefinition = mcpWeb.addTool({
     }
 
     const currentCapturedPieces = state.gameState.capturedPieces[currentPlayer];
-
-    console.log('Making move:', move);
 
     const newState = makeMove(state.gameState, move);
     Object.assign(state.gameState, newState);

@@ -75,8 +75,7 @@
             : isLightSquare(row, col)
               ? 'bg-[#C99DA3]'
               : 'bg-yellow-900/60',
-          isValidMove(row, col) && !isSelected(row, col) ? 'ring-2 ring-green-400' : '',
-          isValidMove(row, col) && !isSelected(row, col) ? 'hover:bg-green-200' : '',
+          isValidMove(row, col) && !isSelected(row, col) ? 'inset-ring-2 inset-ring-green-400 animate-pulse hover:bg-green-200 hover:animate-none' : '',
           isSelectable(row, col) || isValidMove(row, col) ? 'cursor-pointer' : '',
         )}
         onclick={() => handleSquareClick(row, col)}

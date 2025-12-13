@@ -29,7 +29,8 @@ export const createInitialBoard = (): PieceType[][] => {
   return board;
 }
 
-export const createInitialGameState = (): GameState => ({
+export const createNewGameState = (): GameState => ({
+  id: globalThis.crypto.randomUUID(),
   board: createInitialBoard(),
   currentTurn: 'white',
   moveHistory: [],

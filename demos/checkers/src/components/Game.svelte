@@ -36,10 +36,14 @@
   });
 </script>
 
-<div class="flex flex-col items-center space-y-4">
-  <div class="text-lg font-semibold">AI (Black)</div>
+<div class="flex flex-col items-center space-y-1">
+  <div class="text-lg font-semibold bg-[#C99DA3] shadow-[inset_0_-6px_4px_-4px_rgba(0,0,0,0.33)] text-black px-2 py-1 rounded-t">
+    Black: AI
+  </div>
   <Board />
-  <div class="text-lg font-semibold">You (white)</div>
+  <div class="text-lg font-semibold bg-[#C99DA3] shadow-[inset_0_6px_4px_-4px_rgba(0,0,0,0.33)] text-white px-2 py-1 rounded-b">
+    White: You
+  </div>
 </div>
 
 <div class="w-full lg:w-80">
