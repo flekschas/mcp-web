@@ -13,7 +13,7 @@
 <div class="bg-[#240115] p-4 rounded-lg space-y-4 lg:h-96">
   <!-- Game Status -->
   <div class="text-center">
-    <h2 class="text-xl font-bold mb-2">Status</h2>
+    <h2 class="text-xl font-bold mb-1">Status:</h2>
     {#if gameStatus === 'playing'}
       <p class="text-lg">
         {#if state.aiThinking}
@@ -67,8 +67,8 @@
 
   <!-- Game Rules -->
   <div class="text-xs opacity-50 space-y-1">
-    <div class="font-semibold">Rules:</div>
-    <div>• You play as white (bottom), AI plays as black (top)</div>
+    <div class="font-semibold">Notes:</div>
+    <div>• You play as white, AI plays as black</div>
     <div>• Click piece to select, then click destination</div>
     <div>• Captures are mandatory</div>
     <div>• Reach opposite end to become a queen</div>
