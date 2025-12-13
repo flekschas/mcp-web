@@ -1,4 +1,4 @@
-import Ajv, { type AnySchema } from 'ajv';
+import { Ajv, type AnySchema } from 'ajv';
 import { z } from 'zod';
 
 /**

@@ -70,16 +70,36 @@ async function takeScreenshot(
 }
 
 export class ScreenshotTool extends BaseTool<typeof TakeScreenshotInputSchema, typeof TakeScreenshotOutputSchema> {
-  public readonly name: string;
-  public readonly description: string;
-  public readonly inputSchema = TakeScreenshotInputSchema;
-  public readonly outputSchema = TakeScreenshotOutputSchema;
-  public readonly handler: (params?: TakeScreenshotInput) => Promise<TakeScreenshotOutput>;
+  #name: string;
+  #description: string;
+  #inputSchema = TakeScreenshotInputSchema;
+  #outputSchema = TakeScreenshotOutputSchema;
+  #handler: (params?: TakeScreenshotInput) => Promise<TakeScreenshotOutput>;
 
   constructor(options: Options) {
     super();
-    this.name = options.name || 'screenshot';
-    this.description = options.description || 'Take a screenshot of the web page';
-    this.handler = createScreenshot(options);
+    this.#name = options.name || 'screenshot';
+    this.#description = options.description || 'Take a screenshot of the web page';
+    this.#handler = createScreenshot(options);
+  }
+
+  get name(): string {
+    return this.#name;
+  }
+
+  get description(): string {
+    return this.#description;
+  }
+
+  get inputSchema(): typeof TakeScreenshotInputSchema {
+    return this.#inputSchema;
+  }
+
+  get outputSchema(): typeof TakeScreenshotOutputSchema {
+    return this.#outputSchema;
+  }
+
+  get handler(): (params?: TakeScreenshotInput) => Promise<TakeScreenshotOutput> {
+    return this.#handler;
   }
 }

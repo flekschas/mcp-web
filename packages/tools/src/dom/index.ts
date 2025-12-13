@@ -1,4 +1,3 @@
-import type { ToolDefinition } from '@mcp-web/types';
 import { z } from 'zod';
 import { BaseTool } from '../base.js';
 
@@ -13,7 +12,7 @@ const DOMElementSchema = z.object({
 type DOMElement = z.infer<typeof DOMElementSchema>;
 
 const GetDOMElementsInputSchema = z.object({
-  selector: z.string().describe('CSS selector to query')
+  selector: z.string().default('body').describe('CSS selector to query')
 });
 type GetDOMElementsInput = z.infer<typeof GetDOMElementsInputSchema>;
 
@@ -21,8 +20,6 @@ const GetDOMElementsOutputSchema = z.object({
   elements: z.array(DOMElementSchema)
 });
 type GetDOMElementsOutput = z.infer<typeof GetDOMElementsOutputSchema>;
-
-const getDOMElementsInputJsonSchema = z.toJSONSchema(GetDOMElementsInputSchema, { target: "draft-7" });
 
 function getDOMElements(params: GetDOMElementsInput): GetDOMElementsOutput {
   const parsedParams = GetDOMElementsInputSchema.safeParse(params);
@@ -50,9 +47,23 @@ function getDOMElements(params: GetDOMElementsInput): GetDOMElementsOutput {
 }
 
 export class DOMQueryTool extends BaseTool<typeof GetDOMElementsInputSchema, typeof GetDOMElementsOutputSchema> {
-  public readonly name = 'dom-query';
-  public readonly description = 'Query the DOM for elements';
-  public readonly inputSchema = GetDOMElementsInputSchema;
-  public readonly outputSchema = GetDOMElementsOutputSchema;
-  public readonly handler = getDOMElements;
+  get name(): string {
+    return 'dom-query';
+  }
+
+  get description(): string {
+    return 'Query the DOM for elements';
+  }
+
+  get inputSchema(): typeof GetDOMElementsInputSchema {
+    return GetDOMElementsInputSchema;
+  }
+
+  get outputSchema(): typeof GetDOMElementsOutputSchema {
+    return GetDOMElementsOutputSchema;
+  }
+
+  get handler(): (params: GetDOMElementsInput) => GetDOMElementsOutput {
+    return getDOMElements;
+  }
 }

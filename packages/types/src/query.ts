@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ToolMetadataJsonSchema } from './tools';
+import { ToolMetadataJsonSchema } from './tools.js';
 
 export const ProcessedContextItemSchema = z.object({
   name: z.string(),

@@ -1,28 +1,11 @@
 {
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "useDefineForClassFields": true,
-    "module": "ESNext",
+    "module": "node16",
+    "moduleResolution": "node16",
     "lib": ["ES2022"],
-    "skipLibCheck": true,
     "outDir": "dist",
-    "rootDir": "src",
-
-    /* Module resolution */
-    "moduleResolution": "node",
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "moduleDetection": "force",
-
-    /* Declaration files */
-    "declaration": true,
-    "declarationMap": true,
-
-    /* Linting */
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "rootDir": "src"
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]

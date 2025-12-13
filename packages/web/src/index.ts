@@ -10,5 +10,5 @@ export type {
   QueryResponseResultProgress,
 } from './types.js';
 export { QueryResponse } from './query.js';
-export * from './utils';
-export { MCPWeb } from './web';
+export * from './utils.js';
+export { MCPWeb } from './web.js';

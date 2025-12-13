@@ -190,22 +190,42 @@ const createRunPython = (
 }
 
 export class PythonTool extends BaseTool<typeof RunPythonInputSchema, typeof RunPythonOutputSchema> {
-  public readonly name;
-  public readonly description;
-  public readonly inputSchema = RunPythonInputSchema;
-  public readonly outputSchema = RunPythonOutputSchema;
-  public readonly handler: (params: RunPythonInput) => Promise<RunPythonOutput>;
-  private worker: Worker;
+  #name: string;
+  #description: string;
+  #inputSchema = RunPythonInputSchema;
+  #outputSchema = RunPythonOutputSchema;
+  #handler: (params: RunPythonInput) => Promise<RunPythonOutput>;
+  #worker: Worker;
 
   constructor(getDatasets: () => Record<string, unknown>, options: Options) {
     super();
-    this.name = options.name || 'python';
-    this.description = options.description || 'Run Python code';
-    this.worker = createWorker(options);
-    this.handler = createRunPython(this.worker, getDatasets);
+    this.#name = options.name || 'python';
+    this.#description = options.description || 'Run Python code';
+    this.#worker = createWorker(options);
+    this.#handler = createRunPython(this.#worker, getDatasets);
+  }
+
+  get name(): string {
+    return this.#name;
+  }
+
+  get description(): string {
+    return this.#description;
+  }
+
+  get inputSchema(): typeof RunPythonInputSchema {
+    return this.#inputSchema;
+  }
+
+  get outputSchema(): typeof RunPythonOutputSchema {
+    return this.#outputSchema;
+  }
+
+  get handler(): (params: RunPythonInput) => Promise<RunPythonOutput> {
+    return this.#handler;
   }
 
   destroy() {
-    this.worker.terminate();
+    this.#worker.terminate();
   }
 }

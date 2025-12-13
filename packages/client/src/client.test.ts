@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { MCPWebClient } from './client.ts';
+import { MCPWebClient } from './client.js';
 
 // Store original fetch for tests that need to mock it
 const originalFetch = globalThis.fetch;

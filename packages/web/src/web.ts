@@ -18,20 +18,20 @@ import {
   ToolDefinitionSchema,
 } from '@mcp-web/types';
 import { ZodObject, z } from 'zod';
-import { QueryResponse } from './query';
-import { QueryRequestSchema, QueryResponseResultSchema } from './schemas';
-import type { QueryRequest, QueryResponseResult } from './types';
-import { isZodSchema, toJSONSchema, toToolMetadataJson, validateInput } from './utils';
+import { QueryResponse } from './query.js';
+import { QueryRequestSchema, QueryResponseResultSchema } from './schemas.js';
+import type { QueryRequest, QueryResponseResult } from './types.js';
+import { isZodSchema, toJSONSchema, toToolMetadataJson, validateInput } from './utils.js';
 
 export class MCPWeb {
-  private ws: WebSocket | null = null;
-  readonly sessionId: string;
-  readonly authToken: string;
-  readonly tools = new Map<string, ProcessedToolDefinition>();
-  private connected = false;
-  isConnecting = false;
-  readonly config: MCPWebConfigOutput;
-  readonly mcpConfig: {
+  #ws: WebSocket | null = null;
+  #sessionId: string;
+  #authToken: string;
+  #tools = new Map<string, ProcessedToolDefinition>();
+  #connected = false;
+  #isConnecting = false;
+  #config: MCPWebConfigOutput;
+  #mcpConfig: {
     [serverName: string]: {
       command: 'npx';
       args: ['@mcp-web/client'];
@@ -43,47 +43,68 @@ export class MCPWeb {
   };
 
   constructor(config: MCPWebConfig) {
-    this.config = McpWebConfigSchema.parse(config);
-    this.sessionId = this.generatesessionId();
-    this.authToken = this.resolveAuthToken(this.config);
+    this.#config = McpWebConfigSchema.parse(config);
+    this.#sessionId = this.#generateSessionId();
+    this.#authToken = this.#resolveAuthToken(this.#config);
 
-    this.mcpConfig = {
-      [this.config.name]: {
+    this.#mcpConfig = {
+      [this.#config.name]: {
         command: 'npx',
         args: ['@mcp-web/client'],
         env: {
-          MCP_SERVER_URL: `${globalThis.window?.location?.protocol ?? 'http:'}//${this.config.host}:${this.config.mcpPort}`,
-          AUTH_TOKEN: this.authToken
+          MCP_SERVER_URL: `${globalThis.window?.location?.protocol ?? 'http:'}//${this.#config.host}:${this.#config.mcpPort}`,
+          AUTH_TOKEN: this.#authToken
         }
       }
     };
 
-    if (this.config.autoConnect) {
+    if (this.#config.autoConnect) {
       this.connect();
     }
 
     this.setupActivityTracking();
   }
 
-  private getBridgeWsUrl(): string {
-    const protocol = globalThis.window?.location?.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${this.config.host}:${this.config.wsPort}`;
+  get sessionId() {
+    return this.#sessionId;
   }
 
-  private generatesessionId(): string {
+  get authToken() {
+    return this.#authToken;
+  }
+
+  get tools() {
+    return this.#tools;
+  }
+
+  get config() {
+    return this.#config;
+  }
+
+  get mcpConfig() {
+    return this.#mcpConfig;
+  }
+
+
+  #getBridgeWsUrl(): string {
+    const protocol = globalThis.window?.location?.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${this.#config.host}:${this.#config.wsPort}`;
+  }
+
+  #generateSessionId(): string {
     let sessionId = globalThis.localStorage?.getItem('mcp-web-session-id');
     if (!sessionId) {
-      sessionId = crypto.randomUUID();
+      sessionId = globalThis.crypto.randomUUID();
       globalThis.localStorage?.setItem('mcp-web-session-id', sessionId);
     }
     return sessionId;
   }
 
-  private generateAuthToken(): string {
-    return crypto.randomUUID();
+  #generateAuthToken(): string {
+    return globalThis.crypto.randomUUID();
   }
 
-  private loadAuthToken(): string | null {
+  #loadAuthToken(): string | null {
     try {
       return globalThis.localStorage?.getItem('mcp-web-auth-token');
     } catch (error) {
@@ -92,7 +113,7 @@ export class MCPWeb {
     }
   }
 
-  private saveAuthToken(token: string): void {
+  #saveAuthToken(token: string): void {
     try {
       globalThis.localStorage?.setItem('mcp-web-auth-token', token);
     } catch (error) {
@@ -100,30 +121,30 @@ export class MCPWeb {
     }
   }
 
-  private resolveAuthToken(config: MCPWebConfig): string {
+  #resolveAuthToken(config: MCPWebConfig): string {
     // Use provided auth token if available
     if (config.authToken) {
       // Save it to localStorage if persistence is enabled
       if (globalThis.localStorage && config.persistAuthToken !== false) {
-        this.saveAuthToken(config.authToken);
+        this.#saveAuthToken(config.authToken);
       }
       return config.authToken;
     }
 
     // Try to load from localStorage if persistence is enabled
     if (globalThis.localStorage && config.persistAuthToken !== false) {
-      const savedToken = this.loadAuthToken();
+      const savedToken = this.#loadAuthToken();
       if (savedToken) {
         return savedToken;
       }
     }
 
     // Generate new token
-    const newToken = this.generateAuthToken();
+    const newToken = this.#generateAuthToken();
 
     // Save it if persistence is enabled
     if (config.persistAuthToken !== false) {
-      this.saveAuthToken(newToken);
+      this.#saveAuthToken(newToken);
     }
 
     return newToken;
@@ -131,16 +152,16 @@ export class MCPWeb {
 
   async connect(): Promise<true> {
     // Prevent duplicate connections
-    if (this.connected) {
+    if (this.#connected) {
       return Promise.resolve(true);
     }
-    if (this.isConnecting) {
+    if (this.#isConnecting) {
       // Return a promise that resolves when the current connection completes
       return new Promise((resolve) => {
         const checkConnection = () => {
-          if (this.connected) {
+          if (this.#connected) {
             resolve(true);
-          } else if (!this.isConnecting) {
+          } else if (!this.#isConnecting) {
             // Connection failed, try again
             this.connect().then(resolve);
           } else {
@@ -151,18 +172,18 @@ export class MCPWeb {
       });
     }
 
-    this.isConnecting = true;
+    this.#isConnecting = true;
     return new Promise((resolve, reject) => {
       try {
-        const wsUrl = `${this.getBridgeWsUrl()}?session=${this.sessionId}`;
-        this.ws = new WebSocket(wsUrl);
+        const wsUrl = `${this.#getBridgeWsUrl()}?session=${this.sessionId}`;
+        this.#ws = new WebSocket(wsUrl);
 
-        this.ws.onopen = () => {
+        this.#ws.onopen = () => {
           // Use setTimeout to ensure WebSocket is fully ready
           setTimeout(() => this.authenticate(), 0);
         };
 
-        this.ws.onmessage = (event) => {
+        this.#ws.onmessage = (event) => {
           try {
             const message = JSON.parse(event.data);
             this.handleMessage(message);
@@ -171,22 +192,22 @@ export class MCPWeb {
           }
         };
 
-        this.ws.onclose = () => {
-          this.connected = false;
-          this.isConnecting = false;
+        this.#ws.onclose = () => {
+          this.#connected = false;
+          this.#isConnecting = false;
           this.scheduleReconnect();
         };
 
-        this.ws.onerror = (error) => {
+        this.#ws.onerror = (error) => {
           console.error('WebSocket error:', error);
-          this.isConnecting = false;
+          this.#isConnecting = false;
           reject(error);
         };
 
         // Resolve when authenticated
         const checkConnection = () => {
-          if (this.connected) {
-            this.isConnecting = false;
+          if (this.#connected) {
+            this.#isConnecting = false;
             resolve(true);
           } else {
             setTimeout(checkConnection, 100);
@@ -195,32 +216,32 @@ export class MCPWeb {
         setTimeout(checkConnection, 100);
 
       } catch (error) {
-        this.isConnecting = false;
+        this.#isConnecting = false;
         reject(error);
       }
     });
   }
 
   private authenticate() {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    if (!this.#ws || this.#ws.readyState !== WebSocket.OPEN) return;
 
     const authMessage = {
       type: 'authenticate',
       sessionId: this.sessionId,
-      authToken: this.authToken,
+      authToken: this.#authToken,
       origin: globalThis.window?.location?.origin,
       pageTitle: globalThis.document?.title,
       userAgent: globalThis.navigator?.userAgent,
       timestamp: Date.now()
     };
 
-    this.ws.send(JSON.stringify(authMessage));
+    this.#ws.send(JSON.stringify(authMessage));
   }
 
   private handleMessage(message: BridgeMessage) {
     switch (message.type) {
       case 'authenticated':
-        this.connected = true;
+        this.#connected = true;
 
         this.registerAllTools();
         break;
@@ -288,7 +309,7 @@ export class MCPWeb {
   }
 
   private sendToolResponse(requestId: string, result: unknown) {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+    if (!this.#ws || this.#ws.readyState !== WebSocket.OPEN) {
       console.error('Cannot send tool response: WebSocket not connected');
       return;
     }
@@ -299,7 +320,7 @@ export class MCPWeb {
       result
     };
 
-    this.ws.send(JSON.stringify(response));
+    this.#ws.send(JSON.stringify(response));
   }
 
   private registerAllTools() {
@@ -309,7 +330,7 @@ export class MCPWeb {
   }
 
   private registerTool(tool: ProcessedToolDefinition) {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+    if (!this.#ws || this.#ws.readyState !== WebSocket.OPEN) {
       return;
     }
 
@@ -323,13 +344,13 @@ export class MCPWeb {
       }
     } satisfies RegisterToolMessage;
 
-    this.ws.send(JSON.stringify(message));
+    this.#ws.send(JSON.stringify(message));
   }
 
   private scheduleReconnect() {
-    if (!this.ws) return;
+    if (!this.#ws) return;
     setTimeout(() => {
-      if (!this.connected && this.ws) {
+      if (!this.#connected && this.#ws) {
         this.connect().catch(console.error);
       }
     }, 5000);
@@ -337,8 +358,8 @@ export class MCPWeb {
 
   private setupActivityTracking() {
     const updateActivity = () => {
-      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        this.ws.send(JSON.stringify({
+      if (this.#ws && this.#ws.readyState === WebSocket.OPEN) {
+        this.#ws.send(JSON.stringify({
           type: 'activity',
           timestamp: Date.now()
         }));
@@ -435,7 +456,7 @@ export class MCPWeb {
     this.tools.set(processedTool.name, processedTool);
 
     // Register immediately if connected
-    if (this.connected) {
+    if (this.#connected) {
       this.registerTool(processedTool);
     }
 
@@ -610,22 +631,22 @@ export class MCPWeb {
    * Get connection status
    */
   isConnected(): boolean {
-    return this.connected;
+    return this.#connected;
   }
 
   /**
    * Disconnect from bridge
    */
   disconnect() {
-    if (this.ws) {
-      this.ws.onmessage = null;
-      this.ws.onopen = null;
-      this.ws.onerror = null;
-      this.ws.onclose = null;
-      this.ws.close();
-      this.ws = null;
+    if (this.#ws) {
+      this.#ws.onmessage = null;
+      this.#ws.onopen = null;
+      this.#ws.onerror = null;
+      this.#ws.onclose = null;
+      this.#ws.close();
+      this.#ws = null;
     }
-    this.connected = false;
+    this.#connected = false;
   }
 
   /**
@@ -643,11 +664,11 @@ export class MCPWeb {
    * @returns QueryResponse instance with uuid and async iterable stream
    */
   query(request: QueryRequest, signal?: AbortSignal): QueryResponse {
-    if (!this.config.agentUrl) {
+    if (!this.#config.agentUrl) {
       throw new Error('Agent URL not configured. Add agentUrl to MCPWeb config to enable queries.');
     }
 
-    if (!this.connected) {
+    if (!this.#connected) {
       throw new Error('Not connected to bridge. Ensure MCPWeb is connected before making queries.');
     }
 
@@ -666,14 +687,7 @@ export class MCPWeb {
     }
 
     // Generate a unique identifier for the query
-    const uuid = crypto?.randomUUID() ?? (() => {
-      const fallbackUuid = `query-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
-      console.warn(
-        '⚠️  Running in insecure context (http://). Using fallback UUID generation.\n',
-        '   For production, use https:// to enable secure crypto.randomUUID().'
-      );
-      return fallbackUuid;
-    })();
+    const uuid = globalThis.crypto.randomUUID();
 
     // Create internal AbortController if none provided
     const internalAbortController = signal ? undefined : new AbortController();
@@ -686,9 +700,9 @@ export class MCPWeb {
     const cancelFn = () => {
       if (internalAbortController) {
         internalAbortController.abort();
-      } else if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      } else if (this.#ws && this.#ws.readyState === WebSocket.OPEN) {
         // If using external signal, send cancel directly to bridge
-        this.ws.send(JSON.stringify({
+        this.#ws.send(JSON.stringify({
           type: 'query_cancel',
           uuid
         }));
@@ -748,7 +762,7 @@ export class MCPWeb {
       responseTool: responseToolMetadata
     } satisfies Query);
 
-    this.ws?.send(JSON.stringify(queryMessage));
+    this.#ws?.send(JSON.stringify(queryMessage));
 
     // Create async iterator for streaming events
     let completed = false;
@@ -765,15 +779,15 @@ export class MCPWeb {
       completed = true;
 
       // Send cancellation message to bridge
-      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        this.ws.send(JSON.stringify({
+      if (this.#ws && this.#ws.readyState === WebSocket.OPEN) {
+        this.#ws.send(JSON.stringify({
           type: 'query_cancel',
           uuid
         }));
       }
 
       if (timeoutId) clearTimeout(timeoutId);
-      this.ws?.removeEventListener('message', handleMessage);
+      this.#ws?.removeEventListener('message', handleMessage);
 
       // Yield a cancellation response
       const cancelResponse: QueryResponseResult = {
@@ -808,7 +822,7 @@ export class MCPWeb {
           if (parsedMessage.type === 'query_complete' || parsedMessage.type === 'query_failure') {
             completed = true;
             if (timeoutId) clearTimeout(timeoutId);
-            this.ws?.removeEventListener('message', handleMessage);
+            this.#ws?.removeEventListener('message', handleMessage);
             if (signal) signal.removeEventListener('abort', handleAbort);
           }
 
@@ -824,12 +838,12 @@ export class MCPWeb {
       }
     };
 
-    this.ws?.addEventListener('message', handleMessage);
+    this.#ws?.addEventListener('message', handleMessage);
 
     // Set up timeout
     timeoutId = setTimeout(() => {
       completed = true;
-      this.ws?.removeEventListener('message', handleMessage);
+      this.#ws?.removeEventListener('message', handleMessage);
       if (signal) signal.removeEventListener('abort', handleAbort);
       if (resolveNext) {
         resolveNext({ value: new Error('Query timeout'), done: true });

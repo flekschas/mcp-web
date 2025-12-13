@@ -4,7 +4,7 @@ import type {
   ImageContentSchema,
   MCPWebClientConfigSchema,
   TextContentSchema,
-} from "./schemas.ts";
+} from "./schemas.js";
 
 export type MCPWebClientConfig = z.input<typeof MCPWebClientConfigSchema>;
 export type MCPWebClientConfigOutput = z.infer<typeof MCPWebClientConfigSchema>;

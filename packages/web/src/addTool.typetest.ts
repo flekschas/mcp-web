@@ -9,7 +9,7 @@
  */
 
 import { z } from 'zod';
-import { MCPWeb } from './web';
+import { MCPWeb } from './web.js';
 
 // Mock MCPWeb instance for type testing
 declare const mcp: MCPWeb;

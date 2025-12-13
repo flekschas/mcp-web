@@ -45,21 +45,21 @@ function isFatalError<T extends object>(result: T | FatalError): result is Fatal
 }
 
 export class MCPWebClient {
-  private config: MCPWebClientConfigOutput;
-  private server?: Server;
-  private query?: Query;
-  private isDone = false; // Track if query has been completed
+  #config: MCPWebClientConfigOutput;
+  #server?: Server;
+  #query?: Query;
+  #isDone = false; // Track if query has been completed
 
   constructor(config: MCPWebClientConfig, query?: Query) {
-    this.config = MCPWebClientConfigSchema.parse(config);
+    this.#config = MCPWebClientConfigSchema.parse(config);
 
     if (query) {
-      this.query = QuerySchema.parse(query);
+      this.#query = QuerySchema.parse(query);
     }
 
     // Only create server for root instances (not contextualized ones)
-    if (!this.query) {
-      this.server = new Server(
+    if (!this.#query) {
+      this.#server = new Server(
         {
           name: '@mcp-web/client',
           version: '1.0.0',
@@ -78,13 +78,13 @@ export class MCPWebClient {
   }
 
   private getMetaParams(sessionId?: string): McpRequestMetaParams | undefined {
-    if (sessionId || this.query?.uuid) {
+    if (sessionId || this.#query?.uuid) {
       const meta: McpRequestMetaParams = {};
       if (sessionId) {
       meta.sessionId = sessionId;
       }
-      if (this.query?.uuid) {
-        meta.queryId = this.query.uuid;
+      if (this.#query?.uuid) {
+        meta.queryId = this.#query.uuid;
       }
       return meta;
     }
@@ -225,19 +225,19 @@ export class MCPWebClient {
   }
 
   private setupHandlers() {
-    if (!this.server) return;
+    if (!this.#server) return;
 
     // Handle tool listing
-    this.server.setRequestHandler(ListToolsRequestSchema, () => this.makeListToolsRequest());
+    this.#server.setRequestHandler(ListToolsRequestSchema, () => this.makeListToolsRequest());
 
     // Handle tool calls
-    this.server.setRequestHandler(CallToolRequestSchema, this.makeToolCallRequest.bind(this));
+    this.#server.setRequestHandler(CallToolRequestSchema, this.makeToolCallRequest.bind(this));
 
     // Handle resource listing
-    this.server.setRequestHandler(ListResourcesRequestSchema, () => this.makeListResourcesRequest());
+    this.#server.setRequestHandler(ListResourcesRequestSchema, () => this.makeListResourcesRequest());
 
     // Handle prompt listing
-    this.server.setRequestHandler(ListPromptsRequestSchema, () => this.makeListPromptsRequest());
+    this.#server.setRequestHandler(ListPromptsRequestSchema, () => this.makeListPromptsRequest());
   }
 
   /**
@@ -247,7 +247,7 @@ export class MCPWebClient {
    * @param query - The query object containing uuid and optional responseTool
    */
   contextualize(query: Query): MCPWebClient {
-    return new MCPWebClient(this.config, query);
+    return new MCPWebClient(this.#config, query);
   }
 
   /**
@@ -255,16 +255,16 @@ export class MCPWebClient {
    * contextualized client.
    */
   async callTool(name: string, args?: Record<string, unknown>, sessionId?: string): Promise<CallToolResult> {
-    if (this.query && this.isDone) {
+    if (this.#query && this.#isDone) {
       throw new Error(QueryDoneErrorCode);
     }
 
     // Check tool restrictions if query has them
-    if (this.query?.restrictTools && this.query?.tools) {
-      const allowed = this.query.tools.some(t => t.name === name);
+    if (this.#query?.restrictTools && this.#query?.tools) {
+      const allowed = this.#query.tools.some(t => t.name === name);
       if (!allowed) {
         throw new Error(
-          `Tool '${name}' not allowed. Query restricted to: ${this.query.tools.map(t => t.name).join(', ')}`
+          `Tool '${name}' not allowed. Query restricted to: ${this.#query.tools.map(t => t.name).join(', ')}`
         );
       }
     }
@@ -283,8 +283,8 @@ export class MCPWebClient {
 
     // Auto-complete if this was the responseTool and it succeeded
     // Note: response.isError is true for errors, undefined for success
-    if (this.query?.responseTool?.name === name && response.isError !== true) {
-      this.isDone = true;
+    if (this.#query?.responseTool?.name === name && response.isError !== true) {
+      this.#isDone = true;
     }
 
     return response;
@@ -296,14 +296,14 @@ export class MCPWebClient {
    * Otherwise fetches all tools from the bridge.
    */
   async listTools(sessionId?: string): Promise<ListToolsResult | ErroredListToolsResult> {
-    if (this.isDone) {
+    if (this.#isDone) {
       throw new Error(QueryDoneErrorCode);
     }
 
     // If we have tools from the query, return those
-    if (this.query?.tools) {
+    if (this.#query?.tools) {
       // Need to convert ToolDefinition to Tool format expected by MCP
-      const tools = this.query.tools.map(t => ({
+      const tools = this.#query.tools.map(t => ({
         name: t.name,
         description: t.description,
         inputSchema: t.inputSchema || { type: 'object', properties: {}, required: [] }
@@ -319,7 +319,7 @@ export class MCPWebClient {
    * List all available resources.
    */
   async listResources(sessionId?: string): Promise<ListResourcesResult | ErroredListResourcesResult> {
-    if (this.isDone) {
+    if (this.#isDone) {
       throw new Error(QueryDoneErrorCode);
     }
 
@@ -330,7 +330,7 @@ export class MCPWebClient {
    * List all available prompts.
    */
   async listPrompts(sessionId?: string): Promise<ListPromptsResult | ErroredListPromptsResult> {
-    if (this.isDone) {
+    if (this.#isDone) {
       throw new Error(QueryDoneErrorCode);
     }
 
@@ -342,16 +342,16 @@ export class MCPWebClient {
    * Can only be called on a contextualized client instance.
    */
   async sendProgress(message: string): Promise<void> {
-    if (!this.query) {
+    if (!this.#query) {
       throw new Error(ClientNotConextualizedErrorCode);
     }
 
-    if (this.isDone) {
+    if (this.#isDone) {
       throw new Error(QueryDoneErrorCode);
     }
 
-    const url = this.config.serverUrl.replace('ws:', 'http:').replace('wss:', 'https:');
-    const progressUrl = `${url}/query/${this.query.uuid}/progress`;
+    const url = this.#config.serverUrl.replace('ws:', 'http:').replace('wss:', 'https:');
+    const progressUrl = `${url}/query/${this.#query.uuid}/progress`;
 
     try {
       const response = await fetch(progressUrl, {
@@ -377,16 +377,16 @@ export class MCPWebClient {
    * Note: If the query specified a responseTool, calling this method will result in an error.
    */
   async complete(message: string): Promise<void> {
-    if (!this.query) {
+    if (!this.#query) {
       throw new Error(ClientNotConextualizedErrorCode);
     }
 
-    if (this.isDone) {
+    if (this.#isDone) {
       throw new Error(QueryDoneErrorCode);
     }
 
-    const url = this.config.serverUrl.replace('ws:', 'http:').replace('wss:', 'https:');
-    const completeUrl = `${url}/query/${this.query.uuid}/complete`;
+    const url = this.#config.serverUrl.replace('ws:', 'http:').replace('wss:', 'https:');
+    const completeUrl = `${url}/query/${this.#query.uuid}/complete`;
 
     try {
       const response = await fetch(completeUrl, {
@@ -403,7 +403,7 @@ export class MCPWebClient {
       }
 
       // Only mark as completed after successful response
-      this.isDone = true;
+      this.#isDone = true;
     } catch (error) {
       throw error;
     }
@@ -415,17 +415,17 @@ export class MCPWebClient {
    * Use this when the query encounters an error during processing.
    */
   async fail(error: string | Error): Promise<void> {
-    if (!this.query) {
+    if (!this.#query) {
       throw new Error(ClientNotConextualizedErrorCode);
     }
 
-    if (this.isDone) {
+    if (this.#isDone) {
       throw new Error(QueryDoneErrorCode);
     }
 
     const errorMessage = typeof error === 'string' ? error : error.message;
-    const url = this.config.serverUrl.replace('ws:', 'http:').replace('wss:', 'https:');
-    const failUrl = `${url}/query/${this.query.uuid}/fail`;
+    const url = this.#config.serverUrl.replace('ws:', 'http:').replace('wss:', 'https:');
+    const failUrl = `${url}/query/${this.#query.uuid}/fail`;
 
     try {
       const response = await fetch(failUrl, {
@@ -442,7 +442,7 @@ export class MCPWebClient {
       }
 
       // Mark as completed to prevent further operations
-      this.isDone = true;
+      this.#isDone = true;
     } catch (err) {
       throw err;
     }
@@ -454,16 +454,16 @@ export class MCPWebClient {
    * Use this when the user or system needs to abort query processing.
    */
   async cancel(reason?: string): Promise<void> {
-    if (!this.query) {
+    if (!this.#query) {
       throw new Error(ClientNotConextualizedErrorCode);
     }
 
-    if (this.isDone) {
+    if (this.#isDone) {
       throw new Error(QueryDoneErrorCode);
     }
 
-    const url = this.config.serverUrl.replace('ws:', 'http:').replace('wss:', 'https:');
-    const cancelUrl = `${url}/query/${this.query.uuid}/cancel`;
+    const url = this.#config.serverUrl.replace('ws:', 'http:').replace('wss:', 'https:');
+    const cancelUrl = `${url}/query/${this.#query.uuid}/cancel`;
 
     try {
       const response = await fetch(cancelUrl, {
@@ -480,14 +480,14 @@ export class MCPWebClient {
       }
 
       // Mark as completed to prevent further operations
-      this.isDone = true;
+      this.#isDone = true;
     } catch (err) {
       throw err;
     }
   }
 
   private async makeRequest<T = unknown>(method: string, params?: Record<string, unknown>): Promise<T> {
-    const url = this.config.serverUrl.replace('ws:', 'http:').replace('wss:', 'https:');
+    const url = this.#config.serverUrl.replace('ws:', 'http:').replace('wss:', 'https:');
 
     const requestBody = JsonRpcRequestSchema.parse({
       jsonrpc: '2.0',
@@ -498,15 +498,15 @@ export class MCPWebClient {
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
+      const timeoutId = setTimeout(() => controller.abort(), this.#config.timeout);
 
       // Only include Authorization header if we have an authToken
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       };
 
-      if (this.config.authToken) {
-        headers.Authorization = `Bearer ${this.config.authToken}`;
+      if (this.#config.authToken) {
+        headers.Authorization = `Bearer ${this.#config.authToken}`;
       }
 
       const response = await fetch(url, {
@@ -544,16 +544,15 @@ export class MCPWebClient {
   }
 
   async run() {
-    if (this.query) {
+    if (this.#query) {
       throw new Error('Cannot run a contextualized client instance. Only root clients can be run as MCP servers.');
     }
 
-    if (!this.server) {
+    if (!this.#server) {
       throw new Error('Server not initialized. Cannot run client.');
     }
 
     const transport = new StdioServerTransport();
-    await this.server.connect(transport);
-    console.info('MCP Bridge Client started');
+    await this.#server.connect(transport);
   }
 }

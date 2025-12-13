@@ -59,11 +59,11 @@ import type { z } from 'zod';
 const SessionNotSpecifiedErrorDetails = 'Multiple sessions available. See `available_sessions` or call the `list_sessions` tool to discover available sessions and specify the session using `_meta.sessionId`.';
 
 export class MCPWebBridge {
-  private sessions = new Map<string, SessionData>();
-  private queries = new Map<string, QueryTracking>();
-  private config: MCPWebConfigOutput;
-  private wsServer?: WebSocketServer;
-  private mcpServer?: ReturnType<typeof createServer>;
+  #sessions = new Map<string, SessionData>();
+  #queries = new Map<string, QueryTracking>();
+  #config: MCPWebConfigOutput;
+  #wsServer?: WebSocketServer;
+  #mcpServer?: ReturnType<typeof createServer>;
 
   constructor(
     config: MCPWebConfig = {
@@ -79,10 +79,10 @@ export class MCPWebBridge {
       throw new Error(`Invalid bridge server configuration: ${parsedConfig.error.message}`);
     }
 
-    this.config = parsedConfig.data;
+    this.#config = parsedConfig.data;
 
-    this.wsServer = this.setupWebSocketServer(this.config.wsPort);
-    this.mcpServer = this.setupMCPServer(this.config.mcpPort);
+    this.#wsServer = this.setupWebSocketServer(this.#config.wsPort);
+    this.#mcpServer = this.setupMCPServer(this.#config.mcpPort);
   }
 
   private setupWebSocketServer(wsPort: number) {
@@ -119,7 +119,7 @@ export class MCPWebBridge {
       });
 
       ws.on('close', () => {
-        this.sessions.delete(sessionId);
+        this.#sessions.delete(sessionId);
       });
 
       ws.on('error', (error) => {
@@ -246,19 +246,19 @@ export class MCPWebBridge {
       tools: new Map()
     };
 
-    this.sessions.set(sessionId, sessionData);
+    this.#sessions.set(sessionId, sessionData);
 
     ws.send(JSON.stringify({
       type: 'authenticated',
       // @ts-expect-error We know the port exists.
-      mcpPort: this.mcpServer.address()?.port,
+      mcpPort: this.#mcpServer.address()?.port,
       sessionId,
       success: true
     }));
   }
 
   private handleToolRegistration(sessionId: string, message: RegisterToolMessage) {
-    const session = this.sessions.get(sessionId);
+    const session = this.#sessions.get(sessionId);
     if (!session) {
       console.warn(`Tool registration for unknown session: ${sessionId}`);
       return;
@@ -270,7 +270,7 @@ export class MCPWebBridge {
   }
 
   private handleActivity(sessionId: string, message: ActivityMessage) {
-    const session = this.sessions.get(sessionId);
+    const session = this.#sessions.get(sessionId);
     if (session) {
       session.lastActivity = message.timestamp;
     }
@@ -279,7 +279,7 @@ export class MCPWebBridge {
   private async handleQueryCancel(message: QueryCancelMessage) {
     const cancelMessage = QueryCancelMessageSchema.parse(message);
     const { uuid } = cancelMessage;
-    const query = this.queries.get(uuid);
+    const query = this.#queries.get(uuid);
 
     if (!query) {
       console.warn(`Cancel requested for unknown query: ${uuid}`);
@@ -290,9 +290,9 @@ export class MCPWebBridge {
     query.state = 'cancelled';
 
     // Notify agent that query no longer exists (optional - agent may not implement DELETE)
-    if (this.config.agentUrl) {
+    if (this.#config.agentUrl) {
       try {
-        await fetch(`${this.config.agentUrl}/query/${uuid}`, {
+        await fetch(`${this.#config.agentUrl}/query/${uuid}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' }
         });
@@ -302,13 +302,13 @@ export class MCPWebBridge {
       }
     }
 
-    this.queries.delete(uuid);
+    this.#queries.delete(uuid);
   }
 
   private async handleQuery(sessionId: string, message: QueryMessage, ws: WebSocket) {
     const { uuid, responseTool, tools, restrictTools } = message;
 
-    if (!this.config.agentUrl) {
+    if (!this.#config.agentUrl) {
       ws.send(JSON.stringify(QueryFailureMessageSchema.parse({
         uuid,
         error: 'Missing Agent URL'
@@ -318,7 +318,7 @@ export class MCPWebBridge {
 
     try {
       // Track this query
-      this.queries.set(uuid, {
+      this.#queries.set(uuid, {
         sessionId,
         responseTool: responseTool?.name,
         toolCalls: [],
@@ -329,11 +329,11 @@ export class MCPWebBridge {
       });
 
       // Forward query to agent
-      const response = await fetch(`${this.config.agentUrl}/query/${uuid}`, {
+      const response = await fetch(`${this.#config.agentUrl}/query/${uuid}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          ...(this.config.authToken && { 'Authorization': `Bearer ${this.config.authToken}` })
+          ...(this.#config.authToken && { 'Authorization': `Bearer ${this.#config.authToken}` })
         },
         body: JSON.stringify(QueryMessageSchema.parse(message))
       });
@@ -347,7 +347,7 @@ export class MCPWebBridge {
 
     } catch (error) {
       console.error(`Error forwarding query ${uuid}:`, error);
-      this.queries.delete(uuid);
+      this.#queries.delete(uuid);
       ws.send(JSON.stringify(QueryFailureMessageSchema.parse({
         uuid,
         error: `${error instanceof Error ? error.message : String(error)}`
@@ -360,7 +360,7 @@ export class MCPWebBridge {
       const message = JSON.parse(body);
       const progressMessage = QueryProgressMessageSchema.parse({ uuid, ...message });
 
-      const query = this.queries.get(uuid);
+      const query = this.#queries.get(uuid);
       if (!query) {
         res.writeHead(404, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: QueryNotFoundErrorCode }));
@@ -386,7 +386,7 @@ export class MCPWebBridge {
       const message = JSON.parse(body);
       const completeMessage = QueryCompleteClientMessageSchema.parse({ uuid, ...message });
 
-      const query = this.queries.get(uuid);
+      const query = this.#queries.get(uuid);
       if (!query) {
         res.writeHead(404, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: QueryNotFoundErrorCode }));
@@ -404,7 +404,7 @@ export class MCPWebBridge {
           query.ws.send(JSON.stringify(errorMessage));
         }
 
-        this.queries.delete(uuid);
+        this.#queries.delete(uuid);
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: errorMessage.error }));
         return;
@@ -424,7 +424,7 @@ export class MCPWebBridge {
         query.ws.send(JSON.stringify(bridgeMessage));
       }
 
-      this.queries.delete(uuid);
+      this.#queries.delete(uuid);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ success: true }));
     } catch (error) {
@@ -439,7 +439,7 @@ export class MCPWebBridge {
       const message = JSON.parse(body);
       const failureMessage = QueryFailureMessageSchema.parse({ uuid, ...message });
 
-      const query = this.queries.get(uuid);
+      const query = this.#queries.get(uuid);
       if (!query) {
         res.writeHead(404, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: QueryNotFoundErrorCode }));
@@ -454,7 +454,7 @@ export class MCPWebBridge {
         query.ws.send(JSON.stringify(failureMessage));
       }
 
-      this.queries.delete(uuid);
+      this.#queries.delete(uuid);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ success: true }));
     } catch (error) {
@@ -471,7 +471,7 @@ export class MCPWebBridge {
     body: string
   ) {
     try {
-      const query = this.queries.get(uuid);
+      const query = this.#queries.get(uuid);
       if (!query) {
         res.writeHead(404, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: QueryNotFoundErrorCode }));
@@ -491,7 +491,7 @@ export class MCPWebBridge {
         query.ws.send(JSON.stringify(cancellationMessage));
       }
 
-      this.queries.delete(uuid);
+      this.#queries.delete(uuid);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ success: true }));
     } catch (error) {
@@ -514,7 +514,7 @@ export class MCPWebBridge {
 
       if (queryId) {
         // Authenticate via query context
-        const query = this.queries.get(queryId);
+        const query = this.#queries.get(queryId);
         if (!query) {
           this.sendMCPError(res, mcpRequest.id, -32600, QueryNotFoundErrorCode);
           return;
@@ -523,7 +523,7 @@ export class MCPWebBridge {
           this.sendMCPError(res, mcpRequest.id, -32600, QueryNotActiveErrorCode);
           return;
         }
-        const session = this.sessions.get(query.sessionId);
+        const session = this.#sessions.get(query.sessionId);
         if (!session) {
           this.sendMCPError(res, mcpRequest.id, -32600, InvalidSessionErrorCode);
           return;
@@ -531,7 +531,7 @@ export class MCPWebBridge {
         sessions.set(query.sessionId, session);
       } else if (authToken) {
         // Traditional authentication
-        Array.from(this.sessions.entries())
+        Array.from(this.#sessions.entries())
           .filter(([_, session]) => session.authToken === authToken)
           .forEach(([sessionId, session]) => {
             sessions.set(sessionId, session);
@@ -611,10 +611,10 @@ export class MCPWebBridge {
         prompts: {}
       },
       serverInfo: {
-        name: this.config.name,
-        description: this.config.description,
+        name: this.#config.name,
+        description: this.#config.description,
         version: this.getVersion(),
-        ...(this.config.icon && { icon: this.config.icon })
+        ...(this.#config.icon && { icon: this.#config.icon })
       }
     };
   }
@@ -739,7 +739,7 @@ export class MCPWebBridge {
 
     // If this is part of a query, validate the query state and restrictions
     if (queryId) {
-      const query = this.queries.get(queryId);
+      const query = this.#queries.get(queryId);
       if (!query) {
         return { error: QueryNotFoundErrorCode };
       }
@@ -907,7 +907,7 @@ export class MCPWebBridge {
     toolInput?: Record<string, unknown>,
     queryId?: string
   ): Promise<unknown> {
-    const session = this.sessions.get(sessionId);
+    const session = this.#sessions.get(sessionId);
     if (!session || session.ws.readyState !== WebSocket.OPEN) {
       return { error: "Session not available" };
     }
@@ -941,7 +941,7 @@ export class MCPWebBridge {
 
             // Track tool call if part of a query
             if (queryId) {
-              const query = this.queries.get(queryId);
+              const query = this.#queries.get(queryId);
               if (query) {
                 query.toolCalls.push({
                   tool: toolName,
@@ -965,7 +965,7 @@ export class MCPWebBridge {
                     }
 
                     // Only delete query on success
-                    this.queries.delete(queryId);
+                    this.#queries.delete(queryId);
                   }
                 }
               }
@@ -1010,15 +1010,15 @@ export class MCPWebBridge {
    */
   async close(): Promise<void> {
     // Close all WebSocket connections first
-    for (const session of this.sessions.values()) {
+    for (const session of this.#sessions.values()) {
       if (session.ws.readyState === WebSocket.OPEN) {
         session.ws.close(1000, 'Server shutting down');
       }
     }
-    this.sessions.clear();
+    this.#sessions.clear();
 
     // Clear queries
-    this.queries.clear();
+    this.#queries.clear();
 
     // Close servers with timeout to prevent hanging
     const closeWithTimeout = (
@@ -1032,19 +1032,19 @@ export class MCPWebBridge {
     };
 
     // Close WebSocket server
-    if (this.wsServer) {
+    if (this.#wsServer) {
       await closeWithTimeout(
         new Promise<void>((resolve) => {
-          this.wsServer?.close(() => resolve());
+          this.#wsServer?.close(() => resolve());
         })
       );
     }
 
     // Close MCP server
-    if (this.mcpServer) {
+    if (this.#mcpServer) {
       await closeWithTimeout(
         new Promise<void>((resolve) => {
-          this.mcpServer?.close(() => resolve());
+          this.#mcpServer?.close(() => resolve());
         })
       );
     }

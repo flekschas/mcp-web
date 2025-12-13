@@ -5,11 +5,11 @@ export abstract class BaseTool<
   TInput extends z.ZodObject,
   TOutput extends z.ZodObject,
 > {
-  abstract readonly name: string;
-  abstract readonly description: string;
-  abstract readonly inputSchema?: TInput;
-  abstract readonly outputSchema: TOutput;
-  abstract readonly handler: (params: z.infer<TInput>) => z.infer<TOutput> | Promise<z.infer<TOutput>>;
+  abstract get name(): string;
+  abstract get description(): string;
+  abstract get inputSchema(): TInput | undefined;
+  abstract get outputSchema(): TOutput;
+  abstract get handler(): (params: z.infer<TInput>) => z.infer<TOutput> | Promise<z.infer<TOutput>>;
 
   get definition(): ToolDefinition {
     return {
