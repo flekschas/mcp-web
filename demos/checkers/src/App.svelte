@@ -4,6 +4,7 @@
   import { mcpWeb } from './mcp.js';
   import { state as gameState } from './state.svelte.js';
   import H1 from './components/H1.svelte';
+  import { MCP_WEB_CONFIG } from '../mcp-web.config.js';
 
   let connectionStatus = $state('connecting');
   let mcpConnection = $state(false);
@@ -93,19 +94,6 @@ async function copySweetnessToClipboard() {
     <div class="flex flex-col lg:flex-row justify-center items-center gap-8">
       <Game />
 
-      {#if !mcpConnection}
-        <div class="mt-4 bg-red-900 border border-red-700 p-4 rounded-lg">
-          <h3 class="font-bold text-red-200 mb-2">⚠️ Not Connected</h3>
-          <p class="text-red-300 text-sm">
-            Make sure the MCP-Web bridge is running on localhost:3001 and the agent
-            is running on localhost:8000.
-          </p>
-          <p class="text-red-300 text-sm mt-2">
-            You can play locally, but AI queries will not work.
-          </p>
-        </div>
-      {/if}
-
       {#if gameOver}
         <div class="mt-4 bg-blue-900 border border-blue-700 p-4 rounded-lg">
           <h3 class="font-bold text-blue-200 mb-2">🎮 Game Over</h3>
@@ -143,6 +131,18 @@ async function copySweetnessToClipboard() {
         onkeydown={(e) => e.stopPropagation()}
       >
         <div class="p-6">
+          {#if connectionStatus !== 'connecting' && !mcpConnection}
+            <div class="mb-4 bg-red-900 border border-red-700 p-4 rounded">
+              <h3 class="font-bold text-red-200 mb-2">⚠️ Not Connected</h3>
+              <p class="text-red-300 text-sm">
+                Make sure the MCP-Web bridge is running on {MCP_WEB_CONFIG.host}:{MCP_WEB_CONFIG.wsPort} and the agent
+                is running on {MCP_WEB_CONFIG.agentUrl}.
+              </p>
+              <p class="text-red-300 text-sm mt-2">
+                You can play locally, but AI queries will not work.
+              </p>
+            </div>
+          {/if}
           <div class="flex justify-between items-start mb-4">
             <h2 id="modal-title" class="text-2xl font-bold text-white">MCP Client Configuration</h2>
             <button
