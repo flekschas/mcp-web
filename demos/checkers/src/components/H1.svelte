@@ -35,8 +35,6 @@
     const currentOrder = order;
     setTimeout(() => { order = currentOrder - 1; }, 400);
   });
-
-  console.log(orders);
 </script>
 
 <div class="flex items-center justify-center mb-4">
