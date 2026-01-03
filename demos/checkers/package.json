@@ -1,5 +1,5 @@
 {
-  "name": "checkers-demo",
+  "name": "@mcp-web/demos/checkers",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -48,7 +48,7 @@
     "svelte": "^5.43.14",
     "svelte-check": "^4.3.4",
     "svelte-eslint-parser": "^1.4.0",
-    "tailwindcss": "^4.1.17",
+    "tailwindcss": "catalog:",
     "tslib": "^2.8.1",
     "tsx": "catalog:",
     "typescript": "catalog:",

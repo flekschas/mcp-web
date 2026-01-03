@@ -7,7 +7,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { serve } from '@hono/node-server';
 import { MCPWebClient } from '@mcp-web/client';
 import { type Query, QuerySchema, type Tool } from '@mcp-web/types';
-import { generateObject, generateText, jsonSchema, stepCountIs, type JSONSchema7 } from 'ai';
+import { generateObject, generateText, type JSONSchema7, jsonSchema, stepCountIs } from 'ai';
 import { config } from 'dotenv';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
