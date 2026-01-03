@@ -4,17 +4,17 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MCPWebClient, type MCPWebClientConfig } from '@mcp-web/client';
 import {
+  ClientNotConextualizedErrorCode,
   type MCPWebConfig,
+  type Query,
   QueryDoneErrorCode,
   QueryNotFoundErrorCode,
-  type Query,
-  ClientNotConextualizedErrorCode,
 } from '@mcp-web/types';
 import { MCPWeb } from '@mcp-web/web';
 import { ListPromptsResultSchema, ListResourcesResultSchema, ListToolsResultSchema } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { MockAgentServer } from '../helpers/mock-agent';
 import { killProcess } from '../helpers/kill-process';
+import { MockAgentServer } from '../helpers/mock-agent';
 
 // Get the directory of the current file
 const __filename = fileURLToPath(import.meta.url);
@@ -301,7 +301,7 @@ test('Response tool automatically completes a query', async () => {
   });
 
   // Register discoverable tools
-  const tool1 = mcpWeb.addTool({
+  mcpWeb.addTool({
     name: 'tool_1',
     description: 'Tool 1',
     handler: () => ({ theAnswerToEverything: 42 }),
@@ -545,7 +545,7 @@ test('Query can complete despite unsuccessful tool calls', async () => {
 
 
 test('Unsuccesful response tool calls don\'t complete the query', async () => {
-  const queryHandler = async (client: MCPWebClient, query: Query) => {
+  const queryHandler = async (client: MCPWebClient) => {
     // This call should not complete the query because the call will fail
     const callToolResult1 = await client.callTool('response_tool', { value: 123 });
     expect(callToolResult1.isError).toBe(true);
