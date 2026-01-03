@@ -32,21 +32,23 @@ export default defineConfig({
         text: 'Guides',
         items: [
           { text: 'Get Started', link: '/get-started' },
+          { text: 'Frontend Queries', link: '/frontend-triggered-queries' },
+          { text: 'Structuring Your App', link: '/structuring-your-app' },
           { text: 'Integrations', link: '/integrations' },
+          { text: 'Large Schemas', link: '/large-schema' },
         ]
       },
       {
         text: 'Learn',
         items: [
-          { text: 'Expose Frontend State and Actions as MCP Tools', link: '/setup' },
-          { text: 'Trigger Queries from Frontend', link: '/frontend-triggered-queries' },
-          { text: 'MCP-Web Architecture', link: '/architecture' }
+          { text: 'MCP-Web Architecture', link: '/architecture' },
+          { text: 'Declarative & Reactive State', link: '/declarative-reactive-state' }
         ]
       },
       {
         text: 'Examples',
         items: [
-          { text: 'Kanban Board', link: '/demos/kanban' },
+          { text: 'Todo', link: '/demos/todo' },
           { text: 'Checkers Game', link: '/demos/checkers' },
           { text: 'HiGlass', link: '/demos/higlass' },
         ]
@@ -64,5 +66,10 @@ export default defineConfig({
     socialLinks: [
       { icon: 'github', link: 'https://github.com/flekschas/mcp-web/' }
     ]
+  },
+  markdown: {
+    image: {
+      lazyLoading: true
+    }
   }
 })

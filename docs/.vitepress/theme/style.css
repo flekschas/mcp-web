@@ -43,31 +43,112 @@
  *   in custom container, badges, etc.
  * -------------------------------------------------------------------------- */
 
+/**
+ * Light Mode Theme
+ * -------------------------------------------------------------------------- */
 :root {
-  --vp-c-default-1: var(--vp-c-gray-1);
-  --vp-c-default-2: var(--vp-c-gray-2);
-  --vp-c-default-3: var(--vp-c-gray-3);
-  --vp-c-default-soft: var(--vp-c-gray-soft);
+  /* Background */
+  --vp-c-bg: oklch(0.9699 0.0013 106.42);
+  --vp-c-bg-soft: oklch(0.96 0.0013 106.42);
+  --vp-c-bg-alt: oklch(0.95 0.0013 106.42);
 
-  --vp-c-brand-1: var(--vp-c-indigo-1);
-  --vp-c-brand-2: var(--vp-c-indigo-2);
-  --vp-c-brand-3: var(--vp-c-indigo-3);
-  --vp-c-brand-soft: var(--vp-c-indigo-soft);
+  /* Text */
+  --vp-c-text-1: oklch(0.3056 0.0654 288.09);
+  --vp-c-text-2: oklch(0.4 0.0654 288.09);
+  --vp-c-text-3: oklch(0.5 0.0654 288.09);
 
+  /* Brand colors */
+  --vp-c-brand-1: oklch(0.6881 0.1813 340);
+  --vp-c-brand-2: oklch(0.6 0.16 340);
+  --vp-c-brand-3: oklch(0.5 0.14 340);
+  --vp-c-brand-soft: oklch(0.6881 0.1813 340 / 0.14);
+
+  /* Secondary color */
+  --vp-c-secondary-1: oklch(0.7301 0.1547 67.01);
+  --vp-c-secondary-2: oklch(0.65 0.14 67.01);
+  --vp-c-secondary-3: oklch(0.6 0.12 67.01);
+  --vp-c-secondary-soft: oklch(0.7301 0.1547 67.01 / 0.14);
+
+  /* Default colors */
+  --vp-c-default-1: var(--vp-c-text-2);
+  --vp-c-default-2: var(--vp-c-text-3);
+  --vp-c-default-3: var(--vp-c-bg-alt);
+  --vp-c-default-soft: var(--vp-c-bg-soft);
+
+  /* Tip colors (using brand) */
   --vp-c-tip-1: var(--vp-c-brand-1);
   --vp-c-tip-2: var(--vp-c-brand-2);
   --vp-c-tip-3: var(--vp-c-brand-3);
   --vp-c-tip-soft: var(--vp-c-brand-soft);
 
-  --vp-c-warning-1: var(--vp-c-yellow-1);
-  --vp-c-warning-2: var(--vp-c-yellow-2);
-  --vp-c-warning-3: var(--vp-c-yellow-3);
-  --vp-c-warning-soft: var(--vp-c-yellow-soft);
+  /* Warning colors (using secondary) */
+  --vp-c-warning-1: var(--vp-c-secondary-1);
+  --vp-c-warning-2: var(--vp-c-secondary-2);
+  --vp-c-warning-3: var(--vp-c-secondary-3);
+  --vp-c-warning-soft: var(--vp-c-secondary-soft);
 
+  /* Keep default danger colors */
   --vp-c-danger-1: var(--vp-c-red-1);
   --vp-c-danger-2: var(--vp-c-red-2);
   --vp-c-danger-3: var(--vp-c-red-3);
   --vp-c-danger-soft: var(--vp-c-red-soft);
+
+  /* Sidebar */
+  --vp-sidebar-bg-color: var(--vp-c-bg);
+}
+
+/**
+ * Dark Mode Theme
+ * -------------------------------------------------------------------------- */
+.dark {
+  /* Background */
+  --vp-c-bg: oklch(0.3056 0.0654 288.09);
+  --vp-c-bg-soft: oklch(0.32 0.0654 288.09);
+  --vp-c-bg-alt: oklch(0.35 0.0654 288.09);
+
+  /* Text */
+  --vp-c-text-1: oklch(0.9699 0.0013 106.42);
+  --vp-c-text-2: oklch(0.85 0.0013 106.42);
+  --vp-c-text-3: oklch(0.7 0.0013 106.42);
+
+  /* Brand colors */
+  --vp-c-brand-1: oklch(0.7583 0.2 340);
+  --vp-c-brand-2: oklch(0.7 0.18 340);
+  --vp-c-brand-3: oklch(0.65 0.16 340);
+  --vp-c-brand-soft: oklch(0.7583 0.2 340 / 0.14);
+
+  /* Secondary color */
+  --vp-c-secondary-1: oklch(0.8119 0.1364 67.01);
+  --vp-c-secondary-2: oklch(0.75 0.12 67.01);
+  --vp-c-secondary-3: oklch(0.7 0.11 67.01);
+  --vp-c-secondary-soft: oklch(0.8119 0.1364 67.01 / 0.14);
+
+  /* Default colors */
+  --vp-c-default-1: var(--vp-c-text-2);
+  --vp-c-default-2: var(--vp-c-text-3);
+  --vp-c-default-3: var(--vp-c-bg-alt);
+  --vp-c-default-soft: var(--vp-c-bg-soft);
+
+  /* Tip colors (using brand) */
+  --vp-c-tip-1: var(--vp-c-brand-1);
+  --vp-c-tip-2: var(--vp-c-brand-2);
+  --vp-c-tip-3: var(--vp-c-brand-3);
+  --vp-c-tip-soft: var(--vp-c-brand-soft);
+
+  /* Warning colors (using secondary) */
+  --vp-c-warning-1: var(--vp-c-secondary-1);
+  --vp-c-warning-2: var(--vp-c-secondary-2);
+  --vp-c-warning-3: var(--vp-c-secondary-3);
+  --vp-c-warning-soft: var(--vp-c-secondary-soft);
+
+  /* Keep default danger colors */
+  --vp-c-danger-1: var(--vp-c-red-1);
+  --vp-c-danger-2: var(--vp-c-red-2);
+  --vp-c-danger-3: var(--vp-c-red-3);
+  --vp-c-danger-soft: var(--vp-c-red-soft);
+
+  /* Gutter */
+  --vp-c-gutter: var(--vp-c-bg-alt);
 }
 
 /**
@@ -134,6 +215,6 @@
  * -------------------------------------------------------------------------- */
 
 .DocSearch {
-  --docsearch-primary-color: var(--vp-c-brand-1) !important;
+  --docsearch-primary-color: var(--vp-c-brand-1);
 }
 
