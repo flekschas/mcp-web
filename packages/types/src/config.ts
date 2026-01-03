@@ -13,8 +13,8 @@ export const McpWebConfigSchema = z.object({
   mcpPort: z.number().int().min(1).max(65535).optional().default(3002).describe('The MCP server port of the bridge server (for client connections)'),
   /** Either a URL or a data URI like "data:image/png;base64,...". This is shown in the AI App. */
   icon: z.string().optional().describe('Either a URL or a data URI like "data:image/png;base64,...". This is shown in the AI App.'),
-  /** The URL of the agent server for frontend-triggered queries. Required for query support. */
-  agentUrl: z.string().optional().describe('The URL of the agent server for frontend-triggered queries. Required for query support.'),
+  /** The URL of the agent server for frontend-triggered queries. Can include path (e.g., 'http://localhost:3000/api/v1/query'). Required for query support. */
+  agentUrl: z.string().optional().describe('The URL of the agent server for frontend-triggered queries. Can include path (e.g., \'http://localhost:3000/api/v1/query\'). Required for query support.'),
   /** Authentication token for the agent. If not provided, will use auto-generated token. */
   authToken: z.string().optional().describe('Authentication token for the agent. If not provided, will use auto-generated token.'),
   /** Whether to persist the auth token in localStorage. */

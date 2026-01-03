@@ -471,55 +471,69 @@ export class MCPWeb {
   }
 
   /**
-   * Add tools for getting and optionally setting state.
+   * Register tools for getting and setting state.
    *
-   * Creates a getter tool and optionally setter tool(s) for state management.
-   * Supports schema decomposition to split large state into multiple focused setters.
+   * Creates a getter tool (`get_<name>`) and setter tool(s) (`set_<name>`).
+   * Returns a tuple of [getter, setter(s), cleanup].
    *
-   * @returns Object containing all created tools and a cleanup function
+   * @returns Tuple of [getter tool, setter tool(s), cleanup function]
+   * - [0]: Getter tool
+   * - [1]: Setter tool (single) or array of setter tools (when using schemaSplit)
+   * - [2]: Cleanup function
    *
    * @example
    * ```typescript
    * // Basic read-write state
-   * const { tools, cleanup } = mcp.addStateTool({
-   *   name: 'counter',
-   *   description: 'Application counter',
-   *   get: () => count,
-   *   set: (val) => { count = val },
-   *   schema: z.number()
-   * });
-   *
-   * // Read-only state (omit set)
-   * mcp.addStateTool({
-   *   name: 'config',
-   *   description: 'App configuration',
-   *   get: () => appConfig,
-   *   schema: ConfigSchema
+   * const [getTodos, setTodos, cleanup] = mcp.addStateTool({
+   *   name: 'todos',
+   *   description: 'List of all todos',
+   *   get: () => todos,
+   *   set: (val) => { todos = val },
+   *   schema: TodoListSchema
    * });
    *
    * // With schema decomposition for large objects
-   * mcp.addStateTool({
+   * const [getGameState, setGameStateTools] = mcp.addStateTool({
    *   name: 'game_state',
    *   description: 'Game board state',
    *   get: () => gameState,
    *   set: (val) => { gameState = val },
    *   schema: GameStateSchema,
-   *   schemaSplit: {
-   *     board: ['board'],
-   *     players: ['currentPlayer', 'scores']
-   *   }
+   *   schemaSplit: ['board', ['currentPlayer'], ['redScore', 'blackScore']]
    * });
-   * // Creates: get_game_state, set_game_state_board, set_game_state_players
+   * // Returns: [get_game_state, [set_game_state_board, ...], cleanup]
+   *
+   * // For read-only state, use addTool instead:
+   * mcp.addTool({
+   *   name: 'get_config',
+   *   handler: () => config,
+   *   outputSchema: ConfigSchema
+   * });
    * ```
    */
   addStateTool<T>(config: {
     name: string;
     description: string;
     get: () => T;
-    set?: (value: T) => void;
+    set: (value: T) => void;
+    schema: z.ZodType<T> | z.core.JSONSchema.JSONSchema;
+  }): [ToolDefinition, ToolDefinition, () => void];
+  addStateTool<T>(config: {
+    name: string;
+    description: string;
+    get: () => T;
+    set: (value: T) => void;
+    schema: z.ZodType<T> | z.core.JSONSchema.JSONSchema;
+    schemaSplit: SplitPlan | DecompositionOptions;
+  }): [ToolDefinition, ToolDefinition[], () => void];
+  addStateTool<T>(config: {
+    name: string;
+    description: string;
+    get: () => T;
+    set: (value: T) => void;
     schema: z.ZodType<T> | z.core.JSONSchema.JSONSchema;
     schemaSplit?: SplitPlan | DecompositionOptions;
-  }): { tools: ToolDefinition[]; cleanup: () => void } {
+  }): [ToolDefinition, ToolDefinition | ToolDefinition[], () => void] {
     const { name, description, get, set, schema, schemaSplit } = config;
 
     const tools: ToolDefinition[] = [];
@@ -533,70 +547,38 @@ export class MCPWeb {
     });
     tools.push(getterTool);
 
-    // Add setter tools if set function is provided
-    if (set) {
-      const isZodObjectSchema = isZodSchema(schema) && schema instanceof ZodObject;
-      const shouldDecompose = isZodObjectSchema && schemaSplit !== undefined;
+    // Add setter tools (always present since set is now required)
+    const isZodObjectSchema = isZodSchema(schema) && schema instanceof ZodObject;
+    const shouldDecompose = isZodObjectSchema && schemaSplit !== undefined;
 
-      let decomposedSchemas: DecomposedSchema[] = [];
+    let decomposedSchemas: DecomposedSchema[] = [];
 
-      if (shouldDecompose && schemaSplit) {
-        try {
-          decomposedSchemas = decomposeSchema(
-            schema as unknown as Parameters<typeof decomposeSchema>[0],
-            schemaSplit
-          );
-        } catch (error) {
-          console.warn(`Failed to decompose schema for ${name}:`, error);
-        }
+    if (shouldDecompose && schemaSplit) {
+      try {
+        decomposedSchemas = decomposeSchema(
+          schema as unknown as Parameters<typeof decomposeSchema>[0],
+          schemaSplit
+        );
+      } catch (error) {
+        console.warn(`Failed to decompose schema for ${name}:`, error);
       }
+    }
 
-      if (decomposedSchemas.length > 0) {
-        // Add decomposed setter tools
-        for (const decomposed of decomposedSchemas) {
-          const setterTool = this.addTool({
-            name: `set_${name}_${decomposed.name}`,
-            description: `Set ${decomposed.name} properties of ${name}. ${description}`,
-            handler: (partialValue: z.infer<typeof decomposed.schema>) => {
-              try {
-                const currentValue = get();
-                const updatedValue = applyPartialUpdate(
-                  currentValue,
-                  decomposed.targetPaths,
-                  partialValue
-                );
-                const validatedValue = validateInput(updatedValue, schema);
-                set(validatedValue);
-                return { success: true };
-              } catch (error) {
-                return {
-                  success: false,
-                  error: error instanceof Error ? error.message : 'Unknown error',
-                };
-              }
-            },
-            inputSchema: decomposed.schema,
-            outputSchema: z.object({
-              success: z.boolean(),
-              error: z.string().optional(),
-            }),
-          });
-          tools.push(setterTool);
-        }
-      } else {
-        // Add single setter tool
-        // Wrap non-object schemas in a value property (MCP requires object inputs)
-        const inputSchema = isZodObjectSchema
-          ? (schema as z.ZodObject<z.ZodRawShape>)
-          : z.object({ value: schema as z.ZodType<T> });
+    if (decomposedSchemas.length > 0) {
+      // Add decomposed setter tools
+      for (const decomposed of decomposedSchemas) {
         const setterTool = this.addTool({
-          name: `set_${name}`,
-          description: `Set the value of ${name}. ${description}`,
-          handler: (newValue: unknown) => {
+          name: `set_${name}_${decomposed.name}`,
+          description: `Set ${decomposed.name} properties of ${name}. ${description}`,
+          handler: (partialValue: z.infer<typeof decomposed.schema>) => {
             try {
-              // Unwrap if we wrapped in value property
-              const actualValue = isZodObjectSchema ? newValue : (newValue as { value: unknown }).value;
-              const validatedValue = validateInput(actualValue, schema);
+              const currentValue = get();
+              const updatedValue = applyPartialUpdate(
+                currentValue,
+                decomposed.targetPaths,
+                partialValue
+              );
+              const validatedValue = validateInput(updatedValue, schema);
               set(validatedValue);
               return { success: true };
             } catch (error) {
@@ -606,7 +588,7 @@ export class MCPWeb {
               };
             }
           },
-          inputSchema,
+          inputSchema: decomposed.schema,
           outputSchema: z.object({
             success: z.boolean(),
             error: z.string().optional(),
@@ -614,23 +596,57 @@ export class MCPWeb {
         });
         tools.push(setterTool);
       }
+    } else {
+      // Add single setter tool
+      // Wrap non-object schemas in a value property (MCP requires object inputs)
+      const inputSchema = isZodObjectSchema
+        ? (schema as z.ZodObject<z.ZodRawShape>)
+        : z.object({ value: schema as z.ZodType<T> });
+      const setterTool = this.addTool({
+        name: `set_${name}`,
+        description: `Set the value of ${name}. ${description}`,
+        handler: (newValue: unknown) => {
+          try {
+            // Unwrap if we wrapped in value property
+            const actualValue = isZodObjectSchema ? newValue : (newValue as { value: unknown }).value;
+            const validatedValue = validateInput(actualValue, schema);
+            set(validatedValue);
+            return { success: true };
+          } catch (error) {
+            return {
+              success: false,
+              error: error instanceof Error ? error.message : 'Unknown error',
+            };
+          }
+        },
+        inputSchema,
+        outputSchema: z.object({
+          success: z.boolean(),
+          error: z.string().optional(),
+        }),
+      });
+      tools.push(setterTool);
     }
 
-    // Return tools and cleanup function
-    return {
-      tools,
-      cleanup: () => {
-        for (const tool of tools) {
-          this.removeTool(tool.name);
-        }
-      },
+    // Return tuple of [getter, setter(s), cleanup]
+    const setterTools = tools.slice(1);
+    const cleanup = () => {
+      for (const tool of tools) {
+        this.removeTool(tool.name);
+      }
     };
+
+    return [
+      getterTool,
+      setterTools.length === 1 ? setterTools[0] : setterTools,
+      cleanup
+    ] as [ToolDefinition, ToolDefinition | ToolDefinition[], () => void];
   }
 
   /**
    * Get connection status
    */
-  isConnected(): boolean {
+  get connected(): boolean {
     return this.#connected;
   }
 

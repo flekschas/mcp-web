@@ -16,7 +16,7 @@
     try {
       // Connect to MCP bridge
       await mcpWeb.connect();
-      mcpConnection = mcpWeb.isConnected();
+      mcpConnection = mcpWeb.connected;
       connectionStatus = mcpConnection ? 'connected' : 'disconnected';
 
       console.log('MCP connected:', mcpConnection);

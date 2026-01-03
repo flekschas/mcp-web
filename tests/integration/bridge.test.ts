@@ -4,10 +4,10 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MCPWebClient, type MCPWebClientConfig, type TextContent } from '@mcp-web/client';
 import {
+  isErroredListToolsResult,
   type MCPWebConfig,
   SessionNotSpecifiedErrorCode,
   ToolNotFoundErrorCode,
-  isErroredListToolsResult,
 } from '@mcp-web/types';
 import { MCPWeb } from '@mcp-web/web';
 import { z } from 'zod';
@@ -84,8 +84,8 @@ test('MCPWebBridge accepts multiple sessions', async () => {
 
   mcpWeb2.disconnect();
 
-  expect(mcpWeb1.isConnected()).toBe(true);
-  expect(mcpWeb2.isConnected()).toBe(false);
+  expect(mcpWeb1.connected).toBe(true);
+  expect(mcpWeb2.connected).toBe(false);
 
   mcpWeb1.disconnect();
 });
@@ -287,21 +287,21 @@ test('Tools from different sessions are isolated', async () => {
   // Since there are multiple sessions, error will be SessionNotSpecified
   const invalidSessionResult1 = await client.callTool('tool1', { name: 'John' }, 'invalid-session-id');
   expect(invalidSessionResult1.isError).toBe(true);
-  expect((invalidSessionResult1.content[0] as any).text).toContain(SessionNotSpecifiedErrorCode);
+  expect((invalidSessionResult1.content[0] as TextContent).text).toContain(SessionNotSpecifiedErrorCode);
 
   const invalidSessionResult2 = await client.callTool('tool2', { name: 'Jane' }, 'invalid-session-id');
   expect(invalidSessionResult2.isError).toBe(true);
-  expect((invalidSessionResult2.content[0] as any).text).toContain(SessionNotSpecifiedErrorCode);
+  expect((invalidSessionResult2.content[0] as TextContent).text).toContain(SessionNotSpecifiedErrorCode);
 
   // Calling tools with a valid but wrong session ID should fail with ToolNotFound
   // because the session doesn't have the requested tool
   const wrongSessionResult1 = await client.callTool('tool1', { name: 'John' }, mcpWeb2.sessionId);
   expect(wrongSessionResult1.isError).toBe(true);
-  expect((wrongSessionResult1.content[0] as any).text).toContain(ToolNotFoundErrorCode);
+  expect((wrongSessionResult1.content[0] as TextContent).text).toContain(ToolNotFoundErrorCode);
 
   const wrongSessionResult2 = await client.callTool('tool2', { name: 'Jane' }, mcpWeb1.sessionId);
   expect(wrongSessionResult2.isError).toBe(true);
-  expect((wrongSessionResult2.content[0] as any).text).toContain(ToolNotFoundErrorCode);
+  expect((wrongSessionResult2.content[0] as TextContent).text).toContain(ToolNotFoundErrorCode);
 
   mcpWeb1.disconnect();
   mcpWeb2.disconnect();

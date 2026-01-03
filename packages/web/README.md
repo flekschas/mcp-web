@@ -223,7 +223,7 @@ mcp.addTool({
 
 ```typescript
 // Check connection status
-if (mcp.isConnected()) {
+if (mcp.connected) {
   console.log('Connected to MCP bridge');
 }
 

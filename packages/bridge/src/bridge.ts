@@ -5,14 +5,19 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { dirname, join } from 'node:path';
 import { fileURLToPath, URL } from 'node:url';
 import {
+  type ErroredListPromptsResult,
+  type ErroredListResourcesResult,
+  type ErroredListToolsResult,
+  type FatalError,
   InternalErrorCode,
-  NoSessionsFoundErrorCode,
+  InvalidSessionErrorCode,
   type MCPWebConfig,
   type MCPWebConfigOutput,
   McpWebConfigSchema,
-  SessionNotFoundErrorCode,
   MissingAuthenticationErrorCode,
+  NoSessionsFoundErrorCode,
   QueryAcceptedMessageSchema,
+  type QueryCancelMessage,
   QueryCancelMessageSchema,
   QueryCompleteBridgeMessageSchema,
   QueryCompleteClientMessageSchema,
@@ -22,17 +27,12 @@ import {
   QueryNotActiveErrorCode,
   QueryNotFoundErrorCode,
   QueryProgressMessageSchema,
-  UnknownMethodErrorCode,
-  QueryCancelMessage,
-  InvalidSessionErrorCode,
+  SessionNotFoundErrorCode,
   SessionNotSpecifiedErrorCode,
-  ToolNotFoundErrorCode,
   ToolNameRequiredErrorCode,
   ToolNotAllowedErrorCode,
-  FatalError,
-  ErroredListToolsResult,
-  ErroredListResourcesResult,
-  ErroredListPromptsResult,
+  ToolNotFoundErrorCode,
+  UnknownMethodErrorCode,
 } from '@mcp-web/types';
 import type {
   ListPromptsResult,
@@ -42,6 +42,7 @@ import type {
   Tool,
 } from '@modelcontextprotocol/sdk/types.js';
 import { WebSocket, WebSocketServer } from 'ws';
+import type { z } from 'zod';
 import type {
   ActivityMessage,
   AuthenticateMessage,
@@ -54,9 +55,32 @@ import type {
   ToolCallMessage,
   ToolResponseMessage,
 } from './types.js';
-import type { z } from 'zod';
 
 const SessionNotSpecifiedErrorDetails = 'Multiple sessions available. See `available_sessions` or call the `list_sessions` tool to discover available sessions and specify the session using `_meta.sessionId`.';
+
+/**
+ * Builds the query URL by appending the UUID to the agent URL.
+ * If the agent URL has no path (e.g., 'http://localhost:3000'), defaults to '/query'.
+ * Otherwise uses the existing path (e.g., 'http://localhost:3000/api/v1/query').
+ */
+const buildQueryUrl = (agentUrl: string, uuid: string): string => {
+  const url = new URL(agentUrl);
+
+  // If URL has no path or just '/', default to '/query'
+  if (url.pathname === '/' || url.pathname === '') {
+    url.pathname = '/query';
+  }
+
+  // Ensure path doesn't end with /
+  if (url.pathname.endsWith('/')) {
+    url.pathname = url.pathname.slice(0, -1);
+  }
+
+  // Append UUID
+  url.pathname = `${url.pathname}/${uuid}`;
+
+  return url.toString();
+}
 
 export class MCPWebBridge {
   #sessions = new Map<string, SessionData>();
@@ -292,7 +316,7 @@ export class MCPWebBridge {
     // Notify agent that query no longer exists (optional - agent may not implement DELETE)
     if (this.#config.agentUrl) {
       try {
-        await fetch(`${this.#config.agentUrl}/query/${uuid}`, {
+        await fetch(buildQueryUrl(this.#config.agentUrl, uuid), {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' }
         });
@@ -329,7 +353,7 @@ export class MCPWebBridge {
       });
 
       // Forward query to agent
-      const response = await fetch(`${this.#config.agentUrl}/query/${uuid}`, {
+      const response = await fetch(buildQueryUrl(this.#config.agentUrl, uuid), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -647,7 +671,7 @@ export class MCPWebBridge {
     sessions: Map<string, SessionData>,
     params?: McpRequest['params']
   ): SessionData | undefined {
-    let sessionId = params?._meta?.sessionId as string | undefined;
+    const sessionId = params?._meta?.sessionId as string | undefined;
 
     return this.getSessionAndSessionId(sessions, sessionId)?.[1];
   }

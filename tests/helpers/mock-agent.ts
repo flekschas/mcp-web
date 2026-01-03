@@ -7,6 +7,7 @@ export class MockAgentServer {
     mcpWebClientConfig: MCPWebClientConfig,
     queryHandler: (contexualizedClient: MCPWebClient, query: Query) => Promise<void>,
     port: number = 3003,
+    queryEndpoint: string = '/query',
   ) {
     this.server = Bun.serve({
       port,
@@ -17,7 +18,7 @@ export class MockAgentServer {
 
         const handleQuery = (query: Query) => queryHandler(client.contextualize(query), query);
 
-        if (req.method === 'PUT' && url.pathname.startsWith('/query/')) {
+        if (req.method === 'PUT' && url.pathname.startsWith(`${queryEndpoint}/`)) {
           const query = await req.json() as Query;
           setTimeout(() => { handleQuery(query) }, 0);
           return new Response(JSON.stringify({ success: true }), {
