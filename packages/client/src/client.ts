@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 
 import {
+  ClientNotConextualizedErrorCode,
+  type ErroredListPromptsResult,
+  type ErroredListResourcesResult,
+  type ErroredListToolsResult,
+  type FatalError,
   InvalidAuthenticationErrorCode,
+  type McpRequestMetaParams,
   MissingAuthenticationErrorCode,
   type Query,
   QueryDoneErrorCode,
   QueryNotActiveErrorCode,
   QueryNotFoundErrorCode,
   QuerySchema,
-  ClientNotConextualizedErrorCode,
-  type McpRequestMetaParams,
-  type FatalError,
-  type ErroredListToolsResult,
-  type ErroredListResourcesResult,
-  type ErroredListPromptsResult,
 } from '@mcp-web/types';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
@@ -22,11 +22,11 @@ import {
   CallToolRequestSchema,
   type CallToolResult,
   ListPromptsRequestSchema,
+  type ListPromptsResult,
   ListResourcesRequestSchema,
+  type ListResourcesResult,
   ListToolsRequestSchema,
-  ListToolsResult,
-  ListPromptsResult,
-  ListResourcesResult,
+  type ListToolsResult,
   type Tool,
 } from '@modelcontextprotocol/sdk/types.js';
 import {
@@ -352,8 +352,6 @@ export class MCPWebClient {
 
     const url = this.#config.serverUrl.replace('ws:', 'http:').replace('wss:', 'https:');
     const progressUrl = `${url}/query/${this.#query.uuid}/progress`;
-
-    try {
       const response = await fetch(progressUrl, {
         method: 'POST',
         headers: {
@@ -366,9 +364,6 @@ export class MCPWebClient {
         const errorData = await response.json().catch(() => ({ error: response.statusText })) as { error?: string };
         throw new Error(errorData.error || `Failed to send progress: HTTP ${response.status}`);
       }
-    } catch (error) {
-      throw error;
-    }
   }
 
   /**
@@ -532,7 +527,7 @@ export class MCPWebClient {
 
       return data.result as T;
 
-    } catch (error) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
           throw new Error('Request timeout');
