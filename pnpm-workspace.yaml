@@ -13,6 +13,7 @@ catalog:
   '@modelcontextprotocol/sdk': ^1.15.1
   '@types/node': ^24.10.1
   ajv: ^8.17.1
+  tailwindcss: ^4.1.18
   tsx: ^4.20.6
   typescript: ~5.9.3
   zod: ~4.1.12
