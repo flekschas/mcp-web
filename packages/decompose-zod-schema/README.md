@@ -3,7 +3,9 @@
 Large schemas create two fundamental challenges when working with AI systems:
 
 ## 1. Descriptive Complexity
-When schemas have too many properties, the AI might struggle to understand and work with all concepts simultaneously. Complex schemas can exceed context limits and reduce the AI's ability to generate accurate, focused responses.
+When schemas have too many properties, AI might struggle to understand and work
+with all concepts simultaneously. Complex schemas can exceed context limits and
+reduce AI's ability to generate accurate, focused responses.
 
 **Solution: Schema Decomposition**
 - Split large objects into semantically-coherent sub-schemas
