@@ -21,6 +21,17 @@ export const McpWebConfigSchema = z.object({
   persistAuthToken: z.boolean().optional().default(true).describe('Whether to persist the auth token in localStorage.'),
   /** Whether to automatically connect to the MCP bridge on initialization. */
   autoConnect: z.boolean().optional().default(true).describe('Whether to automatically connect to the MCP bridge on initialization.'),
+
+  // Session & Query Limits
+
+  /** Maximum sessions allowed per auth token. When exceeded, behavior is determined by `onSessionLimitExceeded`. */
+  maxSessionsPerToken: z.number().int().positive().optional().describe('Maximum sessions allowed per auth token.'),
+  /** Behavior when session limit is exceeded. "reject" rejects new connections, "close_oldest" closes the oldest session. */
+  onSessionLimitExceeded: z.enum(['reject', 'close_oldest']).optional().default('reject').describe('Behavior when session limit is exceeded.'),
+  /** Maximum concurrent in-flight queries across all sessions for a token. Prevents resource exhaustion. */
+  maxInFlightQueriesPerToken: z.number().int().positive().optional().describe('Maximum concurrent in-flight queries per token.'),
+  /** Maximum session duration in milliseconds. Sessions older than this are automatically closed. */
+  sessionMaxDurationMs: z.number().int().positive().optional().describe('Maximum session duration in milliseconds.'),
 });
 
 export type MCPWebConfig = z.input<typeof McpWebConfigSchema>;

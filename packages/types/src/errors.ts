@@ -13,6 +13,9 @@ export const ToolNotFoundErrorCode = 'ToolNotFound';
 export const SessionNotSpecifiedErrorCode = 'SessionNotSpecified';
 export const ToolNameRequiredErrorCode = 'ToolNameRequired';
 export const ToolNotAllowedErrorCode = 'ToolNotAllowed';
+export const SessionLimitExceededErrorCode = 'SessionLimitExceeded';
+export const QueryLimitExceededErrorCode = 'QueryLimitExceeded';
+export const SessionExpiredErrorCode = 'SessionExpired';
 
 /**
  * Session information returned in errors
