@@ -25,5 +25,5 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "src/utils/*.test.ts", "src/utils/*-cli.ts", "src/utils/example-*.ts", "src/utils/*-deno.ts"]
+  "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }
