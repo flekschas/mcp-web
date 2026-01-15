@@ -55,6 +55,9 @@ export const ToolDefinitionZodSchema = ToolDefinitionBaseSchema.extend({
   outputSchema: z.instanceof(z.ZodType).optional()
 });
 
+/** Tool definition type for tools with Zod schemas (inferred from schema) */
+export type ToolDefinitionZod = z.infer<typeof ToolDefinitionZodSchema>;
+
 /** Schema for tool definitions with JSON Schema */
 export const ToolDefinitionJsonSchema = ToolDefinitionBaseSchema.extend({
   /** The input schema for the tool (JSON Schema). */
@@ -66,13 +69,12 @@ export const ToolDefinitionJsonSchema = ToolDefinitionBaseSchema.extend({
 /** Runtime validation schema that accepts either Zod or JSON Schema */
 export const ToolDefinitionSchema = z.union([ToolDefinitionZodSchema, ToolDefinitionJsonSchema]);
 
-// Simple, flexible tool definition that works for all cases
 export interface ToolDefinition {
   name: string;
   description: string;
   // biome-ignore lint/suspicious/noExplicitAny: Handler can accept/return anything
   handler: (input?: any) => any | Promise<any>;
-  inputSchema?: z.ZodObject<z.ZodRawShape> | Record<string, unknown>;
+  inputSchema?: z.ZodObject | Record<string, unknown>;
   outputSchema?: z.ZodType | Record<string, unknown>;
 }
 

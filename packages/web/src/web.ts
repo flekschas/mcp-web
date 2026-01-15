@@ -1,28 +1,69 @@
 import type { BridgeMessage, RegisterToolMessage } from '@mcp-web/bridge';
+import type { DecomposedSchema, SplitPlan } from '@mcp-web/decompose-zod-schema';
+import { decomposeSchema } from '@mcp-web/decompose-zod-schema';
+import type {
+  MCPWebConfig,
+  MCPWebConfigOutput,
+  ProcessedContextItem,
+  ProcessedToolDefinition,
+  Query,
+  ToolDefinition,
+} from '@mcp-web/types';
 import {
-  applyPartialUpdate,
-  type DecomposedSchema,
-  type DecompositionOptions,
-  decomposeSchema,
-  type SplitPlan,
-} from '@mcp-web/decompose-zod-schema';
-import {
-  type MCPWebConfig,
-  type MCPWebConfigOutput,
   McpWebConfigSchema,
-  type ProcessedContextItem,
-  type ProcessedToolDefinition,
-  type Query,
   QueryMessageSchema,
-  type ToolDefinition,
   ToolDefinitionSchema,
 } from '@mcp-web/types';
-import { ZodObject, z } from 'zod';
+import { ZodObject, type z } from 'zod';
 import { QueryResponse } from './query.js';
 import { QueryRequestSchema, QueryResponseResultSchema } from './schemas.js';
+import { generateBasicStateTools, generateToolsForSchema } from './tool-generators/index.js';
 import type { QueryRequest, QueryResponseResult } from './types.js';
-import { isZodSchema, toJSONSchema, toToolMetadataJson, validateInput } from './utils.js';
+import { toJSONSchema, toToolMetadataJson } from './utils.js';
 
+/**
+ * Main class for integrating web applications with AI agents via the Model Context Protocol (MCP).
+ *
+ * MCPWeb enables your web application to expose state and actions as tools that AI agents can
+ * interact with. It handles the WebSocket connection to the bridge server, tool registration,
+ * and bi-directional communication between your frontend and AI agents.
+ *
+ * @example Basic Usage
+ * ```typescript
+ * import { MCPWeb } from '@mcp-web/web';
+ *
+ * const mcp = new MCPWeb({
+ *   name: 'My Todo App',
+ *   description: 'A todo application that AI agents can control',
+ *   autoConnect: true,
+ * });
+ *
+ * // Register a tool
+ * mcp.addTool({
+ *   name: 'create_todo',
+ *   description: 'Create a new todo item',
+ *   handler: (input) => {
+ *     const todo = { id: crypto.randomUUID(), ...input };
+ *     todos.push(todo);
+ *     return todo;
+ *   },
+ * });
+ * ```
+ *
+ * @example With Full Configuration
+ * ```typescript
+ * const mcp = new MCPWeb({
+ *   name: 'Checkers Game',
+ *   description: 'Interactive checkers game controllable by AI agents',
+ *   host: 'localhost',
+ *   wsPort: 3001,
+ *   mcpPort: 3002,
+ *   icon: 'https://example.com/icon.png',
+ *   agentUrl: 'http://localhost:3003',
+ *   autoConnect: true,
+ * });
+ * ```
+ */
 export class MCPWeb {
   #ws: WebSocket | null = null;
   #sessionId: string;
@@ -42,6 +83,27 @@ export class MCPWeb {
     }
   };
 
+  /**
+   * Creates a new MCPWeb instance with the specified configuration.
+   *
+   * The constructor initializes the WebSocket connection settings, generates or loads
+   * authentication credentials, and optionally auto-connects to the bridge server.
+   *
+   * @param config - Configuration object for MCPWeb
+   * @throws {Error} If configuration validation fails
+   *
+   * @example
+   * ```typescript
+   * const mcp = new MCPWeb({
+   *   name: 'My Todo App',
+   *   description: 'A todo application that AI agents can control',
+   *   host: 'localhost',
+   *   wsPort: 3001,
+   *   mcpPort: 3002,
+   *   autoConnect: true,
+   * });
+   * ```
+   */
   constructor(config: MCPWebConfig) {
     this.#config = McpWebConfigSchema.parse(config);
     this.#sessionId = this.#generateSessionId();
@@ -65,22 +127,67 @@ export class MCPWeb {
     this.setupActivityTracking();
   }
 
+  /**
+   * Unique session identifier for this frontend instance.
+   *
+   * The session ID is automatically generated and persisted in localStorage across page reloads.
+   * It's used to identify this specific frontend instance in the bridge server.
+   *
+   * @returns The session ID string
+   */
   get sessionId() {
     return this.#sessionId;
   }
 
+  /**
+   * Authentication token for this session.
+   *
+   * The auth token is either auto-generated, loaded from localStorage, or provided via config.
+   * By default, it's persisted in localStorage to maintain the same token across page reloads.
+   *
+   * @returns The authentication token string
+   */
   get authToken() {
     return this.#authToken;
   }
 
+  /**
+   * Map of all registered tools.
+   *
+   * Provides access to the internal tool registry. Each tool is keyed by its name.
+   *
+   * @returns Map of tool names to processed tool definitions
+   */
   get tools() {
     return this.#tools;
   }
 
+  /**
+   * The processed MCPWeb configuration.
+   *
+   * Returns the validated and processed configuration with all defaults applied.
+   *
+   * @returns The complete configuration object
+   */
   get config() {
     return this.#config;
   }
 
+  /**
+   * Configuration object for the AI host app (e.g., Claude Desktop).
+   *
+   * Use this to configure the MCP client in your AI host application.
+   * It contains the connection details and authentication credentials needed
+   * for the AI agent to connect to the bridge server.
+   *
+   * @returns MCP client configuration object
+   *
+   * @example
+   * ```typescript
+   * console.log('Add this to your Claude Desktop config:');
+   * console.log(JSON.stringify(mcp.mcpConfig, null, 2));
+   * ```
+   */
   get mcpConfig() {
     return this.#mcpConfig;
   }
@@ -150,6 +257,39 @@ export class MCPWeb {
     return newToken;
   }
 
+  /**
+   * Establishes connection to the bridge server.
+   *
+   * Opens a WebSocket connection to the bridge server and authenticates using the session's
+   * auth token. If `autoConnect` is enabled in the config, this is called automatically
+   * during construction.
+   *
+   * This method is idempotent - calling it multiple times while already connected or
+   * connecting will return the same promise.
+   *
+   * @returns Promise that resolves to `true` when authenticated and ready
+   * @throws {Error} If WebSocket connection fails
+   *
+   * @example Manual Connection
+   * ```typescript
+   * const mcp = new MCPWeb({
+   *   name: 'My App',
+   *   description: 'My application',
+   *   autoConnect: false,  // Disable auto-connect
+   * });
+   *
+   * // Connect when ready
+   * await mcp.connect();
+   * console.log('Connected to bridge');
+   * ```
+   *
+   * @example Check Connection Status
+   * ```typescript
+   * if (!mcp.connected) {
+   *   await mcp.connect();
+   * }
+   * ```
+   */
   async connect(): Promise<true> {
     // Prevent duplicate connections
     if (this.#connected) {
@@ -378,31 +518,82 @@ export class MCPWeb {
   }
 
   /**
-   * Add a tool that can be called by an MCP-compatible AI app/agent..
+   * Registers a tool that AI agents can call.
    *
-   * Supports both Zod schemas (recommended - compile time and runtime type safety) and JSON Schemas (runtime validation only).
-   * When using Zod schemas, TypeScript will enforce that your handler signature matches the schemas.
+   * Supports both Zod schemas (recommended for type safety) and JSON schemas.
+   * When using Zod schemas, TypeScript enforces that your handler signature matches the schemas.
    *
-   * @returns The tool definition that can be used as context or responseTool in queries
+   * @param tool - Tool configuration including name, description, handler, and schemas
+   * @returns The registered tool definition that can be used as context or responseTool in queries
+   * @throws {Error} If tool definition is invalid
    *
-   * @example
+   * @example Basic Tool
+   * ```typescript
    * mcp.addTool({
-   *   name: 'double',
-   *   description: 'Double a number',
-   *   handler: ({ value }) => ({ result: value * 2 }),
-   *   inputSchema: z.object({ value: z.number() }),
-   *   outputSchema: z.object({ result: z.number() })
+   *   name: 'get_current_time',
+   *   description: 'Get the current time in ISO format',
+   *   handler: () => ({ time: new Date().toISOString() }),
    * });
+   * ```
+   *
+   * @example With Zod Schema (Recommended)
+   * ```typescript
+   * import { z } from 'zod';
+   *
+   * const CreateTodoSchema = z.object({
+   *   title: z.string().describe('Todo title'),
+   *   description: z.string().optional().describe('Optional description'),
+   * });
+   *
+   * mcp.addTool({
+   *   name: 'create_todo',
+   *   description: 'Create a new todo item',
+   *   handler: (input) => {
+   *     const todo = {
+   *       id: crypto.randomUUID(),
+   *       ...input,
+   *       completed: false,
+   *     };
+   *     todos.push(todo);
+   *     return todo;
+   *   },
+   *   inputSchema: CreateTodoSchema,
+   *   outputSchema: z.object({
+   *     id: z.string(),
+   *     title: z.string(),
+   *     description: z.string(),
+   *     completed: z.boolean(),
+   *   }),
+   * });
+   * ```
+   *
+   * @example With JSON Schema
+   * ```typescript
+   * mcp.addTool({
+   *   name: 'search_items',
+   *   description: 'Search for items by keyword',
+   *   handler: ({ keyword }) => {
+   *     return items.filter(item => item.name.includes(keyword));
+   *   },
+   *   inputSchema: {
+   *     type: 'object',
+   *     properties: {
+   *       keyword: { type: 'string', description: 'Search keyword' }
+   *     },
+   *     required: ['keyword']
+   *   },
+   * });
+   * ```
    */
   // Overload: Zod
   addTool<
-    TInput extends z.ZodObject<z.ZodRawShape> | undefined = undefined,
+    TInput extends z.ZodObject | undefined = undefined,
     TOutput extends z.ZodType | undefined = undefined
   >(tool: {
     name: string;
     description: string;
     handler:
-      TInput extends z.ZodObject<z.ZodRawShape>
+      TInput extends z.ZodObject
         ? (input: z.infer<TInput>) => TOutput extends z.ZodType
           ? z.infer<TOutput> | Promise<z.infer<TOutput>>
           : void | Promise<void>
@@ -423,7 +614,6 @@ export class MCPWeb {
   }): ToolDefinition;
 
   addTool(tool: ToolDefinition): ToolDefinition {
-    // Validate the tool definition using Zod schema
     const validationResult = ToolDefinitionSchema.safeParse(tool);
     if (!validationResult.success) {
       throw new Error(`Invalid tool definition: ${validationResult.error.message}`);
@@ -435,7 +625,7 @@ export class MCPWeb {
     // Create processed tool with both Zod and JSON schemas
     const processedTool: ProcessedToolDefinition = {
       ...validationResult.data,
-      inputZodSchema: isInputZodSchema ? (validationResult.data.inputSchema as z.ZodObject<z.ZodRawShape>) : undefined,
+      inputZodSchema: isInputZodSchema ? (validationResult.data.inputSchema as z.ZodObject) : undefined,
       outputZodSchema: isOutputZodSchema ? (validationResult.data.outputSchema as z.ZodType) : undefined,
       inputJsonSchema: validationResult.data.inputSchema ? toJSONSchema(validationResult.data.inputSchema) : undefined,
       outputJsonSchema: validationResult.data.outputSchema ? toJSONSchema(validationResult.data.outputSchema) : undefined
@@ -464,27 +654,36 @@ export class MCPWeb {
   }
 
   /**
-   * Remove a tool
+   * Removes a registered tool.
+   *
+   * After removal, AI agents will no longer be able to call this tool.
+   * Useful for dynamically disabling features or cleaning up when tools are no longer needed.
+   *
+   * @param name - Name of the tool to remove
+   *
+   * @example
+   * ```typescript
+   * // Remove a specific tool
+   * mcp.removeTool('create_todo');
+   * ```
    */
   removeTool(name: string) {
     this.tools.delete(name);
   }
 
   /**
-   * Register tools for getting and setting state.
-   *
-   * Creates a getter tool (`get_<name>`) and setter tool(s) (`set_<name>`).
-   * Returns a tuple of [getter, setter(s), cleanup].
+   * Add state management tools with optional expanded tool generation.
+   * When `expand` is true, automatically generates targeted tools for
+   * arrays and records instead of a single setter.
    *
    * @returns Tuple of [getter tool, setter tool(s), cleanup function]
-   * - [0]: Getter tool
-   * - [1]: Setter tool (single) or array of setter tools (when using schemaSplit)
-   * - [2]: Cleanup function
+   * - Without schemaSplit and expand: [ToolDefinition, ToolDefinition, () => void]
+   * - With schemaSplit or expand: [ToolDefinition, ToolDefinition[], () => void]
    *
    * @example
    * ```typescript
-   * // Basic read-write state
-   * const [getTodos, setTodos, cleanup] = mcp.addStateTool({
+   * // Basic read-write state (returns single setter)
+   * const [getTodos, setTodos, cleanup] = mcp.addStateTools({
    *   name: 'todos',
    *   description: 'List of all todos',
    *   get: () => todos,
@@ -492,8 +691,8 @@ export class MCPWeb {
    *   schema: TodoListSchema
    * });
    *
-   * // With schema decomposition for large objects
-   * const [getGameState, setGameStateTools] = mcp.addStateTool({
+   * // With schema decomposition (returns array of setters)
+   * const [getGameState, setters, cleanup] = mcp.addStateTools({
    *   name: 'game_state',
    *   description: 'Game board state',
    *   get: () => gameState,
@@ -501,157 +700,216 @@ export class MCPWeb {
    *   schema: GameStateSchema,
    *   schemaSplit: ['board', ['currentPlayer'], ['redScore', 'blackScore']]
    * });
-   * // Returns: [get_game_state, [set_game_state_board, ...], cleanup]
    *
-   * // For read-only state, use addTool instead:
-   * mcp.addTool({
-   *   name: 'get_config',
-   *   handler: () => config,
-   *   outputSchema: ConfigSchema
+   * // With expanded tools for collections (returns array of setters)
+   * const [getApp, tools, cleanup] = mcp.addStateTools({
+   *   name: 'app',
+   *   description: 'App state',
+   *   get: () => appState,
+   *   set: (val) => { appState = val },
+   *   schema: AppSchema,
+   *   expand: true
    * });
    * ```
    */
-  addStateTool<T>(config: {
+  // Overload: No schemaSplit, no expand → single setter
+  addStateTools<T>(options: {
     name: string;
     description: string;
     get: () => T;
     set: (value: T) => void;
-    schema: z.ZodType<T> | z.core.JSONSchema.JSONSchema;
+    schema: z.ZodType<T>;
+    schemaSplit?: undefined;
+    expand?: false;
   }): [ToolDefinition, ToolDefinition, () => void];
-  addStateTool<T>(config: {
+  // Overload: With schemaSplit or expand → array of setters
+  addStateTools<T>(options: {
     name: string;
     description: string;
     get: () => T;
     set: (value: T) => void;
-    schema: z.ZodType<T> | z.core.JSONSchema.JSONSchema;
-    schemaSplit: SplitPlan | DecompositionOptions;
+    schema: z.ZodType<T>;
+    schemaSplit: SplitPlan;
+    expand?: boolean;
   }): [ToolDefinition, ToolDefinition[], () => void];
-  addStateTool<T>(config: {
+  addStateTools<T>(options: {
     name: string;
     description: string;
     get: () => T;
     set: (value: T) => void;
-    schema: z.ZodType<T> | z.core.JSONSchema.JSONSchema;
-    schemaSplit?: SplitPlan | DecompositionOptions;
+    schema: z.ZodType<T>;
+    schemaSplit?: SplitPlan;
+    expand: true;
+  }): [ToolDefinition, ToolDefinition[], () => void];
+  // Implementation
+  addStateTools<T>(options: {
+    name: string;
+    description: string;
+    get: () => T;
+    set: (value: T) => void;
+    schema: z.ZodType<T>;
+    schemaSplit?: SplitPlan;
+    expand?: boolean;
   }): [ToolDefinition, ToolDefinition | ToolDefinition[], () => void] {
-    const { name, description, get, set, schema, schemaSplit } = config;
+    const { name, description, get, set, schema, schemaSplit, expand } = options;
+    const allTools: ToolDefinition[] = [];
 
-    const tools: ToolDefinition[] = [];
+    // Determine if we're expanding (schemaSplit or expand flag)
+    const isZodObjectSchema = schema instanceof ZodObject;
+    const shouldDecompose = schemaSplit && isZodObjectSchema;
 
-    // Always add a getter tool
-    const getterTool = this.addTool({
-      name: `get_${name}`,
-      description: `Get the current value of ${name}. ${description}`,
-      handler: get,
-      outputSchema: schema as z.ZodType<T>,
-    });
-    tools.push(getterTool);
-
-    // Add setter tools (always present since set is now required)
-    const isZodObjectSchema = isZodSchema(schema) && schema instanceof ZodObject;
-    const shouldDecompose = isZodObjectSchema && schemaSplit !== undefined;
-
+    // Step 1: Apply schemaSplit if provided
     let decomposedSchemas: DecomposedSchema[] = [];
-
-    if (shouldDecompose && schemaSplit) {
-      try {
-        decomposedSchemas = decomposeSchema(
-          schema as unknown as Parameters<typeof decomposeSchema>[0],
-          schemaSplit
-        );
-      } catch (error) {
-        console.warn(`Failed to decompose schema for ${name}:`, error);
-      }
+    if (shouldDecompose) {
+      decomposedSchemas = decomposeSchema(schema, schemaSplit);
     }
 
-    if (decomposedSchemas.length > 0) {
-      // Add decomposed setter tools
-      for (const decomposed of decomposedSchemas) {
-        const setterTool = this.addTool({
-          name: `set_${name}_${decomposed.name}`,
-          description: `Set ${decomposed.name} properties of ${name}. ${description}`,
-          handler: (partialValue: z.infer<typeof decomposed.schema>) => {
-            try {
-              const currentValue = get();
-              const updatedValue = applyPartialUpdate(
-                currentValue,
-                decomposed.targetPaths,
-                partialValue
-              );
-              const validatedValue = validateInput(updatedValue, schema);
-              set(validatedValue);
-              return { success: true };
-            } catch (error) {
-              return {
-                success: false,
-                error: error instanceof Error ? error.message : 'Unknown error',
-              };
-            }
-          },
-          inputSchema: decomposed.schema,
-          outputSchema: z.object({
-            success: z.boolean(),
-            error: z.string().optional(),
-          }),
+    // Step 2: Generate tools based on mode
+    if (expand) {
+      // Expanded mode: generate targeted tools for collections
+      if (decomposedSchemas.length > 0) {
+        // Generate expanded tools for each decomposed part
+        for (const decomposed of decomposedSchemas) {
+          const result = generateToolsForSchema({
+            name: `${name}_${decomposed.name}`,
+            description: `${decomposed.name} in ${description}`,
+            get: () => {
+              const fullState = get() as Record<string, unknown>;
+              const extracted: Record<string, unknown> = {};
+              for (const path of decomposed.targetPaths) {
+                extracted[path] = fullState[path];
+              }
+              return Object.keys(extracted).length === 1
+                ? extracted[decomposed.targetPaths[0]]
+                : extracted;
+            },
+            set: (value: unknown) => {
+              const current = get() as Record<string, unknown>;
+              if (decomposed.targetPaths.length === 1) {
+                current[decomposed.targetPaths[0]] = value;
+              } else {
+                Object.assign(current, value);
+              }
+              set(current as T);
+            },
+            schema: decomposed.schema as z.ZodTypeAny,
+          });
+
+          // Register and collect tools
+          for (const tool of result.tools) {
+            allTools.push(this.addTool(tool));
+          }
+
+          // Log warnings if any
+          for (const warning of result.warnings) {
+            console.warn(warning);
+          }
+        }
+      } else {
+        // Generate expanded tools for full schema
+        const result = generateToolsForSchema({
+          name,
+          description,
+          get: get as () => unknown,
+          set: set as (value: unknown) => void,
+          schema: schema as z.ZodTypeAny,
         });
-        tools.push(setterTool);
+
+        // Register and collect tools
+        for (const tool of result.tools) {
+          allTools.push(this.addTool(tool));
+        }
+
+        // Log warnings if any
+        for (const warning of result.warnings) {
+          console.warn(warning);
+        }
+      }
+    } else if (shouldDecompose) {
+      // Decompose mode without expand: use basic state tools with decomposition
+      const basicResult = generateBasicStateTools({
+        name,
+        description,
+        get,
+        set,
+        schema: schema as z.ZodType<T>,
+        schemaSplit,
+      });
+
+      // Register getter
+      allTools.push(this.addTool(basicResult.getter));
+      // Register all setters
+      for (const setter of basicResult.setters) {
+        allTools.push(this.addTool(setter));
       }
     } else {
-      // Add single setter tool
-      // Wrap non-object schemas in a value property (MCP requires object inputs)
-      const inputSchema = isZodObjectSchema
-        ? (schema as z.ZodObject<z.ZodRawShape>)
-        : z.object({ value: schema as z.ZodType<T> });
-      const setterTool = this.addTool({
-        name: `set_${name}`,
-        description: `Set the value of ${name}. ${description}`,
-        handler: (newValue: unknown) => {
-          try {
-            // Unwrap if we wrapped in value property
-            const actualValue = isZodObjectSchema ? newValue : (newValue as { value: unknown }).value;
-            const validatedValue = validateInput(actualValue, schema);
-            set(validatedValue);
-            return { success: true };
-          } catch (error) {
-            return {
-              success: false,
-              error: error instanceof Error ? error.message : 'Unknown error',
-            };
-          }
-        },
-        inputSchema,
-        outputSchema: z.object({
-          success: z.boolean(),
-          error: z.string().optional(),
-        }),
+      // Basic mode: simple get/set tools
+      const basicResult = generateBasicStateTools({
+        name,
+        description,
+        get,
+        set,
+        schema: schema as z.ZodType<T>,
       });
-      tools.push(setterTool);
+
+      // Register getter
+      allTools.push(this.addTool(basicResult.getter));
+      // Register setter (should be single)
+      for (const setter of basicResult.setters) {
+        allTools.push(this.addTool(setter));
+      }
     }
 
-    // Return tuple of [getter, setter(s), cleanup]
-    const setterTools = tools.slice(1);
+    // Build cleanup function
     const cleanup = () => {
-      for (const tool of tools) {
+      for (const tool of allTools) {
         this.removeTool(tool.name);
       }
     };
 
-    return [
-      getterTool,
-      setterTools.length === 1 ? setterTools[0] : setterTools,
-      cleanup
-    ] as [ToolDefinition, ToolDefinition | ToolDefinition[], () => void];
+    // Return tuple: [getter, setter(s), cleanup]
+    const getter = allTools[0];
+    const settersOrExpanded = allTools.slice(1);
+
+    // Return single setter if basic mode (no schemaSplit, no expand)
+    if (!expand && !shouldDecompose) {
+      return [getter, settersOrExpanded[0], cleanup];
+    }
+
+    return [getter, settersOrExpanded, cleanup];
   }
 
   /**
-   * Get connection status
+   * Whether the client is currently connected to the bridge server.
+   *
+   * @returns `true` if connected, `false` otherwise
+   *
+   * @example
+   * ```typescript
+   * if (mcp.connected) {
+   *   console.log('Ready to receive tool calls');
+   * } else {
+   *   await mcp.connect();
+   * }
+   * ```
    */
   get connected(): boolean {
     return this.#connected;
   }
 
   /**
-   * Disconnect from bridge
+   * Disconnects from the bridge server.
+   *
+   * Closes the WebSocket connection and cleans up event handlers.
+   * Useful for cleanup when unmounting components or closing the application.
+   *
+   * @example
+   * ```typescript
+   * // In a Vue component lifecycle hook
+   * onUnmounted(() => {
+   *   mcp.disconnect();
+   * });
+   * ```
    */
   disconnect() {
     if (this.#ws) {
@@ -666,18 +924,67 @@ export class MCPWeb {
   }
 
   /**
-   * Get list of registered tools
+   * Gets list of all registered tool names.
+   *
+   * @returns Array of tool names
+   *
+   * @example
+   * ```typescript
+   * const toolNames = mcp.getTools();
+   * console.log('Available tools:', toolNames);
+   * ```
    */
   getTools(): string[] {
     return Array.from(this.tools.keys());
   }
 
   /**
-   * Query the agent (only available when agentUrl is configured)
+   * Triggers an AI agent query from your frontend code.
    *
-   * @param request - The query request object
+   * Requires `agentUrl` to be configured in MCPWeb config. Sends a query to the AI agent
+   * and returns a QueryResponse object that can be iterated to stream events.
+   *
+   * @param request - Query request with prompt and optional context
    * @param signal - Optional AbortSignal for canceling the query
-   * @returns QueryResponse instance with uuid and async iterable stream
+   * @returns QueryResponse object that streams events
+   * @throws {Error} If `agentUrl` is not configured or not connected to bridge
+   *
+   * @example Basic Query
+   * ```typescript
+   * const query = mcp.query({
+   *   prompt: 'Analyze the current todos and suggest priorities',
+   * });
+   *
+   * for await (const event of query) {
+   *   if (event.type === 'query_complete') {
+   *     console.log('Result:', event.result);
+   *   }
+   * }
+   * ```
+   *
+   * @example With Context
+   * ```typescript
+   * const query = mcp.query({
+   *   prompt: 'Update the todo with highest priority',
+   *   context: [todosTool],  // Provide specific tools as context
+   * });
+   *
+   * for await (const event of query) {
+   *   console.log('Event:', event);
+   * }
+   * ```
+   *
+   * @example With Cancellation
+   * ```typescript
+   * const abortController = new AbortController();
+   * const query = mcp.query(
+   *   { prompt: 'Long running task' },
+   *   abortController.signal
+   * );
+   *
+   * // Cancel after 5 seconds
+   * setTimeout(() => abortController.abort(), 5000);
+   * ```
    */
   query(request: QueryRequest, signal?: AbortSignal): QueryResponse {
     if (!this.#config.agentUrl) {
