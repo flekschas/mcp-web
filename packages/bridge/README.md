@@ -70,6 +70,34 @@ The `BridgeServerConfig` interface supports:
 | `name` | `string` | `"Web App Controller"` | Server name displayed in Claude Desktop |
 | `description` | `string` | `"Control web applications..."` | Server description |
 | `icon` | `string` | `undefined` | Optional icon URL or data URI |
+| `maxSessionsPerToken` | `number` | `undefined` | Maximum sessions allowed per auth token |
+| `onSessionLimitExceeded` | `'reject' \| 'close_oldest'` | `'reject'` | Behavior when session limit is exceeded |
+| `maxInFlightQueriesPerToken` | `number` | `undefined` | Maximum concurrent in-flight queries per token |
+| `sessionMaxDurationMs` | `number` | `undefined` | Maximum session duration in milliseconds |
+
+### Session & Query Limits
+
+For production deployments, you can configure limits to prevent resource exhaustion:
+
+```typescript
+const bridge = new MCPWebBridge({
+  name: 'My App',
+  description: 'My app description',
+  wsPort: 3001,
+  mcpPort: 3002,
+  
+  // Limit each token to 3 concurrent sessions
+  maxSessionsPerToken: 3,
+  // When limit is exceeded, close the oldest session instead of rejecting
+  onSessionLimitExceeded: 'close_oldest',
+  // Limit concurrent queries to prevent overload
+  maxInFlightQueriesPerToken: 5,
+  // Auto-expire sessions after 30 minutes
+  sessionMaxDurationMs: 1800000,
+});
+```
+
+**Note:** For authentication, rate limiting, and connection limits, we recommend using external infrastructure (load balancers, API gateways) rather than implementing these in the bridge itself.
 
 ## Architecture
 

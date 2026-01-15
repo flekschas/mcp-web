@@ -11,7 +11,8 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "clean": "rm -rf dist",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "test": "bun test"
   },
   "dependencies": {
     "@mcp-web/types": "workspace:*",

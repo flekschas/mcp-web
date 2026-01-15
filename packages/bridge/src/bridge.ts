@@ -22,11 +22,14 @@ import {
   QueryCompleteBridgeMessageSchema,
   QueryCompleteClientMessageSchema,
   QueryFailureMessageSchema,
+  QueryLimitExceededErrorCode,
   type QueryMessage,
   QueryMessageSchema,
   QueryNotActiveErrorCode,
   QueryNotFoundErrorCode,
   QueryProgressMessageSchema,
+  SessionExpiredErrorCode,
+  SessionLimitExceededErrorCode,
   SessionNotFoundErrorCode,
   SessionNotSpecifiedErrorCode,
   ToolNameRequiredErrorCode,
@@ -89,6 +92,11 @@ export class MCPWebBridge {
   #wsServer?: WebSocketServer;
   #mcpServer?: ReturnType<typeof createServer>;
 
+  // Session & Query limit tracking
+  #tokenSessionIds = new Map<string, Set<string>>(); // token -> sessionIds
+  #tokenQueryCounts = new Map<string, number>(); // token -> active query count
+  #sessionTimeoutInterval?: ReturnType<typeof setInterval>;
+
   constructor(
     config: MCPWebConfig = {
       wsPort: 3001,
@@ -107,6 +115,11 @@ export class MCPWebBridge {
 
     this.#wsServer = this.setupWebSocketServer(this.#config.wsPort);
     this.#mcpServer = this.setupMCPServer(this.#config.mcpPort);
+
+    // Start session timeout checker if configured
+    if (this.#config.sessionMaxDurationMs) {
+      this.#startSessionTimeoutChecker();
+    }
   }
 
   private setupWebSocketServer(wsPort: number) {
@@ -143,7 +156,7 @@ export class MCPWebBridge {
       });
 
       ws.on('close', () => {
-        this.#sessions.delete(sessionId);
+        this.#cleanupSession(sessionId);
       });
 
       ws.on('error', (error) => {
@@ -259,6 +272,28 @@ export class MCPWebBridge {
   }
 
   private handleAuthentication(sessionId: string, message: AuthenticateMessage, ws: WebSocket) {
+    const { authToken } = message;
+
+    // Check session limit
+    if (this.#config.maxSessionsPerToken) {
+      const existingSessions = this.#tokenSessionIds.get(authToken);
+      const currentCount = existingSessions?.size ?? 0;
+
+      if (currentCount >= this.#config.maxSessionsPerToken) {
+        if (this.#config.onSessionLimitExceeded === 'close_oldest') {
+          this.#closeOldestSessionForToken(authToken);
+        } else {
+          ws.send(JSON.stringify({
+            type: 'authentication-failed',
+            error: 'Session limit exceeded',
+            code: SessionLimitExceededErrorCode
+          }));
+          ws.close(1008, 'Session limit exceeded');
+          return;
+        }
+      }
+    }
+
     const sessionData: SessionData = {
       ws,
       authToken: message.authToken,
@@ -271,6 +306,11 @@ export class MCPWebBridge {
     };
 
     this.#sessions.set(sessionId, sessionData);
+
+    // Track session for this token
+    const sessionIds = this.#tokenSessionIds.get(authToken) ?? new Set();
+    sessionIds.add(sessionId);
+    this.#tokenSessionIds.set(authToken, sessionIds);
 
     ws.send(JSON.stringify({
       type: 'authenticated',
@@ -326,6 +366,7 @@ export class MCPWebBridge {
       }
     }
 
+    this.#decrementQueryCountForQuery(query);
     this.#queries.delete(uuid);
   }
 
@@ -339,6 +380,36 @@ export class MCPWebBridge {
       })));
       return;
     }
+
+    // Get session for query limit checking
+    const session = this.#sessions.get(sessionId);
+    if (!session) {
+      ws.send(JSON.stringify(QueryFailureMessageSchema.parse({
+        uuid,
+        error: 'Session not found'
+      })));
+      return;
+    }
+
+    // Check query limit
+    if (this.#config.maxInFlightQueriesPerToken) {
+      const currentQueries = this.#tokenQueryCounts.get(session.authToken) ?? 0;
+
+      if (currentQueries >= this.#config.maxInFlightQueriesPerToken) {
+        ws.send(JSON.stringify(QueryFailureMessageSchema.parse({
+          uuid,
+          error: 'Query limit exceeded. Wait for existing queries to complete.',
+          code: QueryLimitExceededErrorCode
+        })));
+        return;
+      }
+    }
+
+    // Increment query count for this token
+    this.#tokenQueryCounts.set(
+      session.authToken,
+      (this.#tokenQueryCounts.get(session.authToken) ?? 0) + 1
+    );
 
     try {
       // Track this query
@@ -372,6 +443,7 @@ export class MCPWebBridge {
     } catch (error) {
       console.error(`Error forwarding query ${uuid}:`, error);
       this.#queries.delete(uuid);
+      this.#decrementQueryCount(session.authToken);
       ws.send(JSON.stringify(QueryFailureMessageSchema.parse({
         uuid,
         error: `${error instanceof Error ? error.message : String(error)}`
@@ -428,6 +500,7 @@ export class MCPWebBridge {
           query.ws.send(JSON.stringify(errorMessage));
         }
 
+        this.#decrementQueryCountForQuery(query);
         this.#queries.delete(uuid);
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: errorMessage.error }));
@@ -448,6 +521,7 @@ export class MCPWebBridge {
         query.ws.send(JSON.stringify(bridgeMessage));
       }
 
+      this.#decrementQueryCountForQuery(query);
       this.#queries.delete(uuid);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ success: true }));
@@ -478,6 +552,7 @@ export class MCPWebBridge {
         query.ws.send(JSON.stringify(failureMessage));
       }
 
+      this.#decrementQueryCountForQuery(query);
       this.#queries.delete(uuid);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ success: true }));
@@ -515,6 +590,7 @@ export class MCPWebBridge {
         query.ws.send(JSON.stringify(cancellationMessage));
       }
 
+      this.#decrementQueryCountForQuery(query);
       this.#queries.delete(uuid);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ success: true }));
@@ -1029,10 +1105,96 @@ export class MCPWebBridge {
     res.end(JSON.stringify(response));
   }
 
+  // ============================================
+  // Session & Query Limit Helpers
+  // ============================================
+
+  #decrementQueryCount(authToken: string): void {
+    const count = this.#tokenQueryCounts.get(authToken) ?? 0;
+    if (count <= 1) {
+      this.#tokenQueryCounts.delete(authToken);
+    } else {
+      this.#tokenQueryCounts.set(authToken, count - 1);
+    }
+  }
+
+  #decrementQueryCountForQuery(query: QueryTracking): void {
+    const session = this.#sessions.get(query.sessionId);
+    if (session) {
+      this.#decrementQueryCount(session.authToken);
+    }
+  }
+
+  #closeOldestSessionForToken(authToken: string): void {
+    const sessionIds = this.#tokenSessionIds.get(authToken);
+    if (!sessionIds || sessionIds.size === 0) return;
+
+    let oldest: { sessionId: string; connectedAt: number } | null = null;
+
+    for (const sessionId of sessionIds) {
+      const session = this.#sessions.get(sessionId);
+      if (session && (!oldest || session.connectedAt < oldest.connectedAt)) {
+        oldest = { sessionId, connectedAt: session.connectedAt };
+      }
+    }
+
+    if (oldest) {
+      const session = this.#sessions.get(oldest.sessionId);
+      if (session) {
+        session.ws.send(JSON.stringify({
+          type: 'session-closed',
+          reason: 'Session limit exceeded, closing oldest session',
+          code: SessionLimitExceededErrorCode
+        }));
+        session.ws.close(1008, 'Session limit exceeded');
+      }
+    }
+  }
+
+  #cleanupSession(sessionId: string): void {
+    const session = this.#sessions.get(sessionId);
+    if (session) {
+      // Remove from token tracking
+      const sessionIds = this.#tokenSessionIds.get(session.authToken);
+      if (sessionIds) {
+        sessionIds.delete(sessionId);
+        if (sessionIds.size === 0) {
+          this.#tokenSessionIds.delete(session.authToken);
+        }
+      }
+    }
+    this.#sessions.delete(sessionId);
+  }
+
+  #startSessionTimeoutChecker(): void {
+    const maxDuration = this.#config.sessionMaxDurationMs;
+    if (!maxDuration) return;
+
+    this.#sessionTimeoutInterval = setInterval(() => {
+      const now = Date.now();
+      for (const [_sessionId, session] of this.#sessions) {
+        if (now - session.connectedAt > maxDuration) {
+          session.ws.send(JSON.stringify({
+            type: 'session-expired',
+            code: SessionExpiredErrorCode
+          }));
+          session.ws.close(1008, 'Session expired');
+          // Note: cleanup happens in the 'close' event handler
+        }
+      }
+    }, 60000); // Check every minute
+  }
+
   /**
    * Close the bridge servers and cleanup all connections
    */
   async close(): Promise<void> {
+    // Stop session timeout checker
+    if (this.#sessionTimeoutInterval) {
+      clearInterval(this.#sessionTimeoutInterval);
+      this.#sessionTimeoutInterval = undefined;
+    }
+
     // Close all WebSocket connections first
     for (const session of this.#sessions.values()) {
       if (session.ws.readyState === WebSocket.OPEN) {
@@ -1041,8 +1203,10 @@ export class MCPWebBridge {
     }
     this.#sessions.clear();
 
-    // Clear queries
+    // Clear queries and tracking maps
     this.#queries.clear();
+    this.#tokenSessionIds.clear();
+    this.#tokenQueryCounts.clear();
 
     // Close servers with timeout to prevent hanging
     const closeWithTimeout = (
