@@ -5,14 +5,18 @@ import {
   decomposeSchema,
   type SplitPlan,
 } from '@mcp-web/decompose-zod-schema';
-import { type ToolDefinition } from '@mcp-web/types';
-import { isZodSchema, type MCPWeb, validateInput } from '@mcp-web/web';
-import { useEffect, useRef, useState } from 'react';
+import type { MCPWebConfig, ToolDefinition } from '@mcp-web/types';
+import { isZodSchema, MCPWeb, validateInput } from '@mcp-web/web';
+import React, { createContext, type ReactNode, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { ZodObject, z } from 'zod';
 
 export interface UseToolConfig<T> {
-  /** The MCPWeb instance to register tools with. */
-  mcp: MCPWeb;
+  /**
+   * The MCPWeb instance to register tools with.
+   * Optional - if not provided, will use the instance from MCPWebProvider context.
+   * If both are available, the prop takes precedence over context.
+   */
+  mcpWeb?: MCPWeb;
   /** The name of the tool. */
   name: string;
   /** The description of the tool. */
@@ -27,8 +31,42 @@ export interface UseToolConfig<T> {
   valueSchemaSplit?: SplitPlan | DecompositionOptions;
 }
 
+/**
+ * Hook for registering tools for a given state value.
+ *
+ * @example
+ * ```tsx
+ * const TodoSchema = z.object({
+ *   id: z.string(),
+ *   title: z.string(),
+ *   completed: z.boolean(),
+ * });
+ * type Todo = z.infer<typeof TodoSchema>;
+ *
+ * function Todos() {
+ *   const [todos, setTodos] = useState<Todo[]>([]);
+ *
+ *   useTool({
+ *     name: 'todos',
+ *     description: 'All todos',
+ *     value: todos,
+ *     setValue: setTodos,
+ *     valueSchema: z.array(TodoSchema),
+ *   });
+ *
+ *   return (
+ *     <div>
+ *       {todos.map((todo) => (
+ *         <div key={todo.id}>{todo.title}</div>
+ *       ))}
+ *     </div>
+ *   );
+ * }
+ *
+ * ```
+ */
 export function useTool<T>({
-  mcp,
+  mcpWeb: mcpWebProp,
   name,
   description,
   value,
@@ -38,16 +76,26 @@ export function useTool<T>({
 }: UseToolConfig<T>): ToolDefinition[] {
   const [tools, setTools] = useState<ToolDefinition[]>([]);
 
+  // Try to get from context if not provided as prop
+  const context = useContext(MCPWebContext);
+
+  // Prop takes precedence over context
+  const mcpWeb = mcpWebProp ?? context?.mcpWeb;
+
+  if (!mcpWeb) {
+    throw new Error('useTool requires either mcpWeb prop or MCPWebProvider in component tree');
+  }
+
   const valueRef = useRef<T>(value);
+  // Updated on every render such that the getter tool always returns the latest
+  // value.
   valueRef.current = value;
 
   useEffect(() => {
-    console.log('adding react state tools', name);
-
     const tools: ToolDefinition[] = [];
 
     // Always add a getter tool
-    const getterToolDefinition = mcp.addTool({
+    const getterToolDefinition = mcpWeb.addTool({
       name: `get_${name}`,
       description: `Get the current value of ${name}. ${description}`,
       handler: () => valueRef.current,
@@ -77,7 +125,7 @@ export function useTool<T>({
         if (decomposedSchemas.length > 0) {
           // Add decomposed setter tools
           for (const decomposed of decomposedSchemas) {
-            const setterToolDefinition = mcp.addTool({
+            const setterToolDefinition = mcpWeb.addTool({
               name: `set_${name}_${decomposed.name}`,
               description: `Set ${decomposed.name} properties of ${name}. ${description}`,
               handler: (partialValue: z.infer<typeof decomposed.schema>) => {
@@ -107,7 +155,7 @@ export function useTool<T>({
           const inputSchema = isZodObjectSchema
             ? (valueSchema as z.ZodObject<z.ZodRawShape>)
             : z.object({ value: valueSchema as z.ZodType<T> });
-          const setterToolDefinition = mcp.addTool({
+          const setterToolDefinition = mcpWeb.addTool({
             name: `set_${name}`,
             description: `Set the value of ${name}. ${description}`,
             handler: (newValue: unknown) => {
@@ -136,7 +184,7 @@ export function useTool<T>({
         const inputSchema = isZodObjectSchema
           ? (valueSchema as z.ZodObject<z.ZodRawShape>)
           : z.object({ value: valueSchema as z.ZodType<T> });
-        const setterToolDefinition = mcp.addTool({
+        const setterToolDefinition = mcpWeb.addTool({
           name: `set_${name}`,
           description: `Set the value of ${name}. ${description}`,
           handler: (newValue: unknown) => {
@@ -167,10 +215,96 @@ export function useTool<T>({
     // Return cleanup function
     return () => {
       for (const tool of tools) {
-        mcp.removeTool(tool.name);
+        mcpWeb.removeTool(tool.name);
       }
     };
-  }, [mcp, name, description, valueSchema, setValue, valueSchemaSplit]);
+  }, [mcpWeb, name, description, valueSchema, setValue, valueSchemaSplit]);
 
   return tools;
+}
+
+/**
+ * Internal hook for managing MCPWeb connection lifecycle.
+ * Connects on mount and disconnects on unmount.
+ * Returns reactive connection state for triggering re-renders.
+ *
+ * @internal
+ */
+function useConnectedMCPWeb(mcpInstance: MCPWeb): MCPWebContextValue {
+  const [isConnected, setIsConnected] = useState(mcpInstance.connected);
+
+  useEffect(() => {
+    if (!mcpInstance.connected) {
+      mcpInstance.connect().then(() => setIsConnected(true));
+    } else {
+      setIsConnected(true);
+    }
+
+    return () => {
+      mcpInstance.disconnect();
+    };
+  }, [mcpInstance]);
+
+  return { mcpWeb: mcpInstance, isConnected };
+}
+
+interface MCPWebContextValue {
+  mcpWeb: MCPWeb;
+  isConnected: boolean;
+}
+
+const MCPWebContext = createContext<MCPWebContextValue | null>(null);
+
+export interface MCPWebProviderProps {
+  children: ReactNode;
+  config: MCPWebConfig;
+}
+
+/**
+ * Provider component for sharing MCPWeb instance across component tree.
+ * Handles MCPWeb instantiation and connection lifecycle automatically.
+ *
+ * @example
+ * ```tsx
+ * function Root() {
+ *   return (
+ *     <MCPWebProvider config={{ name: 'My App', description: 'My app description' }}>
+ *       <App />
+ *     </MCPWebProvider>
+ *   );
+ * }
+ * ```
+ */
+export function MCPWebProvider({ children, config }: MCPWebProviderProps) {
+  const mcpInstance = useMemo(() => new MCPWeb(config), [config]);
+  const mcpState = useConnectedMCPWeb(mcpInstance);
+
+  return React.createElement(
+    MCPWebContext.Provider,
+    { value: mcpState },
+    children
+  );
+}
+
+/**
+ * Hook for accessing MCPWeb instance from context.
+ * Must be used within MCPWebProvider.
+ *
+ * @returns Object containing the MCPWeb instance and connection state
+ * @throws Error if used outside of MCPWebProvider
+ *
+ * @example
+ * ```tsx
+ * function MyComponent() {
+ *   const { mcpWeb, isConnected } = useMCPWeb();
+ *   // Use mcpWeb...
+ * }
+ * ```
+ */
+export function useMCPWeb(): MCPWebContextValue {
+  const context = useContext(MCPWebContext);
+  if (!context) {
+    throw new Error('useMCPWeb must be used within MCPWebProvider');
+  }
+  return context;
 }

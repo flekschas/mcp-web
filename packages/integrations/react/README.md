@@ -13,22 +13,26 @@ npm install @mcp-web/react
 ## Basic Usage
 
 ```typescript
-import { MCPWeb } from '@mcp-web/web';
-import { useTool } from '@mcp-web/react';
+import { MCPWebProvider, useTool } from '@mcp-web/react';
 import { useState } from 'react';
 import { z } from 'zod';
 
-// Create MCP instance
-const mcp = new MCPWeb({ name: 'My App' });
+function Root() {
+  return (
+    <MCPWebProvider config={{ name: 'My App', description: 'My application' }}>
+      <MyComponent />
+    </MCPWebProvider>
+  );
+}
 
 function MyComponent() {
   // Your React state
   const [filterText, setFilterText] = useState('');
   const [viewMode, setViewMode] = useState('grid');
 
-  // Expose state as read-write MCP tool
+  // Expose state as read-write MCP tools
+  // No need to pass mcpWeb - it's automatically accessed from context!
   useTool({
-    mcp,
     name: 'filter_text',
     description: 'Text filter for searching items',
     value: filterText,
@@ -37,8 +41,7 @@ function MyComponent() {
   });
 
   useTool({
-    mcp,
-    name: 'view_mode', 
+    name: 'view_mode',
     description: 'Current display mode',
     value: viewMode,
     setValue: setViewMode,
@@ -67,13 +70,12 @@ const preferencesSchema = z.object({
     push: z.boolean()
   }),
   display: z.object({
-    compact: z.boolean(), 
+    compact: z.boolean(),
     animations: z.boolean()
   })
 });
 
 useTool({
-  mcp,
   name: 'user_preferences',
   description: 'User interface preferences',
   value: userPreferences,
@@ -96,7 +98,6 @@ For read-only state, omit the `setValue` prop:
 
 ```typescript
 useTool({
-  mcp,
   name: 'project_statistics',
   description: 'Current project statistics',
   value: calculateStats(), // Function that returns current stats
@@ -105,16 +106,75 @@ useTool({
 });
 ```
 
+## Advanced: Manual MCPWeb Instance
+
+If you need manual control over the MCPWeb instance, you can pass it explicitly:
+
+```typescript
+import { MCPWeb } from '@mcp-web/web';
+import { useTool } from '@mcp-web/react';
+
+const mcpWeb = new MCPWeb({ name: 'My App' });
+
+function MyComponent() {
+  const [state, setState] = useState('');
+
+  useTool({
+    mcpWeb, // Explicit instance (optional when using MCPWebProvider)
+    name: 'state',
+    description: 'My state',
+    value: state,
+    setValue: setState,
+    valueSchema: z.string(),
+  });
+}
+```
+
 ## API Reference
+
+### `MCPWebProvider`
+
+Provider component that creates and manages the MCPWeb instance.
+
+**Props:**
+- `config` - MCPWeb configuration object
+  - `name` - Application name
+  - `description` - Application description
+  - Other MCPWeb config options
+- `children` - React components
+
+### `useMCPWeb()`
+
+Hook to access the MCPWeb instance and connection state from context.
+
+**Returns:**
+- `mcpWeb` - The MCPWeb instance
+- `isConnected` - Boolean indicating connection status
+
+**Example:**
+```typescript
+function MyComponent() {
+  const { mcpWeb, isConnected } = useMCPWeb();
+
+  if (!isConnected) {
+    return <div>Connecting to MCP bridge...</div>;
+  }
+
+  // Use mcpWeb...
+}
+```
 
 ### `useTool(config)`
 
-- `mcp` - MCPWeb instance
+Register state as MCP tools.
+
+**Config:**
+- `mcpWeb` *(optional)* - MCPWeb instance (auto-detected from context)
 - `name` - Tool name
-- `description` - Tool description  
+- `description` - Tool description
 - `value` - Current state value
-- `setValue` _(optional)_ - State setter function (omit for read-only)
+- `setValue` *(optional)* - State setter function (omit for read-only)
 - `valueSchema` - Zod schema for validation
-- `valueSchemaSplit` _(optional)_ - Split complex objects into multiple tools
+- `valueSchemaSplit` *(optional)* - Split complex objects into multiple tools
 
 The hook automatically handles tool registration/cleanup on mount/unmount.
