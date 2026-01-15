@@ -1,0 +1,35 @@
+{
+  "entryPoints": ["packages/web/src/index.ts"],
+  "out": "docs/api",
+  "plugin": ["typedoc-plugin-markdown", "typedoc-vitepress-theme"],
+  "tsconfig": "packages/web/tsconfig.json",
+
+  "name": "MCP-Web API Reference",
+  "includeVersion": true,
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeInternal": true,
+
+  "readme": "none",
+  "disableSources": false,
+
+  "categorizeByGroup": true,
+  "groupOrder": ["Classes", "Functions", "Type Aliases", "Interfaces"],
+
+  "outputFileStrategy": "modules",
+  "flattenOutputFiles": false,
+  "membersWithOwnFile": ["Class", "Enum", "Interface"],
+
+  "useCodeBlocks": true,
+  "expandObjects": true,
+  "expandParameters": true,
+
+  "parametersFormat": "table",
+  "propertiesFormat": "table",
+  "enumMembersFormat": "table",
+  "typeDeclarationFormat": "table",
+
+  "sidebar": {
+    "autoConfiguration": true
+  }
+}

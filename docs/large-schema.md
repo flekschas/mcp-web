@@ -1,8 +1,28 @@
-# Working with Large Schemas
+# Working with Large State Schemas
 
-When working with complex state objects, exposing the entire state as a single tool can lead to poor AI agent performance. Large schemas make it difficult for the AI to understand what it needs to modify and can result in unnecessary data transfers.
+When working with complex state objects, exposing the entire state as a single
+tool can lead to poor performance. Large schemas can make it difficult for the
+AI to stay focused and understand what exactly it needs to be changed to
+fulfill a prompt. Moreover, large schemas can be inefficient in terms of the
+input and output tokens.
 
-**Schema decomposition** solves this by automatically creating focused setter tools that target specific parts of your state while maintaining a single getter for the complete state.
+**Schema splitting** solves this by creating focused setter tools that target
+specific parts of your state while maintaining a single getter for the complete
+state.
+
+::: warning When Do You Need This?
+Schema splitting is primarily useful for **legacy apps** built around a
+monolithic state object that can't easily be refactored.
+
+**Building a new app?** You likely don't need schema splitting. Instead:
+- Design your state with logical groupings from the start
+  (see [Structuring Your App](/structuring-your-app))
+- Use [Expanded State Tools](/expanded-state-tools) which automatically
+  generates efficient tools based on your schema structure
+
+The opposite problem—having too many small state variables—is better solved by
+grouping related state into well-designed objects, not by splitting.
+:::
 
 ## The Problem
 
@@ -33,7 +53,7 @@ Without decomposition, the AI must:
 Schema decomposition creates **multiple setter tools** from a single schema:
 
 ```typescript
-const [getGameState, setGameState] = mcp.addStateTool({
+const [getGameState, setGameState] = mcp.addStateTools({
   name: 'game_state',
   description: 'Current game state',
   get: () => state,
@@ -174,7 +194,7 @@ export const useGameStore = defineStore('game', () => {
 // In MCP setup
 const store = useGameStore();
 
-mcp.addStateTool({
+mcp.addStateTools({
   name: 'game_state',
   description: 'Current game state',
   get: () => store.gameState,
@@ -202,7 +222,7 @@ export const state = {
 // mcp.ts
 import { state } from './state.svelte';
 
-mcp.addStateTool({
+mcp.addStateTools({
   name: 'game_state',
   description: 'Current game state',
   get: () => state.gameState,
@@ -315,7 +335,7 @@ The getter always returns the complete state. Only decompose setters:
 
 ```typescript
 // The getter remains simple
-get_game_state() � { board: [...], currentPlayer: 0, score: {...}, ... }
+get_game_state() � { board: [...], currentPlayer: 0, score: {...}, ... }
 
 // Setters are focused
 set_game_state_board(newBoard)
@@ -346,7 +366,7 @@ const PositionSchema = z.object({
 });
 
 // Don't split - always update together
-mcp.addStateTool({
+mcp.addStateTools({
   name: 'position',
   description: 'Player position',
   get: () => position,
@@ -378,6 +398,93 @@ addAtomTool({
 });
 ```
 
+## Combining with Expanded Tools
+
+Schema splitting can be combined with [expanded tools](/expanded-state-tools)
+for maximum efficiency. When you use both `schemaSplit` and `expandedTools: true`,
+the order of operations is:
+
+1. **Split first**: Extract the specified props into separate tool groups
+2. **Expand second**: Generate expanded tools for each part (including the remainder)
+
+### When to Use Both
+
+Use schema splitting **with** expanded tools when you have:
+- Large schemas with both settings objects and collections
+- Semantically related props that should be grouped (e.g., display settings)
+- Collections (arrays/records) that benefit from targeted add/set/delete tools
+
+```typescript
+const AppSchema = z.object({
+  // Collections - will get expanded tools (get/add/set/delete)
+  todos: z.array(TodoSchema),
+  projects: z.record(z.string(), ProjectSchema),
+  // Settings - will get grouped tools via split
+  displaySettings: z.object({
+    sortBy: z.enum(['created_at', 'priority']),
+    sortOrder: z.enum(['asc', 'desc']),
+    showCompleted: z.boolean(),
+  }),
+  appSettings: z.object({
+    theme: z.enum(['system', 'light', 'dark']),
+    notifications: z.boolean(),
+  }),
+});
+
+mcp.addStateTools({
+  name: 'app',
+  description: 'Todo application state',
+  get: () => store.app,
+  set: (value) => { store.app = value; },
+  schema: AppSchema,
+  schemaSplit: [
+    'displaySettings',  // Creates: get_app_display_settings, set_app_display_settings
+    'appSettings',      // Creates: get_app_app_settings, set_app_app_settings
+  ],
+  expandedTools: true,  // Expands collections into targeted tools
+});
+```
+
+This generates:
+
+| Part | Tools | Count |
+|------|-------|-------|
+| `displaySettings` (split) | get + set | 2 |
+| `appSettings` (split) | get + set | 2 |
+| Remaining root | get only (collections have no fixed props) | 1 |
+| `todos` array | get + set + add + delete | 4 |
+| `projects` record | get + set + delete | 3 |
+| **Total** | | **12** |
+
+::: note
+The root setter is omitted when the remaining schema contains only collections,
+since there are no fixed-shape props to set directly.
+:::
+
+### When to Use Schema Splitting Alone
+
+Use schema splitting **without** expanded tools when you want:
+- Fine-grained control over exactly which setters are created
+- To target specific nested paths (e.g., `score.red`, `settings.theme`)
+- Simpler tool signatures without collection-specific operations
+
+```typescript
+// Without expandedTools - just creates focused setters for paths you specify
+mcp.addStateTools({
+  name: 'game_state',
+  description: 'Game state',
+  get: () => state,
+  set: (value) => { state = value; },
+  schema: GameStateSchema,
+  schemaSplit: [
+    'currentPlayer',
+    ['score.red', 'score.black'],  // Grouped setter for scores
+    'settings',
+  ],
+  // No expandedTools - collections stay as single get/set
+});
+```
+
 ## Performance Benefits
 
 Schema decomposition provides:
@@ -396,3 +503,4 @@ Schema decomposition provides:
 - Use `[]` for array element operations
 - Keep getters simple, decompose setters
 - Skip decomposition for small/flat objects
+- Combine with `expandedTools: true` for automatic collection tools (add/set/delete)

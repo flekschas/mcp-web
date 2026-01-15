@@ -49,16 +49,16 @@
 :root {
   /* Background */
   --vp-c-bg: oklch(0.9699 0.0013 106.42);
-  --vp-c-bg-soft: oklch(0.96 0.0013 106.42);
-  --vp-c-bg-alt: oklch(0.95 0.0013 106.42);
+  --vp-c-bg-soft: oklch(0.95 0.0013 106.42);
+  --vp-c-bg-alt: oklch(0.94 0.0013 106.42);
 
   /* Text */
   --vp-c-text-1: oklch(0.3056 0.0654 288.09);
-  --vp-c-text-2: oklch(0.4 0.0654 288.09);
-  --vp-c-text-3: oklch(0.5 0.0654 288.09);
+  --vp-c-text-2: oklch(0.45 0.0654 288.09);
+  --vp-c-text-3: oklch(0.55 0.0654 288.09);
 
   /* Brand colors */
-  --vp-c-brand-1: oklch(0.6881 0.1813 340);
+  --vp-c-brand-1: oklch(0.64 0.22 340);
   --vp-c-brand-2: oklch(0.6 0.16 340);
   --vp-c-brand-3: oklch(0.5 0.14 340);
   --vp-c-brand-soft: oklch(0.6881 0.1813 340 / 0.14);
@@ -95,6 +95,16 @@
 
   /* Sidebar */
   --vp-sidebar-bg-color: var(--vp-c-bg);
+
+  /* Input */
+  --vp-input-border-color: oklch(0.85 0.0013 106.42);
+  --vp-input-switch-bg-color: var(--vp-c-bg);
+
+  /** Code **/
+  --vp-code-line-highlight-color: oklch(0.9 0.0013 106.42);
+
+  --vp-button-brand-bg: var(--vp-c-brand-1);
+  --vp-button-alt-hover-bg: oklch(0.84 0.0013 106.42);
 }
 
 /**
@@ -103,13 +113,13 @@
 .dark {
   /* Background */
   --vp-c-bg: oklch(0.3056 0.0654 288.09);
-  --vp-c-bg-soft: oklch(0.32 0.0654 288.09);
+  --vp-c-bg-soft: oklch(0.34 0.0654 288.09);
   --vp-c-bg-alt: oklch(0.35 0.0654 288.09);
 
   /* Text */
   --vp-c-text-1: oklch(0.9699 0.0013 106.42);
-  --vp-c-text-2: oklch(0.85 0.0013 106.42);
-  --vp-c-text-3: oklch(0.7 0.0013 106.42);
+  --vp-c-text-2: oklch(0.8 0.0013 106.42);
+  --vp-c-text-3: oklch(0.65 0.0013 106.42);
 
   /* Brand colors */
   --vp-c-brand-1: oklch(0.7583 0.2 340);
@@ -149,6 +159,17 @@
 
   /* Gutter */
   --vp-c-gutter: var(--vp-c-bg-alt);
+
+  /* Other */
+  --vp-c-divider: var(--vp-c-bg-alt);
+
+  /* Input */
+  --vp-input-border-color: oklch(0.4 0.0654 288.09);
+
+  /** Code **/
+  --vp-code-line-highlight-color: oklch(0.42 0.0654 288.09);
+
+  --vp-button-alt-hover-bg: oklch(0.45 0.0654 288.09);
 }
 
 /**
@@ -218,3 +239,46 @@
   --docsearch-primary-color: var(--vp-c-brand-1);
 }
 
+.VPSidebar.VPSidebar {
+  box-shadow: none;
+  border-right: 1px solid var(--vp-c-gutter);
+}
+
+@media (min-width: 960px) {
+  .VPNavBar.VPNavBar.has-sidebar div.title {
+    padding-right: 0;
+  }
+  .VPNavBar.VPNavBar.has-sidebar a.title {
+    border-bottom-color: transparent;
+  }
+  .VPNavBar.VPNavBar.has-sidebar .divider {
+    padding-left: 0;
+  }
+}
+
+.VPSwitch.VPSwitchAppearance .check {
+  top: 0;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  background-color: var(--vp-input-border-color);
+  box-shadow: 0 0 0 1px var(--vp-input-border-color);
+  /* biome-ignore lint/complexity/noImportantStyles:to override vitepress default transition */
+  transition: all 0.2s ease-in-out !important;
+}
+
+.VPSwitch:hover.VPSwitchAppearance .check {
+  box-shadow: 0 0 0 1px var(--vp-c-brand-1);
+  background-color: var(--vp-c-brand-1);
+}
+
+.VPSwitch.VPSwitchAppearance .check .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.VPSwitch.VPSwitchAppearance .sun, .VPSwitch.VPSwitchAppearance .moon {
+  top: 4px;
+  left: 4px;
+  color: var(--vp-c-text-1);
+}

@@ -15,31 +15,30 @@ hero:
       link: /api-reference
 
 features:
-  - title: State and Actions as Tools
-    details: Enable LLMs to interact with your frontend app directly
+  - title: AI Control of Your Frontend
+    details: Directly expose UI state and actions as MCP tools without backend changes — AI agents can read and manipulate your app through type-safe schemas.
     icon:
       dark: https://storage.googleapis.com/jupyter-scatter/dev/images/icon-feature-interactive-dark.svg
       light: https://storage.googleapis.com/jupyter-scatter/dev/images/icon-feature-interactive-light.svg
 
-  - title: Frontend-Triggered Queries
-    details: Enable your frontend to trigger queries using the same MCP
+  - title: Frontend-Triggered AI Queries
+    details: Your app can query AI agents using the same tools it exposes, enabling bidirectional integration from a single interface.
     icon:
       dark: https://storage.googleapis.com/jupyter-scatter/dev/images/icon-feature-interactive-dark.svg
       light: https://storage.googleapis.com/jupyter-scatter/dev/images/icon-feature-interactive-light.svg
 
-  - title: Integrate Easily
-    details: Use seemlessly with popular frontend app and state management frameworks like React, Svelte, Vue.
+  - title: Human-AI Parity
+    details: Both humans and AI interact through the same state interface, preserving user agency while enabling automation.
     icon:
       dark: https://storage.googleapis.com/jupyter-scatter/dev/images/icon-feature-interactive-dark.svg
       light: https://storage.googleapis.com/jupyter-scatter/dev/images/icon-feature-interactive-light.svg
 
-  - title: Mixed-Initiative
-    details: Seamlessly switched between mouse and conversational interaction.
+  - title: Auto-Generate Efficient Tools
+    details: Generate targeted CRUD tools from Zod schemas — token-efficient operations for arrays, records, and complex state.
 
   - title: Multiple Browser Sessions
-    details: Chat with multiple browser sessions in isolation.
+    details: Let AI interact with multiple browser sessions independently.
 
-  - title: Dynamic Tool Exposure
-    details: Your frontend app controls which tools are available and when.
+  - title: Framework Agnostic
+    details: Works with React, Vue, Svelte, vanilla JS — any framework that runs in a browser.
 ---
-

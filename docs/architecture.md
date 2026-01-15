@@ -41,7 +41,7 @@ AI Agent  ↔  MCP Server + WebSocket  ↔  Frontend  ↔  Database
 - Source of truth: Frontend
 - AI changes → Frontend (optionally → DB)
 
-::: tip
+::: tip Key Insight
 The key insight here is that with MCP-Web, the frontend becomes the main point
 of control for reading and writing data.
 :::
@@ -88,7 +88,7 @@ standard between AI agents and your frontend application.
 
 ### How Tools Are Exposed
 
-When your frontend registers tools using `mcp.addTool()` or `mcp.addStateTool()` (which returns [getter, setter(s), cleanup]), they are exposed to AI agents through the MCP protocol:
+When your frontend registers tools using `mcp.addTool()` or `mcp.addStateTools()` (which returns [getter, setter(s), cleanup]), they are exposed to AI agents through the MCP protocol:
 
 ```
 1. Frontend calls mcp.addTool()

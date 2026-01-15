@@ -11,7 +11,7 @@ export default defineConfig({
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Get Started', link: '/get-started' },
-      { text: 'API', link: '/api-reference' },
+      { text: 'API', link: '/api/' },
       {
         text: `v${pkg.version}`,
         items: [
@@ -35,6 +35,7 @@ export default defineConfig({
           { text: 'Frontend Queries', link: '/frontend-triggered-queries' },
           { text: 'Structuring Your App', link: '/structuring-your-app' },
           { text: 'Integrations', link: '/integrations' },
+          { text: 'Expanded State Tools', link: '/expanded-state-tools' },
           { text: 'Large Schemas', link: '/large-schema' },
         ]
       },
@@ -42,20 +43,21 @@ export default defineConfig({
         text: 'Learn',
         items: [
           { text: 'MCP-Web Architecture', link: '/architecture' },
-          { text: 'Declarative & Reactive State', link: '/declarative-reactive-state' }
+          { text: 'Declarative & Reactive State', link: '/declarative-reactive-state' },
+          { text: 'Designing State Tools', link: '/designing-state-tools' },
         ]
       },
       {
         text: 'Examples',
         items: [
           { text: 'Todo', link: '/demos/todo' },
-          { text: 'Checkers Game', link: '/demos/checkers' },
+          { text: 'Checkers', link: '/demos/checkers' },
           { text: 'HiGlass', link: '/demos/higlass' },
         ]
       },
       {
         text: 'API Reference',
-        link: '/api-reference',
+        link: '/api/',
       },
       {
         text: 'GitHub',

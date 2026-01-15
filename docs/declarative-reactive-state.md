@@ -194,13 +194,13 @@ const Todos = () => {
 
   useEffect(() => {
     // Expose settings as a state setter and getter tool. Since this is such
-    // a common task, MCP-Web offers the `addStateTool` helper.
-    // See: /api-reference#addstatetool
+    // a common task, MCP-Web offers the `addStateTools` helper.
+    // See: /api-reference#addstatetools
     const [
       getSettings,
       setSettings,
       cleanupSettings
-    ] = mcp.addStateTool({
+    ] = mcp.addStateTools({
       name: 'todos_settings',
       description: 'Todos settings like sorting and showing completed todos',
       get: () => settings,
@@ -277,7 +277,7 @@ array of todos.
 
 In summary, the following is a simple guideline one can follow:
 
-::: tip
+::: tip Rules of Thumb
 If an operation changes the shape of declarative state (e.g., add/remove
 elements), it's an action. If an operation just changes the value while
 preserving the shape, it's a state setter.
@@ -287,16 +287,93 @@ Anything that can be derived, should be modeled as derived values.
 Expose declarative state and accompanying actions as MCP tools.
 :::
 
-The action vs setter also nicely maps to zod types:
+The action vs setter also nicely maps to zod schemas:
 
-**Fixed-shape types → state setters:**
+**Fixed-shape schemas → state setters:**
 
 - `z.object()`: fixed keys, just changing properties
 - `z.tuple([z.number(), z.number()])`: fixed length, just changing elements
 - `z.literal()`, `z.enum()`, `z.string()`: just changing primitive values
 
-**Dynamic-shape types → actions:**
+**Dynamic-shape schemas → actions:**
 
 - `z.record(z.string(), z.any())`: keys can be added/removed
 - `z.array(z.any())`: length can varies
 - `z.map()`, `z.set()`: items can be added/removed
+
+::: tip Expanded Tools for Large Schemas
+For schemas with collections (arrays, records) that grow over time, consider
+using `expand: true` to generate targeted tools for efficient state
+manipulation.
+
+See our [Expanded Tools Guide](/expanded-state-tools) for details.
+:::
+
+::: tip Handling Optional Fields
+JSON doesn't support `undefined`, which makes `optional()` problematic for
+partial updates. Use `nullable().default(null)` instead, and consider sentinel
+values like `'auto'` for computed defaults.
+
+See [Handling Optional and Default Values](/designing-state-tools#handling-optional-and-default-values)
+for patterns and examples.
+:::
+
+## When to Use State Tools vs. Action Tools
+
+### Use State Tools (Direct Access)
+
+For semantically related declarative state where the shape of the state is
+fixed, expose the state directly as a state tool.
+
+```typescript
+const [getTheme, setTheme] = mcp.addStateTools({
+  name: 'theme',
+  description: 'Application theme',
+  get: () => settings.theme,
+  set: (value) => { settings.theme = value; },
+  schema: z.enum(['light', 'dark']),
+});
+```
+
+**Best for:**
+- Simple values (strings, numbers, booleans)
+- Objects without complex validation
+- State that doesn't require coordination
+
+### Use Action Tools (Explicit Commands)
+
+When operations change the shape of declarative state (e.g., adding a record to
+an object or an item to an array) or when operations involve logic, validation,
+or multiple state updates:
+
+```typescript
+mcp.addTool({
+  name: 'make_move',
+  description: 'Make a chess move',
+  handler: (move) => {
+    // 1. Validate move is legal
+    if (!isValidMove(move)) {
+      throw new Error('Illegal move');
+    }
+
+    // 2. Update multiple state variables
+    state.board = applyMove(state.board, move);
+    state.moveHistory.push(move);
+    state.currentPlayer = switchPlayer(state.currentPlayer);
+
+    // 3. Check game end conditions
+    state.gameStatus = checkGameStatus(state.board);
+
+    return { success: true, gameStatus: state.gameStatus };
+  },
+  inputSchema: MoveSchema,
+});
+```
+
+**Best for:**
+- Complex validation logic
+- Multi-step/state operations
+- Side effects (logging, analytics, etc.)
+
+**Example:** HiGlass viewconf is very complex—better to expose actions like
+`add_track` than letting AI set the entire config.

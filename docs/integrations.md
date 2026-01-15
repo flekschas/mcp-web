@@ -1,7 +1,7 @@
 # Framework Integrations
 
-MCP-Web is framework agnostic and integrates easily. Here we describe how you
-can use MCP-Web with several popular frameworks and state management libraries.
+MCP-Web is framework agnostic. Here we describe how you can use MCP-Web with
+several popular frameworks and state management libraries.
 
 ::: tip
 If you don't see your favorite framework or state management library described
@@ -9,58 +9,42 @@ here, feel free to [open a PR](https://github.com/flekschas/mcp-web) for
 another integration.
 :::
 
-## React
+## React with `useState`
 
-Integrate MCP-Web with React using hooks and context for clean state management.
+Integrate MCP-Web with [React](https://react.dev) using the provider
+pattern for clean state management with React's `useState` hook.
 
-### Basic Setup
-
-```typescript
-// mcp.ts - Create and export MCP-Web instance
-import { MCPWeb } from '@mcp-web/web';
-import { MCP_WEB_CONFIG } from './mcp-web.config';
-
-export const mcp = new MCPWeb(MCP_WEB_CONFIG);
-```
-
-### Connection Management with `useMCP`
-
-Use the `useMCP` hook from `@mcp-web/react` to manage the MCP-Web connection
-lifecycle. The main benefit of this hook over `mcp.connect()` is that it
-triggers a re-render of the caller component when the connection status changes.
+Use `MCPWebProvider` to wrap your application. It automatically creates and
+the MCPWeb instance and manages its connection to the bridge server:
 
 ```typescript
 // App.tsx
-import { useMCP } from '@mcp-web/react';
-import { mcp } from './mcp';
+import { MCPWebProvider } from '@mcp-web/react';
+import { MCP_WEB_CONFIG } from './mcp-web.config';
 
 function App() {
-  const { isConnected } = useMCP(mcp);
-
-  if (!isConnected) {
-    return <div>Connecting to MCP...</div>;
-  }
-
-  return <div>{/* Your app */}</div>;
+  return (
+    <MCPWebProvider config={MCP_WEB_CONFIG}>
+      <YourApp />
+    </MCPWebProvider>
+  );
 }
 ```
 
-The hook automatically:
+The provider automatically:
+- Creates the MCPWeb instance
 - Connects to the bridge server on mount
 - Disconnects on unmount
-- Provides reactive `isConnected` state for re-renders
-
-Ideally, call this hook in your root component to avoid unnecessary reconnections.
+- Makes the instance available to all child components
 
 ### State and Tool Management
 
-Use the `useTool` hook from `@mcp-web/react` to expose React state as MCP tools:
+Use the `useTool` hook to expose React state as MCP tools. When used inside `MCPWebProvider`, you don't need to pass the `mcpWeb` instance:
 
 ```typescript
 import { useState } from 'react';
 import { useTool } from '@mcp-web/react';
 import { z } from 'zod';
-import { mcp } from './mcp';
 
 const TodoSchema = z.object({
   id: z.string(),
@@ -70,12 +54,11 @@ const TodoSchema = z.object({
 
 type Todo = z.infer<typeof TodoSchema>;
 
-function App() {
+function TodoList() {
   const [todos, setTodos] = useState<Todo[]>([]);
 
   // Automatically creates get_todos and set_todos tools
   useTool({
-    mcp,
     name: 'todos',
     description: 'List of all todos',
     value: todos,
@@ -97,77 +80,59 @@ Internally, the `useTool` hook is essentially just a fancy `useEffect` call to
 simplify the registration and unregistration of tools.
 :::
 
-::: tip Large Schemas
-For complex state objects with nested structures, you can use schema decomposition to create focused setter tools. See the [Large Schema guide](./large-schema.md) for details.
-:::
+### Manual MCPWeb Instance (Advanced)
 
-### Context Provider Pattern
-
-For larger apps, use the `MCPProvider` from `@mcp-web/react` to share the MCP instance:
+For advanced use cases where you need manual control over the MCPWeb instance,
+you can create it yourself and pass it to `useTool`:
 
 ```typescript
-// App.tsx
-import { useState } from 'react';
-import { MCPProvider, useMCPContext, useTool } from '@mcp-web/react';
 import { MCPWeb } from '@mcp-web/web';
-import { z } from 'zod';
-import { MCP_WEB_CONFIG } from './mcp-web.config';
+import { useTool } from '@mcp-web/react';
 
-// Create MCP instance outside component
-const mcp = new MCPWeb(MCP_WEB_CONFIG);
-
-const TodoSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  completed: z.boolean(),
+// Create instance outside React
+const mcpWeb = new MCPWeb({
+  name: 'My App',
+  description: 'My app',
+  autoConnect: true,  // Or use `mcpWeb.connect()` to manually connect
 });
 
-type Todo = z.infer<typeof TodoSchema>;
+function MyComponent() {
+  const [todos, setTodos] = useState([]);
 
-function TodoApp() {
-  const { mcp, isConnected } = useMCPContext();
-  const [todos, setTodos] = useState<Todo[]>([]);
-
-  // Register tools using mcp from context
   useTool({
-    mcp,
+    mcpWeb, // Explicit instance (overrides context if both exist)
     name: 'todos',
-    description: 'List of all todos',
+    description: 'Todo list',
     value: todos,
     setValue: setTodos,
     valueSchema: z.array(TodoSchema),
   });
 
-  if (!isConnected) {
-    return <div>Connecting...</div>;
-  }
-
   return <div>{/* Your UI */}</div>;
-}
-
-function Root() {
-  return (
-    <MCPProvider mcp={mcp}>
-      <TodoApp />
-    </MCPProvider>
-  );
 }
 ```
 
-The provider:
-- Handles connection lifecycle automatically
-- Makes MCP instance available to all child components
-- Provides reactive `isConnected` state
+::: warning
+Using this approach means you're responsible for managing the connection
+lifecycle yourself via `mcpWeb.connect()` and `mcpWeb.disconnect()`. For most
+use cases, `MCPWebProvider` is the recommended approach.
+:::
 
-### React with Jotai
+## React with Jotai
 
-Integrate MCP-Web with Jotai atoms for atomic state management.
+MCP-Web integrates seamlessly with [Jotai](https://jotai.org) for atomic state
+management.
 
-#### Atom-Based State Tools
+::: tip No React Integration Needed
+Since Jotai allows state to be externalized (atoms can be created outside React components), you don't need the React integration provider or hooks. Simply use `addAtomTool()` directly with a shared MCPWeb instance. This approach is simpler because Jotai's architecture naturally separates state management from React components.
+:::
+
+For this example, we assume you want to expose the following atom states:
 
 ```typescript
 // atoms.ts
 import { atom } from 'jotai';
+import type { TodoSchema, GroupSchema } from './schema.ts';
 
 interface Todo {
   id: string;
@@ -202,9 +167,13 @@ export const statisticsAtom = atom((get) => {
 });
 ```
 
+To expose these atoms as tools to AI, it can make sense to create a separate
+file called `tools.ts` and directly register the tools using MCP-Web's
+`addTool()` and `addStateTools()`.
+
 ```typescript
 // tools.ts
-import { addAtomTool } from '@mcp-web/web/integrations/jotai';
+import { getDefaultStore } from 'jotai';
 import { z } from 'zod';
 import { mcp } from './mcp';
 import { todosAtom, groupsAtom, activeTodosAtom, statisticsAtom } from './atoms';
@@ -222,39 +191,36 @@ const GroupSchema = z.object({
   color: z.string(),
 });
 
-// Register read-write atom as MCP tool
-addAtomTool({
-  mcp,
-  atom: todosAtom,
+// Register read-write atom with MCP-Web's `addStateTool`
+mcp.addStateTools({
   name: 'todos',
   description: 'List of all todos',
-  atomSchema: z.array(TodoSchema),
+  get: () => getDefaultStore().get(todosAtom),
+  set: (value) => getDefaultStore().set(todosAtom, value),
+  schema: z.array(TodoSchema),
 });
 
-addAtomTool({
-  mcp,
-  atom: groupsAtom,
+mcp.addStateTools({
   name: 'groups',
   description: 'Todo groups for organization',
-  atomSchema: z.array(GroupSchema),
+  get: () => getDefaultStore().get(groupsAtom),
+  set: (value) => getDefaultStore().set(groupsAtom, value),
+  schema: z.array(GroupSchema),
 });
 
-// Read-only derived atoms
-addAtomTool({
-  mcp,
-  atom: activeTodosAtom,
+// For read-only derived atoms use MCP-Web's `addTool`
+mcp.addTool({
   name: 'active_todos',
   description: 'Active (incomplete) todos',
-  atomSchema: z.array(TodoSchema),
-  // No split = read-only (derived atoms can't be written)
+  handler: () => getDefaultStore().get(activeTodosAtom),
+  schema: z.array(TodoSchema),
 });
 
-addAtomTool({
-  mcp,
-  atom: statisticsAtom,
+mcp.addTool({
   name: 'statistics',
   description: 'Todo statistics (total, completed, active counts)',
-  atomSchema: z.object({
+  handler: () => getDefaultStore().get(statisticsAtom),
+  schema: z.object({
     total: z.number(),
     completed: z.number(),
     active: z.number(),
@@ -262,35 +228,20 @@ addAtomTool({
 });
 ```
 
-::: tip Large Schemas
-For complex state objects with nested structures, you can use schema decomposition to create focused setter tools. See the [Large Schema guide](./large-schema.md) for details.
+::: warning Import `tools.ts` in a React component
+To execute the tool registration, you need to import the `tools.ts` in a React
+component. E.g.: `import './tools.ts';`.
 :::
 
-#### Manual Tool Registration with Atoms
-
-If you prefer more control:
+For shape changing or more complex operations, use `mcp.addTool()`:
 
 ```typescript
-// mcp-tools.ts
-import { z } from 'zod';
-import { mcp } from './mcp';
-import { store } from './store'; // Jotai store
-import { todosAtom } from './atoms';
-
-// Get/set with Jotai store
-const [getTodos, setTodos] = mcp.addStateTool({
-  name: 'todos',
-  description: 'Todo list',
-  get: () => store.get(todosAtom),
-  set: (value) => store.set(todosAtom, value),
-  schema: z.array(TodoSchema),
-});
-
-// Add custom action tools
+// Add to tools.ts
 mcp.addTool({
   name: 'create_todo',
   description: 'Create a new todo',
   handler: ({ title, groupId }) => {
+    const store = getDefaultStore();
     const todos = store.get(todosAtom);
     const newTodo = {
       id: crypto.randomUUID(),
@@ -305,13 +256,33 @@ mcp.addTool({
     title: z.string(),
     groupId: z.string().optional(),
   }),
+  outputSchema: TodoSchema,
+});
+
+mcp.addTool({
+  name: 'toggle_todo',
+  description: 'Toggle todo completion status',
+  handler: ({ id }) => {
+    const store = getDefaultStore();
+    const todos = store.get(todosAtom);
+    const updated = todos.map(t =>
+      t.id === id ? { ...t, completed: !t.completed } : t
+    );
+    store.set(todosAtom, updated);
+    return updated.find(t => t.id === id);
+  },
+  inputSchema: z.object({ id: z.string() }),
+  outputSchema: TodoSchema,
 });
 ```
 
-### React with Zustand
+## React with Zustand
+
+Similar to Jotai, MCP-Web integrates seamlessly with [Zustand](https://github.com/pmndrs/zustand).
+
+**`store.ts`**:
 
 ```typescript
-// store.ts
 import { create } from 'zustand';
 
 interface Todo {
@@ -339,8 +310,9 @@ export const useTodoStore = create<TodoStore>((set) => ({
 }));
 ```
 
+**`tools.ts`**:
+
 ```typescript
-// mcp-tools.ts
 import { z } from 'zod';
 import { mcp } from './mcp';
 import { useTodoStore } from './store';
@@ -348,7 +320,7 @@ import { useTodoStore } from './store';
 export function registerTools() {
   const { todos, setTodos, addTodo } = useTodoStore.getState();
 
-  const [getTodos, setTodosState] = mcp.addStateTool({
+  const [getTodos, setTodosState] = mcp.addStateTools({
     name: 'todos',
     description: 'All todos',
     get: () => useTodoStore.getState().todos,
@@ -371,39 +343,28 @@ export function registerTools() {
 }
 ```
 
----
+## Vue with `ref`
 
-## Vue
+You can use MCP-Web with vanilla [Vue]() using `ref()`, `onMount()`, and
+`onUnmount()`.
 
-Integrate MCP-Web with Vue 3 using Composition API and Pinia stores.
-
-### Basic Setup
-
-```typescript
-// mcp.ts
-import { MCPWeb } from '@mcp-web/web';
-import { MCP_WEB_CONFIG } from './mcp-web.config';
-
-export function createMCP() {
-  return new MCPWeb(MCP_WEB_CONFIG);
-}
-```
-
-### Composition API
+**`App.vue`**:
 
 ```vue
 <!-- App.vue -->
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import { z } from 'zod';
-import { createMCP } from './mcp';
+import { MCPWeb } from '@mcp-web/web';
+import { MCP_WEB_CONFIG } from './mcp-web.config';
 
-const mcp = createMCP();
+const mcp = new MCPWeb(MCP_WEB_CONFIG);
+
 const todos = ref<Todo[]>([]);
 
 onMounted(async () => {
   // Register tools
-  const [getTodos, setTodos] = mcp.addStateTool({
+  const [getTodos, setTodos] = mcp.addStateTools({
     name: 'todos',
     description: 'List of all todos',
     get: () => todos.value,
@@ -421,9 +382,9 @@ onUnmounted(() => {
 </script>
 ```
 
-### Pinia Store Integration
+## Vue with Pinia
 
-Based on the [todo demo](../demos/todo/):
+MCP-Web integrates seamlessly with Vue's [Pinia store](https://pinia.vuejs.org/).
 
 ```typescript
 // stores/appStore.ts
@@ -509,7 +470,7 @@ export function registerTodoTools(
   store: ReturnType<typeof useAppStore>
 ) {
   // Expose todos as state
-  const [getTodos, setTodos] = mcp.addStateTool({
+  const [getTodos, setTodos] = mcp.addStateTools({
     name: 'todos',
     description: 'List of all todos',
     get: () => store.todos,
@@ -561,13 +522,9 @@ onUnmounted(() => {
 </script>
 ```
 
----
+## Svelte with Runes
 
-## Svelte
-
-Integrate MCP-Web with Svelte 5 using runes for reactive state.
-
-### Basic Setup
+MCP-Web integrates seamlessly with [Svelte 5's runes](https://svelte.dev/docs/svelte/what-are-runes) for reactive state.
 
 **`state.svelte.ts`**:
 
@@ -667,9 +624,9 @@ onDestroy(() => {
 </div>
 ```
 
-### Svelte Stores (Classic)
+## Svelte with Stores
 
-For Svelte 4 or when using stores:
+For Svelte 4 or when using classic [stores](https://svelte.dev/docs/svelte/stores):
 
 ```typescript
 // stores.ts
@@ -695,7 +652,7 @@ const mcp = new MCPWeb({
   description: 'Todo app with Svelte stores',
 });
 
-const [getTodos, setTodos] = mcp.addStateTool({
+const [getTodos, setTodos] = mcp.addStateTools({
   name: 'todos',
   description: 'All todos',
   get: () => get(todos),

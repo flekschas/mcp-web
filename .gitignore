@@ -24,3 +24,6 @@ CLAUDE*.md
 .cursor-rules
 instructions*.md
 .copilot-instructions.md
+
+# TypeDoc generated files
+docs/api/

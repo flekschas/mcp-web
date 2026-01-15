@@ -4,8 +4,6 @@ This guide explains how to structure your web application to work effectively
 with MCP-Web. The key is organizing your project around **declarative, reactive state**
 that can be easily exposed to AI agents via tools.
 
----
-
 ## Project Structure
 
 Organize your project with clear separation of concerns:
@@ -13,21 +11,21 @@ Organize your project with clear separation of concerns:
 ```
 your-project/
 ├── mcp-web.config.js      # MCPWeb configuration
-├── bridge.ts              # Bridge server (dev mode)
+├── bridge.ts              # Bridge server
 ├── agent.ts               # Agent server (optional, for frontend queries)
 ├── src/
 │   ├── schemas.ts         # Zod schemas describing resources
 │   ├── types.ts           # TypeScript types (derived from schemas)
-│   ├── state.ts           # Reactive state management
+│   ├── state.ts           # Declarative reactive state management
 │   ├── mcp.ts             # MCPWeb instantiation + tool registration
 │   ├── queries.ts         # Frontend-triggered queries (optional)
 │   └── <app files>        # Your application code
 └── package.json
 ```
 
-### Key Files
+## Key Files
 
-#### 1. `mcp-web.config.js`
+### 1. `mcp-web.config.js`
 
 Central configuration for your MCP integration:
 
@@ -44,7 +42,7 @@ export const MCP_WEB_CONFIG = {
 };
 ```
 
-#### 2. `src/schemas.ts`
+### 2. `src/schemas.ts`
 
 Define your application's data structures with Zod:
 
@@ -67,20 +65,23 @@ export const TodoSchema = z.object({
 export const TodoListSchema = z.array(TodoSchema)
   .describe('Collection of all todos');
 
-// Input schemas (for tool inputs)
+// Input schemas (for action tool)
 export const CreateTodoSchema = z.object({
   title: z.string().min(1).describe('Title is required'),
-  description: z.string().optional().default(''),
-  dueDate: z.string().datetime().nullable().optional(),
-  priority: z.enum(['low', 'medium', 'high']).optional().default('medium'),
+  description: z.string().default(''),
+  dueDate: z.string().datetime().nullable().default(null),
+  priority: z.enum(['low', 'medium', 'high']).default('medium'),
 });
 ```
 
-**Key principle**: Use `.describe()` extensively—these descriptions help AI agents understand your data.
+**Key principle**: Use `.describe()` extensively! The descriptions are critical
+for AI agents to understand your state and how to change it.
 
-#### 3. `src/types.ts`
+### 3. `src/types.ts`
 
-Derive TypeScript types from your Zod schemas:
+While not necessariy, it's nice to have a single source of truth for your
+resources types: your Zod schemas. Hence, it's convenient to derive TypeScript
+types from your Zod schemas whereever possible:
 
 ```typescript
 import type { z } from 'zod';
@@ -95,9 +96,9 @@ export type TodoList = z.infer<typeof TodoListSchema>;
 export type CreateTodoInput = z.infer<typeof CreateTodoSchema>;
 ```
 
-#### 4. `src/state.ts`
+### 4. `src/state.ts`
 
-Create reactive state using your framework's state management:
+Create declarative and reactive state using your framework's state management:
 
 ```typescript
 // Example: Vue with Pinia
@@ -106,7 +107,7 @@ import { ref, computed } from 'vue';
 import type { Todo } from './types';
 
 export const useAppStore = defineStore('app', () => {
-  // Atomic state (expose to AI)
+  // Declarative "atomic" state (expose to AI)
   const todos = ref<Todo[]>([]);
 
   // Derived state (keep in frontend only)
@@ -142,7 +143,7 @@ export const state = {
 };
 ```
 
-#### 5. `src/mcp.ts`
+### 5. `src/mcp.ts`
 
 Instantiate MCPWeb and register tools:
 
@@ -155,7 +156,7 @@ import { store } from './state';
 export const mcp = new MCPWeb(MCP_WEB_CONFIG);
 
 // Expose state as tools
-const [getTodos, setTodos] = mcp.addStateTool({
+const [getTodos, setTodos] = mcp.addStateTools({
   name: 'todos',
   description: 'List of all todo items',
   get: () => store.todos,
@@ -181,7 +182,13 @@ mcp.addTool({
 });
 ```
 
-#### 6. `src/queries.ts` (Optional)
+::: info
+For vanilla React, where the state is bound to the component hierarchy, you
+need to expose tools within your components rather than in a separate file.
+See [our React integration guide](/integrations#react) for details.
+:::
+
+### 6. `src/queries.ts` (Optional)
 
 For [frontend-triggered AI queries](/frontend-triggered-queries):
 
@@ -210,7 +217,7 @@ export async function askAIForMove() {
 }
 ```
 
-#### 7. `bridge.ts`
+### 7. `bridge.ts`
 
 A NodeJS script for running the bridge server:
 
@@ -224,9 +231,9 @@ startBridge({
 });
 ```
 
-#### 8. `agent.ts` (Optional)
+### 8. `agent.ts` (Optional)
 
-A NodeJS scriot for starting the AI agent server for
+A NodeJS script for starting the AI agent server for
 [frontend-triggered AI queries](/frontend-triggered-queries):
 
 ```typescript
@@ -241,220 +248,6 @@ startAgent({ port });
 See the [checkers game demo](https://github.com/flekschas/mcp-web/blob/main/demos/checkers/agent.ts)
 for a complete example for an AI agent.
 :::
-
-## State Architecture
-
-### The Core Principle
-
-If your frontend is built around declarative state and reactive values, making
-it AI-controllable is easy: expose the declarative state as tools.
-
-### Schema → Type → Declarative State → Reactive Values
-
-When you follow the following approach, it's trivial to make your web app
-AI controllable.
-
-```
-1. Define Zod schema
-   ↓
-2. Derive TypeScript type
-   ↓
-3. Create declarative state with that type  →  Expose as MCP tools
-   ↓
-4. Derive reactive values from the declarative state
-```
-
-**Example:**
-
-```typescript
-// 1. Zod schema
-const CounterSchema = z.number().describe('Current counter value');
-
-// 2. TypeScript type
-type Counter = z.infer<typeof CounterSchema>;
-
-// 3. Reactive state
-let counter = $state<Counter>(0);
-
-// 4. MCP tool
-const [getCounter, setCounter] = mcp.addStateTool({
-  name: 'counter',
-  description: 'Application counter',
-  get: () => counter,
-  set: (value) => { counter = value; },
-  schema: CounterSchema,
-});
-```
-
-### Declarative State vs. Derived Values
-
-**Expose declarative state to AI while keeping derived values in the frontend:**
-
-```typescript
-// ✅ EXPOSE: Atomic state (source of truth)
-const todos = ref<Todo[]>([]);
-const [getTodos, setTodos] = mcp.addStateTool({
-  name: 'todos',
-  description: 'List of all todos',
-  get: () => todos.value,
-  set: (v) => { todos.value = v; },
-  schema: TodoListSchema,
-});
-
-// ❌ DON'T EXPOSE: Derived state (computed from atomic state)
-const activeTodos = computed(() => todos.value.filter(t => !t.completed));
-const completionPercentage = computed(() => {
-  const total = todos.value.length;
-  const completed = todos.value.filter(t => t.completed).length;
-  return total === 0 ? 0 : (completed / total) * 100;
-});
-// Keep these in frontend—AI can compute from todos if needed
-```
-
-::: tip
-Of course, there are edge cases where it can make sense to expose derived values
-as getter tools to AI. For instance, when the computation is non-trivial and
-useful for certain AI queries. For a deep dive see the guide on
-[declarative reactive state](/declarative-reactive-state).
-:::
-
-### When to Use State Tools vs. Action Tools
-
-#### Use State Tools (Direct Access)
-
-For semantically related declarative state where you do not want the shape of
-the state to change.
-
-```typescript
-// ✅ Good: Simple state
-const [getTheme, setTheme] = mcp.addStateTool({
-  name: 'theme',
-  description: 'Application theme',
-  get: () => settings.theme,
-  set: (value) => { settings.theme = value; },
-  schema: z.enum(['light', 'dark']),
-});
-```
-
-**Best for:**
-- Simple values (strings, numbers, booleans)
-- Objects without complex validation
-- State that doesn't require coordination
-
-#### Use Action Tools (Explicit Commands)
-
-When operations change the shape of declarative state (e.g., adding a record to
-an object or an item to an array) or when operations involve logic, validation,
-or multiple state updates:
-
-```typescript
-// ✅ Good: Complex operation
-mcp.addTool({
-  name: 'make_move',
-  description: 'Make a chess move',
-  handler: (move) => {
-    // 1. Validate move is legal
-    if (!isValidMove(move)) {
-      throw new Error('Illegal move');
-    }
-
-    // 2. Update multiple state variables
-    state.board = applyMove(state.board, move);
-    state.moveHistory.push(move);
-    state.currentPlayer = switchPlayer(state.currentPlayer);
-
-    // 3. Check game end conditions
-    state.gameStatus = checkGameStatus(state.board);
-
-    return { success: true, gameStatus: state.gameStatus };
-  },
-  inputSchema: MoveSchema,
-});
-```
-
-**Best for:**
-- Complex validation logic
-- Multi-step/state operations
-- Side effects (logging, analytics, etc.)
-
-**Example:** HiGlass viewconf is very complex—better to expose actions like `add_track` than letting AI set the entire config.
-
-### Schema Decomposition for Large Objects
-
-For complex state objects, use schema decomposition to create focused setters:
-
-```typescript
-const GameStateSchema = z.object({
-  board: z.array(z.array(PieceSchema)),
-  players: z.array(PlayerSchema),
-  currentPlayer: z.number(),
-  scores: z.object({
-    red: z.number(),
-    black: z.number(),
-  }),
-  settings: z.object({
-    difficulty: z.enum(['easy', 'medium', 'hard']),
-    timeLimit: z.number().nullable(),
-  }),
-});
-
-const [getGameState, setGameStateTools] = mcp.addStateTool({
-  name: 'game_state',
-  description: 'Complete game state',
-  get: () => state.gameState,
-  set: (value) => { state.gameState = value; },
-  schema: GameStateSchema,
-  // Split into focused setters
-  schemaSplit: [
-    'board',                           // set_game_state_board
-    ['currentPlayer'],                  // set_game_state_current_player
-    ['scores.red', 'scores.black'],     // set_game_state_scores
-    ['settings'],                       // set_game_state_settings
-  ],
-});
-// setGameStateTools is an array of 4 setter tools
-
-// AI agents can now:
-// - get_game_state() → read full state
-// - set_game_state_board(newBoard) → update just the board
-// - set_game_state_scores({ red: 10, black: 8 }) → update scores
-```
-
----
-
-## Complete Example
-
-Putting it all together for a todo app:
-
-```
-todo-app/
-├── mcp-web.config.js
-│   └── Configuration for MCPWeb
-├── src/
-│   ├── schemas.ts
-│   │   └── TodoSchema, TodoListSchema, CreateTodoSchema
-│   ├── types.ts
-│   │   └── Todo, TodoList (derived from schemas)
-│   ├── state.ts
-│   │   └── Pinia store with todos[], activeTodos, statistics
-│   ├── mcp.ts
-│   │   ├── MCPWeb instance
-│   │   ├── addStateTool for todos
-│   │   └── addTool for create_todo, update_todo, delete_todo
-│   └── App.vue
-│       └── UI that reads from store and calls store actions
-└── bridge.ts
-    └── Development server on ports 3001/3002
-```
-
-**Flow:**
-
-1. User interacts with UI → Updates Pinia store
-2. AI agent calls MCP tools → Updates Pinia store
-3. Pinia store changes → UI reactively updates
-4. Both user and AI control the same reactive state
-
----
 
 ## Development Workflow
 
@@ -505,132 +298,3 @@ console.log('Auth token:', mcp.authToken);
 - Register tools in `mcp.ts`
 - Build your UI
 - Test with AI agent!
-
----
-
-## Best Practices
-
-### 1. Schema-First Design
-
-Define Zod schemas with descriptive annotations:
-
-```typescript
-// ❌ Bad: No descriptions
-const TodoSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  completed: z.boolean(),
-});
-
-// ✅ Good: Rich descriptions
-const TodoSchema = z.object({
-  id: z.string().describe('Unique identifier for the todo'),
-  title: z.string().min(1).describe('Title of the todo item'),
-  completed: z.boolean().describe('Whether the todo is completed'),
-  dueDate: z.string().datetime().nullable()
-    .describe('ISO 8601 datetime when todo is due, or null if no deadline'),
-}).describe('A single todo item in the application');
-```
-
-### 2. Separate MCP Integration
-
-Keep MCP code separate from UI components:
-
-```
-src/
-├── mcp.ts              # MCPWeb instance
-├── schemas.ts          # Zod schemas
-├── state.ts            # State management
-├── components/         # UI components
-└── stores/             # Framework stores
-```
-
-Depending on your framework and state library, we recommend keeping tool
-registrations (i.e., `mcp.addTool` and `mcp.addStateTool`) in either the
-`mcp.ts`, a separate `tools.ts` file, or as part of component. The latter is
-most useful for conditional tools that are only useful in the context of a
-specific component.
-
-### 3. Use State Tools for Declarative State
-
-```typescript
-// ✅ Good: Simple state with addStateTool
-const [getCounter, setCounter] = mcp.addStateTool({
-  name: 'counter',
-  description: 'Application counter',
-  get: () => count,
-  set: (v) => { count = v; },
-  schema: z.number(),
-});
-```
-
-### 4. Use Action Tools for Shape-Changing Operations
-
-```typescript
-// ✅ Good: Complex operation with addTool
-mcp.addTool({
-  name: 'make_move',
-  handler: (move) => {
-    if (!isValid(move)) throw new Error('Invalid move');
-    updateBoard(move);
-    updateTurn();
-    checkWinner();
-    return { success: true };
-  },
-});
-```
-
-### 5. Cleanup on Unmount
-
-```typescript
-// React
-useEffect(() => {
-  const [getTodos, setTodos, cleanup] = mcp.addStateTool({...});
-  return cleanup;
-}, []);
-
-// Vue
-onUnmounted(() => {
-  mcp.disconnect();
-});
-
-// Svelte
-onDestroy(() => {
-  mcpWeb.disconnect();
-});
-```
-
-### 6. Keep It Simple
-
-Start with state tools, add action tools only when needed:
-
-```typescript
-// ✅ Start simple
-const [getTodos, setTodos] = mcp.addStateTool({
-  name: 'todos',
-  description: 'List of all todos',
-  get: () => todos,
-  set: (v) => { todos = v; },
-  schema: TodoListSchema,
-});
-
-// ✅ Add actions as complexity grows
-mcp.addTool({
-  name: 'create_todo',
-  handler: (input) => {
-    // Validation + side effects
-    return newTodo;
-  },
-});
-```
-
-### 7. Use Framework-Specific Patterns
-
-Don't fight your framework—use its state management:
-
-- **React**: useState, Zustand, Redux
-- **Vue**: Pinia stores, ref/reactive
-- **Svelte**: Runes ($state/$derived), stores
-- **Jotai**: Atoms with `addAtomTool()`
-
-See [Framework Integrations](/integrations) for examples.

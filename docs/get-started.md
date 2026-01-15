@@ -10,11 +10,14 @@ Imagine asking AI to "select all outliers in this scatter plot" and watching the
 
 ## Key Features
 
-- 🔌 **Direct control** of frontend web apps from AI agents via MCP
-- 🛠️ **Expose UI state and actions** as type-safe tools using Zod schemas
-- 🔄 **Bidirectional**: queries can be triggered from either your AI app or the frontend
-- 🎯 **Framework agnostic**: React, Vue, Svelte, vanilla JS, and more
-- 🚀 **No backend required**: connect AI directly to your frontend
+With MCP-Web you can:
+
+- 🤖 **Enable AI to control** your frontend web apps directly via MCP
+- 🛠️ **Dynamically expose state and actions** as type-safe tools
+- ✨ **Auto-generate efficient tools** from schemas with built-in helpers
+- 🔄 **Trigger AI queries from your frontend** using the same tools
+- 🪟 **Interact with multiple browser sessions** independently
+- 🎯 **Works with any framework**: React, Vue, Svelte, vanilla JS
 
 ## Why Use MCP-Web
 
@@ -22,8 +25,8 @@ MCP-Web is ideal when you want to:
 
 - **Make frontend web apps accessible to AI agents** without backend modifications
 - **Your UI has rich ephemeral state** like selections, filters, or layouts settings that shouldn't live in a database (or in other words, your view model is a lot richer than your data model)
-- **Preserve user agency** by letting the frontend (i.e., user interface) be the source of truth and control surface.
-- **Build mixed-initiative applications** where humans and AI collaborate through a visual interface
+- **Preserve user agency** by letting the frontend (i.e., UI state) be the source of truth and control surface.
+- **Build mixed-initiative applications** where humans and AI collaborate through the same state interface
 - **Create reliable AI interactions** by modeling user interactions as declarative
 state actions and expose those as MCP tools
 - **Skip complex authentication** by letting your existing auth approach handle access control and then expose tools conditionally
@@ -35,13 +38,13 @@ MCP-Web might be overkill or not ideal if:
 
 ## Quick Start
 
-### Installation
+### 1. Installation
 
 ```bash
 npm install @mcp-web/web
 ```
 
-### Frontend Web App
+### 2. Frontend Web App Setup
 
 In your frontend web app, create an MCP-Web instance and connect to the bridge:
 
@@ -55,7 +58,9 @@ const mcp = new MCPWeb({
 });
 ```
 
-To a simple tool that AI agents can call:
+### 3. Adding a Simple Tool
+
+To add a simple tool that AI agents can call:
 
 ```typescript
 import { z } from 'zod';
@@ -75,11 +80,9 @@ mcp.addTool({
 });
 ```
 
-In most cases, you want to expose some frontend state directly. In that case,
+### 4. Exposing Application State
 
-
-
-Let AI agents read and modify your application state:
+In most cases, you want to expose some frontend state directly. Let AI agents read and modify your application state:
 
 ```typescript
 import { z } from 'zod';
@@ -89,7 +92,7 @@ const CounterSchema = z.number().describe('Current counter value');
 let counter = 0;
 
 // Create state tools: this will automatically add a getter and setter
-const [getCounter, setCounter] = mcp.addStateTool({
+const [getCounter, setCounter] = mcp.addStateTools({
   name: 'counter',
   description: 'Application counter that AI agents can read and modify',
   get: () => counter,
@@ -102,60 +105,11 @@ const [getCounter, setCounter] = mcp.addStateTool({
 // - set_counter({ value: 42 }) → updates the counter
 ```
 
-### 4. Complete Todo Example (25 lines)
+::: tip Complete Example
+See the [Todo Demo](/demos/todo) for a full CRUD application with schema-driven validation.
+:::
 
-A practical CRUD example with schema-driven validation:
-
-```typescript
-import { z } from 'zod';
-
-// Define schemas
-const TodoSchema = z.object({
-  id: z.string().describe('Unique identifier'),
-  title: z.string().describe('Todo title'),
-  completed: z.boolean().describe('Completion status')
-});
-
-const TodoListSchema = z.array(TodoSchema);
-
-// Application state
-let todos: z.infer<typeof TodoSchema>[] = [];
-
-// Expose state for reading/writing
-const [getTodos, setTodos] = mcp.addStateTool({
-  name: 'todos',
-  description: 'List of all todos',
-  get: () => todos,
-  set: (value) => { todos = value; },
-  schema: TodoListSchema
-});
-
-// Add action tool for creating todos
-mcp.addTool({
-  name: 'create_todo',
-  description: 'Create a new todo item',
-  handler: ({ title }) => {
-    const todo = {
-      id: crypto.randomUUID(),
-      title,
-      completed: false
-    };
-    todos.push(todo);
-    return todo;
-  },
-  inputSchema: z.object({
-    title: z.string().min(1).describe('Title of the new todo')
-  }),
-  outputSchema: TodoSchema
-});
-
-// AI agents can now:
-// - get_todos() → see all todos
-// - set_todos([...]) → replace entire list
-// - create_todo({ title: "..." }) → add a new todo
-```
-
-## Bridge MCP Server
+### 5. Bridge MCP Server
 
 To connect your web app to MCP-compatible AI app/agents, you need to run the
 bridge:
@@ -168,7 +122,7 @@ The bridge runs two servers in parallel on:
 - **Port 3001**: WebSocket server for connecting browser sessions
 - **Port 3002**: MCP server for AI agents
 
-## Connecting AI app/agent to MCP server
+### 6. Connecting AI App to MCP Server
 
 To connect an MCP-compatible AI app/agent, like Claude Desktop, you need to
 run the MCP client with a valid auth token.
@@ -204,7 +158,7 @@ For Claude Desktop, the config file is located at:
 **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 :::
 
-## Control your Frontend App
+### 7. Control Your Frontend App
 
 Check that everything is running:
 
@@ -219,14 +173,14 @@ Now you can ask your AI app to "add a todo to my-app".
     max-width: 100%;
     background-position: center;
     background-repeat: no-repeat;
-    background-size: cover;
+    background-size: contain;
   }
 
   #overview {
-    width: 460px;
+    width: 100%;
     background-image: url(assets/images/overview-light.png)
   }
-  #overview div { padding-top: 56.52173913% }
+  #overview div { padding-top: 60% }
 
   :root.dark #overview {
     background-image: url(assets/images/overview-dark.png)
