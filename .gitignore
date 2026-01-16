@@ -20,7 +20,7 @@ pnpm-debug.log*
 
 # AI coding tool configurations
 CLAUDE*.md
-.claude
+.claude/settings.local.json
 .cursor-rules
 instructions*.md
 .copilot-instructions.md

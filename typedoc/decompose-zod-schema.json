@@ -1,0 +1,35 @@
+{
+  "entryPoints": ["../packages/decompose-zod-schema/src/index.ts"],
+  "out": "../.claude/skills/mcp-web",
+  "plugin": ["typedoc-plugin-markdown"],
+  "tsconfig": "../packages/decompose-zod-schema/tsconfig.json",
+  "cleanOutputDir": false,
+
+  "name": "Decompose Zod Schema",
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeInternal": true,
+
+  "readme": "none",
+  "disableSources": false,
+
+  "mergeReadme": true,
+  "hideGenerator": true,
+  "hideBreadcrumbs": true,
+  "hidePageHeader": true,
+  "hidePageTitle": false,
+
+  "outputFileStrategy": "members",
+  "membersWithOwnFile": [],
+  "flattenOutputFiles": true,
+  "entryFileName": "api-reference-decompose-zod-schema.md",
+
+  "useCodeBlocks": true,
+  "expandObjects": true,
+  "expandParameters": true,
+
+  "parametersFormat": "table",
+  "propertiesFormat": "table",
+  "enumMembersFormat": "table",
+  "typeDeclarationFormat": "table"
+}

@@ -1,0 +1,35 @@
+{
+  "entryPoints": ["../packages/tools/src/index.ts"],
+  "out": "../.claude/skills/mcp-web",
+  "plugin": ["typedoc-plugin-markdown"],
+  "tsconfig": "../packages/tools/tsconfig.json",
+  "cleanOutputDir": false,
+
+  "name": "MCP-Tools",
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeInternal": true,
+
+  "readme": "none",
+  "disableSources": false,
+
+  "mergeReadme": true,
+  "hideGenerator": true,
+  "hideBreadcrumbs": true,
+  "hidePageHeader": true,
+  "hidePageTitle": false,
+
+  "outputFileStrategy": "members",
+  "membersWithOwnFile": [],
+  "flattenOutputFiles": true,
+  "entryFileName": "api-reference-tools.md",
+
+  "useCodeBlocks": true,
+  "expandObjects": true,
+  "expandParameters": true,
+
+  "parametersFormat": "table",
+  "propertiesFormat": "table",
+  "enumMembersFormat": "table",
+  "typeDeclarationFormat": "table"
+}
