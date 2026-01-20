@@ -17,13 +17,33 @@ your-project/
 ├── bridge.ts               # Bridge server entry point
 ├── agent.ts                # Agent server (optional, for frontend queries)
 ├── src/
-│   ├── schemas.ts          # Zod schemas describing your data
-│   ├── types.ts            # TypeScript types (derived from schemas)
-│   ├── state.ts            # Declarative reactive state management
-│   ├── mcp.ts              # MCPWeb instantiation + tool registration
+│   ├── schemas.ts          # Zod schemas ONLY (no TypeScript types)
+│   ├── types.ts            # TypeScript types derived from schemas via z.infer<>
+│   ├── states.ts           # Declarative reactive state management
+│   ├── mcp.ts              # MCPWeb instantiation
+│   ├── tools.ts            # Tool registration (state tools + action tools)
 │   ├── queries/            # Frontend-triggered queries (optional)
 │   └── <app files>         # Your application code
 └── package.json
+```
+
+### File Organization Guidelines
+
+**Co-locate when small**: If schemas, types, states, or tools would each be under ~100 lines, keep them in single files (`schemas.ts`, `types.ts`, `states.ts`, `tools.ts`). Co-location makes it easier to reason about all related code together.
+
+**Split when large**: Only create subdirectories (e.g., `schemas/`, `states/`) when individual files exceed ~150-200 lines OR when there are clear domain boundaries.
+
+**Separate schemas from types**: Always keep Zod schemas and TypeScript types in separate files:
+- `schemas.ts` - Zod schema definitions only
+- `types.ts` - TypeScript types derived from schemas using `z.infer<>`
+
+```typescript
+// types.ts - derive types from schemas, never define types manually
+import type { z } from 'zod';
+import type { TodoSchema, ProjectSchema } from './schemas';
+
+export type Todo = z.infer<typeof TodoSchema>;
+export type Project = z.infer<typeof ProjectSchema>;
 ```
 
 ## The State-Schema-Tool Pattern
@@ -59,28 +79,43 @@ export const state = {
 };
 ```
 
-### 3. Register Tools (`mcp.ts`)
+### 3. Instantiate MCPWeb (`mcp.ts`)
 
 ```typescript
-import { MCPWeb } from '@mcp-web/web';
+import { MCPWeb } from '@mcp-web/core';  // ← Class is MCPWeb (not MCPWebBridge)
+import { MCP_WEB_CONFIG } from '../mcp-web.config';
 
-export const mcp = new MCPWeb(MCP_WEB_CONFIG);
+export const mcpWeb = new MCPWeb(MCP_WEB_CONFIG);
+```
+
+### 4. Register Tools (`tools.ts`)
+
+Keep all tool registrations in a single `tools.ts` file when under ~100 lines:
+
+```typescript
+import { mcpWeb } from './mcp';
+import { TodosSchema, SettingsSchema } from './schemas';
+import { todosAtom, settingsAtom } from './states';
+import { getDefaultStore } from 'jotai';
+
+const store = getDefaultStore();
 
 // Expose state - returns [getter, setter, cleanup]
-const [getTodos, setTodos, cleanup] = mcp.addStateTools({
+mcpWeb.addStateTools({
   name: 'todos',
   description: 'List of all todo items',
-  get: () => store.todos,
-  set: (value) => { store.todos = value; },
-  schema: TodoListSchema,
+  get: () => store.get(todosAtom),
+  set: (value) => store.set(todosAtom, value),
+  schema: TodosSchema,
+  expand: true,  // For collections
 });
 
-// Add actions - returns the tool definition
-const createTodoTool = mcp.addTool({
-  name: 'create_todo',
-  description: 'Create a new todo item',
+// Add actions for complex operations
+mcpWeb.addTool({
+  name: 'complete_todo',
+  description: 'Mark a todo as completed',
   handler: (input) => { /* ... */ },
-  inputSchema: CreateTodoSchema,
+  inputSchema: CompleteTodoSchema,
 });
 ```
 
@@ -102,7 +137,7 @@ const createTodoTool = mcp.addTool({
 Use `expand: true` when state includes arrays or records that grow:
 
 ```typescript
-const [getApp, appTools, cleanup] = mcp.addStateTools({
+mcpWeb.addStateTools({
   name: 'todo_app',
   description: 'Todo application state',
   schema: AppSchema,  // Contains arrays/records
@@ -117,7 +152,7 @@ const [getApp, appTools, cleanup] = mcp.addStateTools({
 Mark auto-generated fields with `system()` to hide from AI:
 
 ```typescript
-import { system, id } from '@mcp-web/web';
+import { system, id } from '@mcp-web/core';
 
 const TodoSchema = z.object({
   id: id(system(z.string().default(() => crypto.randomUUID()))),
@@ -162,8 +197,11 @@ z.object({ description: z.string().nullable().default(null) })
 
 ### Bridge Setup (`bridge.ts`)
 
+**Important**: The bridge class is `MCPWebBridge` (not `Bridge`):
+
 ```typescript
-import { MCPWebBridge } from '@mcp-web/bridge';
+#!/usr/bin/env tsx
+import { MCPWebBridge } from '@mcp-web/bridge';  // ← Class is MCPWebBridge
 import { MCP_WEB_CONFIG } from './mcp-web.config';
 
 new MCPWebBridge(MCP_WEB_CONFIG);
@@ -179,18 +217,23 @@ new MCPWebBridge(MCP_WEB_CONFIG);
 - Use `expand: true` for growing collections
 - Mark system fields with `system()`
 - Use `nullable()` instead of `optional()`
+- Keep schemas in `schemas.ts`, types in `types.ts` (separate files)
+- Co-locate related code in single files when under ~100 lines each
 
 ❌ **Don't:**
 - Expose derived values as state tools
 - Use `optional()` for fields
 - Create one tool per atomic variable (group related state)
 - Expose entire large state as single tool (split or expand)
+- Mix Zod schemas and TypeScript type definitions in the same file
+- Create overly granular file structures (one atom per file, one tool per file)
+- Import `Bridge` from `@mcp-web/bridge` (use `MCPWebBridge`)
 
 ## Additional Resources
 
 - For complete examples, see [examples.md](examples.md)
 - For API details:
-  - `@mcp-web/web`: [api-reference-web.md](api-reference-web.md)
+  - `@mcp-web/core`: [api-reference-core.md](api-reference-core.md)
   - `@mcp-web/bridge`: [api-reference-bridge.md](api-reference-bridge.md)
   - `@mcp-web/client`: [api-reference-client.md](api-reference-client.md)
   - `@mcp-web/integrations`: [api-reference-integrations.md](api-reference-integrations.md)

@@ -29,7 +29,7 @@ const [getSettings, setSettings, cleanup] = mcp.addStateTools({
 Arrays or records that grow over time:
 
 ```typescript
-import { id, system } from '@mcp-web/web';
+import { id, system } from '@mcp-web/core';
 
 // Mark id field for ID-based tools (instead of index-based)
 const TodoSchema = z.object({
@@ -159,7 +159,7 @@ Group semantically related atomic state variables into a single tool set.
 Useful when using declarative reactive state (atoms, refs, signals).
 
 ```typescript
-import { groupState } from '@mcp-web/web';
+import { groupState } from '@mcp-web/core';
 
 // Each entry: [getter, setter, schema]
 const settingsGroup = groupState({

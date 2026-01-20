@@ -15,7 +15,7 @@ and bi-directional communication between your frontend and AI agents.
 #### Examples
 
 ```typescript
-import { MCPWeb } from '@mcp-web/web';
+import { MCPWeb } from '@mcp-web/core';
 
 const mcp = new MCPWeb({
   name: 'My Todo App',
@@ -1440,7 +1440,7 @@ Object with combined { schema, get, set } for use with addStateTools
 #### Example
 
 ```typescript
-import { groupState } from '@mcp-web/web';
+import { groupState } from '@mcp-web/core';
 
 const settingsGroup = groupState({
   sortBy: [getSortBy, setSortBy, SortBySchema],
