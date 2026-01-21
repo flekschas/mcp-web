@@ -19,11 +19,7 @@ pnpm-debug.log*
 *.sw?
 
 # AI coding tool configurations
-CLAUDE*.md
-.claude/settings.local.json
-.cursor-rules
-instructions*.md
-.copilot-instructions.md
+*.local.md
 
 # TypeDoc generated files
 docs/api/

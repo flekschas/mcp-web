@@ -1,6 +1,6 @@
 {
   "entryPoints": ["../packages/integrations/react/src/index.ts"],
-  "out": "../.claude/skills/mcp-web",
+  "out": "../agents/skills/mcp-web",
   "plugin": ["typedoc-plugin-markdown"],
   "tsconfig": "../packages/integrations/react/tsconfig.json",
   "cleanOutputDir": false,

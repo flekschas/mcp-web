@@ -1,6 +1,6 @@
 {
-  "entryPoints": ["../packages/bridge/src/bridge.ts"],
-  "out": "../.claude/skills/mcp-web",
+  "entryPoints": ["../packages/bridge/src/index.ts"],
+  "out": "../agents/skills/mcp-web",
   "plugin": ["typedoc-plugin-markdown"],
   "tsconfig": "../packages/bridge/tsconfig.json",
   "cleanOutputDir": false,
