@@ -1,6 +1,6 @@
-import { addAtomTool } from '@mcp-web/web/integrations/jotai';
-import { PythonTool } from '@mcp-web/web/tools/python';
-import { ScreenshotTool } from '@mcp-web/web/tools/screenshot';
+import { addAtomTool } from '@mcp-web/core/integrations/jotai';
+import { PythonTool } from '@mcp-web/core/tools/python';
+import { ScreenshotTool } from '@mcp-web/core/tools/screenshot';
 import { getDefaultStore } from 'jotai';
 import { z } from 'zod';
 import { mcp } from '../mcp/mcp.ts';

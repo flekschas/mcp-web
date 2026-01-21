@@ -42,7 +42,7 @@ The demo exposes **18 different state variables** to Claude Desktop via MCP tool
 - **React 18.3** with TypeScript for the UI
 - **TailwindCSS** for styling and responsive design
 - **Zod** for schema validation and type safety
-- **@mcp-web/web** for MCP integration
+- **@mcp-web/core** for MCP integration
 - **Vite** for build tooling and development server
 
 ### State Management

@@ -44,7 +44,7 @@ npm install @your-company/mcp-frontend
 ```
 
 ```typescript
-import MCPWeb from '@mcp-web/web';
+import MCPWeb from '@mcp-web/core';
 
 // Initialize MCP Frontend
 const mcp = new MCPWeb({

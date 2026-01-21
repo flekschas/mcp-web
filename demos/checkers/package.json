@@ -24,7 +24,7 @@
     "@mcp-web/bridge": "workspace:*",
     "@mcp-web/client": "workspace:*",
     "@mcp-web/types": "workspace:*",
-    "@mcp-web/web": "workspace:*",
+    "@mcp-web/core": "workspace:*",
     "ai": "^5.0.99",
     "dotenv": "^17.2.3",
     "hono": "^4.10.6",
@@ -34,7 +34,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@sveltejs/vite-plugin-svelte": "^6.2.1",
-    "@tailwindcss/vite": "^4.1.17",
+    "@tailwindcss/vite": "catalog:",
     "@tsconfig/svelte": "^5.0.6",
     "@types/node": "catalog:",
     "@typescript-eslint/eslint-plugin": "^8.47.0",
@@ -53,6 +53,6 @@
     "tsx": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "^8.47.0",
-    "vite": "^7.2.4"
+    "vite": "catalog:"
   }
 }

@@ -161,7 +161,7 @@ function GameApp() {
 ### Jotai with `addAtomTool`
 
 ```typescript
-import { addAtomTool } from '@mcp-web/web/integrations/jotai';
+import { addAtomTool } from '@mcp-web/core/integrations/jotai';
 import { atom } from 'jotai';
 
 const gameStateAtom = atom<GameState>(initialState);

@@ -26,7 +26,7 @@ export const QuerySchema = z.object({
  * - Bridge <-> Web communication (WebSocket messages)
  * - Agent <-> Bridge communication (HTTP endpoints for progress/complete)
  *
- * Note: The web package (@mcp-web/web) has similar but slightly different schemas optimized
+ * Note: The web package (@mcp-web/core) has similar but slightly different schemas optimized
  * for client-side consumption. These wire-format schemas are the source of truth for network
  * communication.
  */

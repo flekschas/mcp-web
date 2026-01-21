@@ -148,7 +148,7 @@ export const state = {
 Instantiate MCPWeb and register tools:
 
 ```typescript
-import { MCPWeb } from '@mcp-web/web';
+import { MCPWeb } from '@mcp-web/core';
 import { MCP_WEB_CONFIG } from '../mcp-web.config';
 import { TodoListSchema, CreateTodoSchema } from './schemas';
 import { store } from './state';

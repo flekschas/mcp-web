@@ -6,6 +6,7 @@
   "type": "module",
   "devDependencies": {
     "medium-zoom": "^1.1.0",
+    "simplex-noise": "^4.0.3",
     "vitepress": "^2.0.0-alpha.15",
     "vue": "^3.5.24"
   },

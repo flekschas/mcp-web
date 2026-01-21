@@ -54,8 +54,8 @@
 
   /* Text */
   --vp-c-text-1: oklch(0.3056 0.0654 288.09);
-  --vp-c-text-2: oklch(0.45 0.0654 288.09);
-  --vp-c-text-3: oklch(0.55 0.0654 288.09);
+  --vp-c-text-2: oklch(0.45 0.0654 288.09 / 0.75);
+  --vp-c-text-3: oklch(0.55 0.0654 288.09 / 0.6);
 
   /* Brand colors */
   --vp-c-brand-1: oklch(0.64 0.22 340);
@@ -118,8 +118,8 @@
 
   /* Text */
   --vp-c-text-1: oklch(0.9699 0.0013 106.42);
-  --vp-c-text-2: oklch(0.8 0.0013 106.42);
-  --vp-c-text-3: oklch(0.65 0.0013 106.42);
+  --vp-c-text-2: oklch(0.9699 0.0013 106.42 / 0.75);
+  --vp-c-text-3: oklch(0.9699 0.0013 106.42 / 0.6);
 
   /* Brand colors */
   --vp-c-brand-1: oklch(0.7583 0.2 340);
@@ -281,4 +281,58 @@
   top: 4px;
   left: 4px;
   color: var(--vp-c-text-1);
+}
+
+.VPHero.VPHero .name {
+  color: var(--vp-c-text-1);
+  background: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  -webkit-text-fill-color: unset;
+}
+
+.VPFeature.VPFeature {
+  background-color: oklch(0.95 0.0013 106.42 / 0.8);
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+}
+
+.dark .VPFeature.VPFeature {
+  background-color: oklch(0.34 0.0654 288.09 / 0.8);
+  -webkit-backdrop-filter: blur(5px);
+  backdrop-filter: blur(5px);
+}
+
+.VPLastUpdated.VPLastUpdated {
+  color: var(--vp-c-text-3);
+}
+
+.VPHomeFeatures.VPHomeFeatures .VPImage {
+  margin-bottom: 8px;
+}
+
+/**
+ * Home Page Overrides
+ * These apply only when the .is-home class is on <html>
+ * -------------------------------------------------------------------------- */
+
+:root.is-home {
+  --vp-c-bg: transparent;
+  --vp-c-divider: transparent;
+  --vp-c-gutter: transparent;
+}
+
+:root.is-home .VPNavBarMenuLink.active {
+  color: var(--vp-c-text-1);
+  font-weight: bold;
+}
+
+:root.is-home .VPSocialLink {
+  color: var(--vp-c-text-1);
+}
+
+:root.dark.is-home {
+  --vp-c-bg: transparent;
+  --vp-c-divider: transparent;
+  --vp-c-gutter: transparent;
 }

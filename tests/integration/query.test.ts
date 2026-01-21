@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MCPWebClient, type MCPWebClientConfig } from '@mcp-web/client';
+import { MCPWeb } from '@mcp-web/core';
 import {
   ClientNotConextualizedErrorCode,
   type MCPWebConfig,
@@ -10,7 +11,6 @@ import {
   QueryDoneErrorCode,
   QueryNotFoundErrorCode,
 } from '@mcp-web/types';
-import { MCPWeb } from '@mcp-web/web';
 import { ListPromptsResultSchema, ListResourcesResultSchema, ListToolsResultSchema } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { killProcess } from '../helpers/kill-process';
@@ -21,19 +21,22 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 
+// Single port for both WebSocket and HTTP (new architecture)
+const BRIDGE_PORT = 3001;
+
 const mcpWebConfig = {
   name: 'test',
   description: 'Test ',
   host: 'localhost',
-  wsPort: 3001,
-  mcpPort: 3002,
+  wsPort: BRIDGE_PORT,
+  mcpPort: BRIDGE_PORT,
   persistAuthToken: false,
   autoConnect: true,
   agentUrl: 'http://localhost:3003',
 } satisfies MCPWebConfig;
 
 const mcpWebClientConfig: MCPWebClientConfig = {
-  serverUrl: `http://${mcpWebConfig.host}:${mcpWebConfig.mcpPort}`,
+  serverUrl: `http://${mcpWebConfig.host}:${BRIDGE_PORT}`,
 };
 
 let bridgeProcess: ReturnType<typeof spawn> | undefined;
@@ -47,8 +50,7 @@ const spawnBridge = () => spawn(
   {
     env: {
       ...process.env,
-      WS_PORT: mcpWebConfig.wsPort.toString(),
-      MCP_PORT: mcpWebConfig.mcpPort.toString(),
+      PORT: BRIDGE_PORT.toString(),
       AGENT_URL: mcpWebConfig.agentUrl,
     },
     stdio: ['ignore', 'ignore', 'pipe'], // Suppress stdout, only show stderr for errors

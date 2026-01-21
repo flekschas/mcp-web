@@ -11,13 +11,13 @@ MCP Web allows your web application to register tools that can be called by Clau
 ### Installation
 
 ```bash
-npm install @mcp-web/web
+npm install @mcp-web/core
 ```
 
 ### Basic Usage
 
 ```typescript
-import { MCPWeb } from '@mcp-web/web';
+import { MCPWeb } from '@mcp-web/core';
 import { z } from 'zod';
 
 // Initialize MCP connection
@@ -58,7 +58,7 @@ mcp.addTool({
 Capture screenshots of your web page or specific elements:
 
 ```typescript
-import { ScreenshotTool } from '@mcp-web/web/tools/screenshot';
+import { ScreenshotTool } from '@mcp-web/core/tools/screenshot';
 
 // Dynamic screenshots (with input)
 mcp.addTool(new ScreenshotTool({
@@ -78,7 +78,7 @@ mcp.addTool(new ScreenshotTool({
 Query and inspect DOM elements:
 
 ```typescript
-import { DOMQueryTool } from '@mcp-web/web/tools/dom';
+import { DOMQueryTool } from '@mcp-web/core/tools/dom';
 
 mcp.addTool(new DOMQueryTool({
   name: 'query-elements',
@@ -90,7 +90,7 @@ mcp.addTool(new DOMQueryTool({
 Execute Python code with your application's context:
 
 ```typescript
-import { PythonTool } from '@mcp-web/web/tools/python';
+import { PythonTool } from '@mcp-web/core/tools/python';
 
 mcp.addTool(new PythonTool(() => {
   // Return data to be available in Python
@@ -108,7 +108,7 @@ mcp.addTool(new PythonTool(() => {
 Automatically create tools for reading and updating Jotai atoms:
 
 ```typescript
-import { addAtomTool } from '@mcp-web/web/integrations/jotai';
+import { addAtomTool } from '@mcp-web/core/integrations/jotai';
 import { atom } from 'jotai';
 import { z } from 'zod';
 

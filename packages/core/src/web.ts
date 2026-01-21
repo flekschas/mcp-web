@@ -15,6 +15,8 @@ import {
   ToolDefinitionSchema,
 } from '@mcp-web/types';
 import { ZodObject, type z } from 'zod';
+import { type CreatedStateTools, isCreatedStateTools } from './create-state-tools.js';
+import { type CreatedTool, isCreatedTool } from './create-tool.js';
 import { QueryResponse } from './query.js';
 import { QueryRequestSchema, QueryResponseResultSchema } from './schemas.js';
 import { generateBasicStateTools, generateToolsForSchema } from './tool-generators/index.js';
@@ -30,7 +32,7 @@ import { toJSONSchema, toToolMetadataJson } from './utils.js';
  *
  * @example Basic Usage
  * ```typescript
- * import { MCPWeb } from '@mcp-web/web';
+ * import { MCPWeb } from '@mcp-web/core';
  *
  * const mcp = new MCPWeb({
  *   name: 'My Todo App',
@@ -523,7 +525,9 @@ export class MCPWeb {
    * Supports both Zod schemas (recommended for type safety) and JSON schemas.
    * When using Zod schemas, TypeScript enforces that your handler signature matches the schemas.
    *
-   * @param tool - Tool configuration including name, description, handler, and schemas
+   * Can also accept pre-created tools from `createTool()`.
+   *
+   * @param tool - Tool configuration including name, description, handler, and schemas, or a CreatedTool
    * @returns The registered tool definition that can be used as context or responseTool in queries
    * @throws {Error} If tool definition is invalid
    *
@@ -534,6 +538,19 @@ export class MCPWeb {
    *   description: 'Get the current time in ISO format',
    *   handler: () => ({ time: new Date().toISOString() }),
    * });
+   * ```
+   *
+   * @example With Pre-Created Tool
+   * ```typescript
+   * import { createTool } from '@mcp-web/core';
+   * 
+   * const timeTool = createTool({
+   *   name: 'get_current_time',
+   *   description: 'Get the current time',
+   *   handler: () => ({ time: new Date().toISOString() }),
+   * });
+   * 
+   * mcp.addTool(timeTool);
    * ```
    *
    * @example With Zod Schema (Recommended)
@@ -585,6 +602,12 @@ export class MCPWeb {
    * });
    * ```
    */
+  // Overload: CreatedTool
+  addTool<
+    TInput extends z.ZodObject | undefined = undefined,
+    TOutput extends z.ZodType | undefined = undefined
+  >(tool: CreatedTool<TInput, TOutput>): ToolDefinition;
+
   // Overload: Zod
   addTool<
     TInput extends z.ZodObject | undefined = undefined,
@@ -613,7 +636,11 @@ export class MCPWeb {
     outputSchema?: { type: string; [key: string]: unknown };
   }): ToolDefinition;
 
-  addTool(tool: ToolDefinition): ToolDefinition {
+  addTool(tool: ToolDefinition | CreatedTool): ToolDefinition {
+    // Handle CreatedTool
+    if (isCreatedTool(tool)) {
+      return this.addTool(tool.definition);
+    }
     const validationResult = ToolDefinitionSchema.safeParse(tool);
     if (!validationResult.success) {
       throw new Error(`Invalid tool definition: ${validationResult.error.message}`);
@@ -676,6 +703,8 @@ export class MCPWeb {
    * When `expand` is true, automatically generates targeted tools for
    * arrays and records instead of a single setter.
    *
+   * Can also accept pre-created state tools from `createStateTools()`.
+   *
    * @returns Tuple of [getter tool, setter tool(s), cleanup function]
    * - Without schemaSplit and expand: [ToolDefinition, ToolDefinition, () => void]
    * - With schemaSplit or expand: [ToolDefinition, ToolDefinition[], () => void]
@@ -690,6 +719,20 @@ export class MCPWeb {
    *   set: (val) => { todos = val },
    *   schema: TodoListSchema
    * });
+   *
+   * // With pre-created state tools
+   * import { createStateTools } from '@mcp-web/core';
+   * 
+   * const todoTools = createStateTools({
+   *   name: 'todos',
+   *   description: 'Todo list',
+   *   get: () => store.get(todosAtom),
+   *   set: (value) => store.set(todosAtom, value),
+   *   schema: TodosSchema,
+   *   expand: true,
+   * });
+   * 
+   * const [getter, setters, cleanup] = mcp.addStateTools(todoTools);
    *
    * // With schema decomposition (returns array of setters)
    * const [getGameState, setters, cleanup] = mcp.addStateTools({
@@ -712,6 +755,12 @@ export class MCPWeb {
    * });
    * ```
    */
+  // Overload: CreatedStateTools (basic)
+  addStateTools<T>(created: CreatedStateTools<T> & { isExpanded: false }): [ToolDefinition, ToolDefinition, () => void];
+  // Overload: CreatedStateTools (expanded)
+  addStateTools<T>(created: CreatedStateTools<T> & { isExpanded: true }): [ToolDefinition, ToolDefinition[], () => void];
+  // Overload: CreatedStateTools (generic - for when isExpanded is unknown at compile time)
+  addStateTools<T>(created: CreatedStateTools<T>): [ToolDefinition, ToolDefinition | ToolDefinition[], () => void];
   // Overload: No schemaSplit, no expand → single setter
   addStateTools<T>(options: {
     name: string;
@@ -742,7 +791,7 @@ export class MCPWeb {
     expand: true;
   }): [ToolDefinition, ToolDefinition[], () => void];
   // Implementation
-  addStateTools<T>(options: {
+  addStateTools<T>(optionsOrCreated: {
     name: string;
     description: string;
     get: () => T;
@@ -750,7 +799,41 @@ export class MCPWeb {
     schema: z.ZodType<T>;
     schemaSplit?: SplitPlan;
     expand?: boolean;
-  }): [ToolDefinition, ToolDefinition | ToolDefinition[], () => void] {
+  } | CreatedStateTools<T>): [ToolDefinition, ToolDefinition | ToolDefinition[], () => void] {
+    // Handle CreatedStateTools
+    if (isCreatedStateTools(optionsOrCreated)) {
+      const created = optionsOrCreated;
+      const registeredTools: ToolDefinition[] = [];
+      
+      // Register all tools
+      for (const tool of created.tools) {
+        registeredTools.push(this.addTool(tool));
+      }
+
+      // Build cleanup function
+      const cleanup = () => {
+        for (const tool of registeredTools) {
+          this.removeTool(tool.name);
+        }
+      };
+
+      // Return tuple based on isExpanded
+      if (created.isExpanded) {
+        return [registeredTools[0], registeredTools.slice(1), cleanup];
+      }
+      return [registeredTools[0], registeredTools[1], cleanup];
+    }
+
+    // At this point, optionsOrCreated is guaranteed to be the config object (not CreatedStateTools)
+    const options = optionsOrCreated as {
+      name: string;
+      description: string;
+      get: () => T;
+      set: (value: T) => void;
+      schema: z.ZodType<T>;
+      schemaSplit?: SplitPlan;
+      expand?: boolean;
+    };
     const { name, description, get, set, schema, schemaSplit, expand } = options;
     const allTools: ToolDefinition[] = [];
 

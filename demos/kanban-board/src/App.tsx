@@ -1,5 +1,4 @@
-import { MCPWeb } from '@mcp-web/web';
-import { useTool } from '@mcp-web/react';
+import { MCPWebProvider, useTool } from '@mcp-web/react';
 import { useCallback, useEffect, useState } from 'react';
 import { z } from 'zod';
 import BoardHeader from './components/BoardHeader';
@@ -48,13 +47,6 @@ import type {
   ViewMode,
 } from './types';
 
-// Initialize MCP Web
-const mcp = new MCPWeb({
-  name: 'Kanban Board Demo',
-  description:
-    'A project management kanban board demonstrating MCP Web integration',
-});
-
 // Local storage keys
 const STORAGE_KEYS = {
   PROJECTS: 'kanban-projects',
@@ -80,7 +72,7 @@ const saveToStorage = (key: string, value: any): void => {
   }
 };
 
-function App() {
+function KanbanBoardApp() {
   // User state with localStorage persistence
   const [currentUser, setCurrentUser] = useState<User>(() => {
     const storedUserId = loadFromStorage(
@@ -325,7 +317,6 @@ function App() {
 
   // Register primitive tools
   useTool({
-    mcp,
     name: 'board_title',
     description: 'The title of the kanban board',
     value: boardTitle,
@@ -334,7 +325,6 @@ function App() {
   });
 
   useTool({
-    mcp,
     name: 'filter_text',
     description: 'Text filter for searching tasks',
     value: filterText,
@@ -343,7 +333,6 @@ function App() {
   });
 
   useTool({
-    mcp,
     name: 'view_mode',
     description: 'Current view mode of the board (board or list)',
     value: viewMode,
@@ -352,7 +341,6 @@ function App() {
   });
 
   useTool({
-    mcp,
     name: 'selected_column',
     description: 'Currently selected column ID for filtering',
     value: selectedColumn,
@@ -361,7 +349,6 @@ function App() {
   });
 
   useTool({
-    mcp,
     name: 'assignee_filter',
     description:
       'Currently selected team member ID for filtering tasks by assignee',
@@ -372,7 +359,6 @@ function App() {
 
   // Register project management tools
   useTool({
-    mcp,
     name: 'current_project_id',
     description: 'Currently selected project ID',
     value: currentProjectId,
@@ -381,7 +367,6 @@ function App() {
   });
 
   useTool({
-    mcp,
     name: 'project_list',
     description: 'Complete list of all available projects',
     value: projects,
@@ -390,7 +375,6 @@ function App() {
   });
 
   useTool({
-    mcp,
     name: 'project_metadata_list',
     description: 'List of project metadata for all projects (summary view)',
     value: projects.map((project) => ({
@@ -408,7 +392,6 @@ function App() {
 
   // Register array tools for current project
   useTool({
-    mcp,
     name: 'task_list',
     description: 'Complete list of all tasks in the current project',
     value: tasks,
@@ -430,7 +413,6 @@ function App() {
   });
 
   useTool({
-    mcp,
     name: 'team_members',
     description: 'List of all team members working on the current project',
     value: teamMembers,
@@ -452,7 +434,6 @@ function App() {
   });
 
   useTool({
-    mcp,
     name: 'activity_log',
     description: 'Activity log showing recent project changes and updates',
     value: activityLog,
@@ -462,7 +443,6 @@ function App() {
 
   // Register project CRUD operations (placeholder - implement as needed)
   useTool({
-    mcp,
     name: 'create_project_result',
     description: 'Result of creating a new project',
     value: {
@@ -478,7 +458,6 @@ function App() {
   });
 
   useTool({
-    mcp,
     name: 'switch_project_result',
     description: 'Result of switching projects',
     value: {
@@ -494,7 +473,6 @@ function App() {
   });
 
   useTool({
-    mcp,
     name: 'update_project_result',
     description: 'Result of updating project metadata',
     value: {
@@ -513,7 +491,6 @@ function App() {
 
   // Register statistical analysis tools for AI insights
   useTool({
-    mcp,
     name: 'project_statistics',
     description:
       'Get comprehensive project statistics including completion rates, task distribution, and performance metrics',
@@ -616,7 +593,6 @@ function App() {
   });
 
   useTool({
-    mcp,
     name: 'team_performance_analysis',
     description:
       'Analyze individual team member performance including task completion rates, workload balance, and efficiency metrics',
@@ -747,7 +723,6 @@ function App() {
   });
 
   useTool({
-    mcp,
     name: 'bottleneck_analysis',
     description:
       'Identify workflow bottlenecks and inefficiencies in the task pipeline',
@@ -859,7 +834,6 @@ function App() {
 
   // Register object tools with decomposition
   useTool({
-    mcp,
     name: 'board_settings',
     description: 'Board display and notification settings',
     value: boardSettings,
@@ -882,7 +856,6 @@ function App() {
   });
 
   useTool({
-    mcp,
     name: 'user_preferences',
     description: 'User preferences for sorting, display, and defaults',
     value: userPreferences,
@@ -905,7 +878,6 @@ function App() {
   });
 
   useTool({
-    mcp,
     name: 'current_project_metadata',
     description:
       'Current project metadata including name, description, and timeline',
@@ -925,7 +897,6 @@ function App() {
 
   // Multi-MCP Integration Tools (Google Drive simulation)
   useTool({
-    mcp,
     name: 'google_drive_meeting_document',
     description: 'Mock Google Drive meeting notes document for demo purposes',
     value: mockMeetingNotesDocument,
@@ -933,7 +904,6 @@ function App() {
   });
 
   useTool({
-    mcp,
     name: 'extracted_action_items',
     description: 'Action items extracted from Google Drive meeting notes',
     value: extractedActionItems,
@@ -941,7 +911,6 @@ function App() {
   });
 
   useTool({
-    mcp,
     name: 'import_tasks_result',
     description: 'Result of importing tasks from Google Drive meeting notes',
     value: {
@@ -959,7 +928,6 @@ function App() {
   });
 
   useTool({
-    mcp,
     name: 'google_drive_search_results',
     description: 'Mock search results from Google Drive',
     value: [mockMeetingNotesDocument],
@@ -967,7 +935,6 @@ function App() {
   });
 
   useTool({
-    mcp,
     name: 'multi_mcp_workflow_demo',
     description:
       'Demo workflow showing multi-MCP integration: Google Drive + Kanban',
@@ -1081,7 +1048,6 @@ function App() {
   }, [currentUser, tasks]);
 
   useTool({
-    mcp,
     name: 'current_user_info',
     description: 'Information about the currently logged in user',
     value: {
@@ -1102,7 +1068,6 @@ function App() {
   });
 
   useTool({
-    mcp,
     name: 'current_user_tasks',
     description: 'All tasks assigned to the current user',
     value: currentUserTasks,
@@ -1111,7 +1076,6 @@ function App() {
   });
 
   useTool({
-    mcp,
     name: 'current_user_workload',
     description:
       'Workload summary for the current user including task counts by status and priority',
@@ -1121,7 +1085,6 @@ function App() {
   });
 
   useTool({
-    mcp,
     name: 'current_user_priority_tasks',
     description:
       'High priority (urgent and high) tasks assigned to the current user',
@@ -1131,7 +1094,6 @@ function App() {
   });
 
   useTool({
-    mcp,
     name: 'available_users',
     description:
       'List of all users available for demonstration of user switching',
@@ -1271,6 +1233,20 @@ function App() {
         />
       </div>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <MCPWebProvider
+      config={{
+        name: 'Kanban Board Demo',
+        description:
+          'A project management kanban board demonstrating MCP Web integration',
+      }}
+    >
+      <KanbanBoardApp />
+    </MCPWebProvider>
   );
 }
 

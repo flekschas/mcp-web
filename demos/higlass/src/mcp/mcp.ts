@@ -1,4 +1,4 @@
-import { MCPWeb } from '@mcp-web/web';
+import { MCPWeb } from '@mcp-web/core';
 
 // Create MCP instance with persistent auth token
 // The auth token will be automatically persisted in localStorage

@@ -5,9 +5,28 @@ import pkg from '../../package.json';
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   title: "MCP-Web",
-  description: "MCP integration for frontend web apps",
+  description: "Expose frontend state and actions as MCP tools for AI agents",
+  lastUpdated: true,
+  cleanUrls: true,
+  head: [
+    ['link', { rel: 'icon', href: '/favicon.svg' }],
+    ['meta', { name: 'theme-color', content: '#dc44b5' }],
+    ['meta', { name: 'og:type', content: 'website' }],
+    ['meta', { name: 'og:locale', content: 'en' }],
+    ['meta', { name: 'og:site_name', content: 'MCP-Web' }],
+    [
+      'script',
+      {
+        'async': '',
+        src: 'https://cdn.counter.dev/script.js',
+        'data-id': 'c0cd84ef-1b57-4616-a6db-c26306f866b7',
+        'data-utcoffset': '-4',
+      }
+    ],
+  ],
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
+    logo: { light: '/logo-light.svg', dark: '/logo-dark.svg' },
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Get Started', link: '/get-started' },
@@ -17,7 +36,7 @@ export default defineConfig({
         items: [
           {
             text: 'npm',
-            link: 'https://www.npmjs.com/package/@mcp-web/web'
+            link: 'https://www.npmjs.com/package/@mcp-web/core'
           },
           {
             text: 'Changelog',

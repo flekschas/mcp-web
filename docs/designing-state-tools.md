@@ -96,7 +96,7 @@ don't directly relate as clearly so you could expose them individually but it
 could also make sense to group all four into a "settings" getter and setter
 tool.
 
-::: note Clustering State Variables
+::: info Clustering State Variables
 What I've described here is a well-known problem in machine learning called
 clustering. If you're really fancy, you could take your well-described schema,
 embed each state variable using a text embedding model, and cluster the
@@ -140,7 +140,7 @@ The pattern above is a bit repetitive: combine schemas, combine getters,
 conditionally apply setters. The `groupState` helper automates this entirely:
 
 ```typescript
-import { groupState } from '@mcp-web/web';
+import { groupState } from '@mcp-web/core';
 
 const settingsGroup = groupState({
   sortBy: [getSortBy, setSortBy, SortBySchema],

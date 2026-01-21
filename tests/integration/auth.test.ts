@@ -3,32 +3,35 @@ import { spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MCPWebClient, type MCPWebClientConfig } from '@mcp-web/client';
+import { MCPWeb } from '@mcp-web/core';
 import {
   type MCPWebConfig,
   MissingAuthenticationErrorCode,
   type Query,
 } from '@mcp-web/types';
-import { MCPWeb } from '@mcp-web/web';
 import { z } from 'zod';
-import { MockAgentServer } from '../helpers/mock-agent';
 import { killProcess } from '../helpers/kill-process';
+import { MockAgentServer } from '../helpers/mock-agent';
 
 // Get the directory of the current file
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Single port for both WebSocket and HTTP (new architecture)
+const BRIDGE_PORT = 3001;
+
 const mcpWebConfig = {
   name: 'test',
   description: 'Test ',
   host: 'localhost',
-  wsPort: 3001,
-  mcpPort: 3002,
+  wsPort: BRIDGE_PORT,
+  mcpPort: BRIDGE_PORT,
   persistAuthToken: false,
   autoConnect: false,
 } satisfies MCPWebConfig;
 
 const mcpWebClientConfig: MCPWebClientConfig = {
-  serverUrl: `http://${mcpWebConfig.host}:${mcpWebConfig.mcpPort}`,
+  serverUrl: `http://${mcpWebConfig.host}:${BRIDGE_PORT}`,
 };
 
 let bridgeProcess: ReturnType<typeof spawn> | undefined;
@@ -40,8 +43,7 @@ const spawnBridge = () => spawn(
   {
     env: {
       ...process.env,
-      WS_PORT: mcpWebConfig.wsPort.toString(),
-      MCP_PORT: mcpWebConfig.mcpPort.toString(),
+      PORT: BRIDGE_PORT.toString(),
     },
     stdio: ['ignore', 'ignore', 'pipe'], // Suppress stdout, only show stderr for errors
     detached: false, // Keep bridge attached to test process

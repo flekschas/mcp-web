@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@mcp-web/bridge": "workspace:*",
-    "@mcp-web/web": "workspace:*",
+    "@mcp-web/react": "workspace:*",
+    "@mcp-web/core": "workspace:*",
     "@observablehq/plot": "^0.6.17",
     "@tailwindcss/vite": "^4.1.11",
     "react": "^18.3.1",

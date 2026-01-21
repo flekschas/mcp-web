@@ -10,9 +10,11 @@ Examples assume you have React and Zod installed:
 ```tsx
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { z } from 'zod';
-import { MCPWeb } from '@mcp-web/web';
+import { MCPWeb } from '@mcp-web/core';
 ```
 :::
+
+## Modelling Declarative State
 
 To illustrate this point, let's say we build a todo app with React. We'll need a
 state storing the todos. To add a todo you might have a simple form with text
@@ -318,7 +320,7 @@ See [Handling Optional and Default Values](/designing-state-tools#handling-optio
 for patterns and examples.
 :::
 
-## When to Use State Tools vs. Action Tools
+## State vs Action Tools
 
 ### Use State Tools (Direct Access)
 

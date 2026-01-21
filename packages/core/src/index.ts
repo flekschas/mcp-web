@@ -18,3 +18,14 @@ export type {
 } from './types.js';
 export * from './utils.js';
 export { MCPWeb } from './web.js';
+
+// Export tool creation functions (Jotai-style pattern)
+export { createTool, isCreatedTool } from './create-tool.js';
+export type { CreateToolConfig, CreatedTool } from './create-tool.js';
+export { createStateTools, isCreatedStateTools } from './create-state-tools.js';
+export type {
+  CreateStateToolsConfig,
+  CreatedStateTools,
+  CreatedStateToolsBasic,
+  CreatedStateToolsExpanded,
+} from './create-state-tools.js';

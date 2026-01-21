@@ -15,7 +15,7 @@
     "test:decompose": "bun test packages/decompose-zod-schema/src",
     "test:integration": "bun test --max-concurrency=1 tests",
     "test:watch": "bun test --watch packages",
-    "docs:generate": "typedoc --options typedoc.json && typedoc --options typedoc/web.json && typedoc --options typedoc/bridge.json && typedoc --options typedoc/client.json && typedoc --options typedoc/decompose-zod-schema.json && typedoc --options typedoc/integrations.json && typedoc --options typedoc/tools.json",
+    "docs:generate": "typedoc --options typedoc.json && typedoc --options typedoc/core.json && typedoc --options typedoc/bridge.json && typedoc --options typedoc/client.json && typedoc --options typedoc/decompose-zod-schema.json && typedoc --options typedoc/integrations.json && typedoc --options typedoc/tools.json",
     "docs:dev": "pnpm docs:generate && vitepress dev docs",
     "docs:build": "pnpm docs:generate && vitepress build docs",
     "docs:preview": "vitepress preview docs"

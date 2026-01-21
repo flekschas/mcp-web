@@ -1,8 +1,8 @@
 {
-  "entryPoints": ["packages/web/src/index.ts"],
+  "entryPoints": ["packages/core/src/index.ts"],
   "out": "docs/api",
   "plugin": ["typedoc-plugin-markdown", "typedoc-vitepress-theme"],
-  "tsconfig": "packages/web/tsconfig.json",
+  "tsconfig": "packages/core/tsconfig.json",
 
   "name": "MCP-Web API Reference",
   "includeVersion": true,

@@ -1,0 +1,36 @@
+{
+  "name": "@mcp-web/demos/todo-react",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "bridge": "tsx bridge.ts",
+    "lint": "biome format --write src && biome check src",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@heroicons/react": "^2.2.0",
+    "@mcp-web/bridge": "workspace:*",
+    "@mcp-web/core": "workspace:*",
+    "@mcp-web/react": "workspace:*",
+    "@mcp-web/types": "workspace:*",
+    "@tailwindcss/vite": "catalog:",
+    "jotai": "catalog:",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "simplex-noise": "^4.0.3",
+    "tailwindcss": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/react": "^18.3.17",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.6.0",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:"
+  }
+}

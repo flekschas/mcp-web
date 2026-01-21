@@ -53,7 +53,7 @@ To enable AI to control our todo app through tools, we could expose a single
 app state setter.
 
 ```typescript
-import { MCPWeb } from '@mcp-web/web';
+import { MCPWeb } from '@mcp-web/core';
 import { MCP_WEB_CONFIG } from '../mcp-web.config';
 
 const mcp = new MCPWeb(MCP_WEB_CONFIG);
@@ -161,7 +161,7 @@ fields are system-generated, use MCP-Web's `system()` helper method. This method
 annotates the schema to tell MCP-Web which props to omit from the tool schema.
 
 ```typescript
-import { system } from '@mcp-web/web';
+import { system } from '@mcp-web/core';
 
 const TodoSchema = z.object({
   // System-generated (hidden from tool)
@@ -206,7 +206,7 @@ ID using `id()`.
 
 
 ```typescript{4,9}
-import { id, system } from '@mcp-web/web';
+import { id, system } from '@mcp-web/core';
 
 const TodoSchema = z.object({
   id: id(system(z.string().default(() => crypto.randomUUID()))),

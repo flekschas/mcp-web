@@ -12,23 +12,23 @@
   },
   "dependencies": {
     "@mcp-web/bridge": "workspace:*",
-    "@mcp-web/web": "workspace:*",
-    "@tailwindcss/vite": "^4.1.11",
+    "@mcp-web/core": "workspace:*",
+    "@tailwindcss/vite": "catalog:",
     "higlass": "^2.0.1",
     "jotai": "^2.12.5",
     "jotai-effect": "^2.0.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "tailwindcss": "^4.1.11",
-    "zod": "^4.0.5"
+    "tailwindcss": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@types/json-schema": "^7.0.15",
-    "@types/node": "^24.2.0",
+    "@types/node": "catalog:",
     "@types/react": "^18.3.17",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.6.0",
-    "typescript": "~5.8.3",
-    "vite": "^7.0.4"
+    "typescript": "catalog:",
+    "vite": "catalog:"
   }
 }

@@ -8,8 +8,10 @@ export type StateTriple<T> = [get: () => T, set: (value: T) => void, schema: z.Z
 
 /**
  * Configuration object mapping state names to their getter/setter/schema triples.
+ * Uses `any` instead of `unknown` to avoid contravariance issues with the setter function.
  */
-export type StateTriples = Record<string, StateTriple<unknown>>;
+// biome-ignore lint/suspicious/noExplicitAny: we need to be able to set any value
+export  type StateTriples = Record<string, StateTriple<any>>;
 
 /**
  * Infer the value type from a StateTriple.
@@ -39,7 +41,7 @@ export type GroupedState<T extends StateTriples> = {
  *
  * @example
  * ```typescript
- * import { groupState } from '@mcp-web/web';
+ * import { groupState } from '@mcp-web/core';
  *
  * const settingsGroup = groupState({
  *   sortBy: [getSortBy, setSortBy, SortBySchema],

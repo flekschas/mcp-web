@@ -1,18 +1,19 @@
 #!/usr/bin/env node
-import { MCPWebBridge } from '@mcp-web/bridge';
+import { MCPWebBridgeNode } from '@mcp-web/bridge';
 
 export interface Env {
-  WS_PORT: string;
-  MCP_PORT: string;
+  PORT: string;
   NAME: string;
   DESCRIPTION: string;
   AGENT_URL: string;
 }
 
 // Read config from environment or args
+// Support both old (WS_PORT/MCP_PORT) and new (PORT) configs for backwards compatibility
+const port = Number.parseInt(process.env.PORT || process.env.WS_PORT || '3001', 10);
+
 const config = {
-  wsPort: Number.parseInt(process.env.WS_PORT || '3001', 10),
-  mcpPort: Number.parseInt(process.env.MCP_PORT || '3002', 10),
+  port,
   name: process.env.NAME || 'Test Bridge',
   description: process.env.DESCRIPTION || 'Test bridge server',
   agentUrl: process.env.AGENT_URL,
@@ -20,7 +21,7 @@ const config = {
 
 console.error('[Bridge] Starting with config:', config);
 
-const bridge = new MCPWebBridge(config);
+const bridge = new MCPWebBridgeNode(config);
 
 // Handle shutdown
 process.on('SIGTERM', async () => {

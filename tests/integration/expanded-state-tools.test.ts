@@ -3,8 +3,8 @@ import { spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MCPWebClient, type MCPWebClientConfig, type TextContent } from '@mcp-web/client';
+import { id, MCPWeb, system } from '@mcp-web/core';
 import type { MCPWebConfig } from '@mcp-web/types';
-import { id, MCPWeb, system } from '@mcp-web/web';
 import { z } from 'zod';
 import { killProcess } from '../helpers/kill-process';
 
@@ -16,21 +16,23 @@ const __dirname = dirname(__filename);
 // Configuration
 // ============================================================================
 
+// Single port for both WebSocket and HTTP (new architecture)
+const BRIDGE_PORT = 3011; // Different port to avoid conflicts with other tests
 const authToken = 'test-auth-token-expanded-tools';
 
 const mcpWebConfig = {
   name: 'test-expanded-tools',
   description: 'Test expanded state tools',
   host: 'localhost',
-  wsPort: 3011, // Different ports to avoid conflicts with other tests
-  mcpPort: 3012,
+  wsPort: BRIDGE_PORT,
+  mcpPort: BRIDGE_PORT,
   persistAuthToken: false,
   autoConnect: false,
   authToken,
 } satisfies MCPWebConfig;
 
 const mcpWebClientConfig: MCPWebClientConfig = {
-  serverUrl: `http://${mcpWebConfig.host}:${mcpWebConfig.mcpPort}`,
+  serverUrl: `http://${mcpWebConfig.host}:${BRIDGE_PORT}`,
   authToken,
 };
 
@@ -86,8 +88,7 @@ const spawnBridge = () =>
   spawn('bun', ['run', join(__dirname, '../helpers/start-bridge.ts')], {
     env: {
       ...process.env,
-      WS_PORT: mcpWebConfig.wsPort.toString(),
-      MCP_PORT: mcpWebConfig.mcpPort.toString(),
+      PORT: BRIDGE_PORT.toString(),
     },
     stdio: ['ignore', 'ignore', 'pipe'],
     detached: false,

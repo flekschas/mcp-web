@@ -1,4 +1,4 @@
-import { MCPWeb } from '@mcp-web/web';
+import { MCPWeb } from '@mcp-web/core';
 import { z } from 'zod';
 import { MCP_WEB_CONFIG } from '../mcp-web.config.js';
 import { makeMove } from './game-logic.js';

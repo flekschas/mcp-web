@@ -41,7 +41,7 @@ MCP-Web might be overkill or not ideal if:
 ### 1. Installation
 
 ```bash
-npm install @mcp-web/web
+npm install @mcp-web/core
 ```
 
 ### 2. Frontend Web App Setup
@@ -49,7 +49,7 @@ npm install @mcp-web/web
 In your frontend web app, create an MCP-Web instance and connect to the bridge:
 
 ```typescript
-import { MCPWeb } from '@mcp-web/web';
+import { MCPWeb } from '@mcp-web/core';
 
 const mcp = new MCPWeb({
   name: 'My App',
@@ -178,11 +178,11 @@ Now you can ask your AI app to "add a todo to my-app".
 
   #overview {
     width: 100%;
-    background-image: url(assets/images/overview-light.png)
+    background-image: url(assets/images/overview-light.svg)
   }
   #overview div { padding-top: 60% }
 
   :root.dark #overview {
-    background-image: url(assets/images/overview-dark.png)
+    background-image: url(assets/images/overview-dark.svg)
   }
 </style>

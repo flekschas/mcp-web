@@ -1,8 +1,8 @@
 {
-  "entryPoints": ["../packages/web/src/index.ts"],
-  "out": "../.claude/skills/mcp-web",
+  "entryPoints": ["../packages/core/src/index.ts"],
+  "out": "../agents/skills/mcp-web",
   "plugin": ["typedoc-plugin-markdown"],
-  "tsconfig": "../packages/web/tsconfig.json",
+  "tsconfig": "../packages/core/tsconfig.json",
   "cleanOutputDir": false,
 
   "name": "MCP-Web",
@@ -22,7 +22,7 @@
   "outputFileStrategy": "members",
   "membersWithOwnFile": [],
   "flattenOutputFiles": true,
-  "entryFileName": "api-reference-web.md",
+  "entryFileName": "api-reference-core.md",
 
   "useCodeBlocks": true,
   "expandObjects": true,

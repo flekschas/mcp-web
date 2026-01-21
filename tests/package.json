@@ -8,7 +8,7 @@
     "@mcp-web/client": "workspace:*",
     "@mcp-web/decompose-zod-schema": "workspace:*",
     "@mcp-web/types": "workspace:*",
-    "@mcp-web/web": "workspace:*",
+    "@mcp-web/core": "workspace:*",
     "@modelcontextprotocol/sdk": "catalog:",
     "zod": "catalog:"
   },

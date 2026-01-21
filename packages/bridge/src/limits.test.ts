@@ -1,5 +1,5 @@
 import { test, expect, beforeEach, afterEach, describe } from 'bun:test';
-import { MCPWebBridge } from './bridge.js';
+import { MCPWebBridgeNode } from './adapters/node.js';
 import { WebSocket } from 'ws';
 
 // Helper to create a mock WebSocket client
@@ -48,10 +48,9 @@ async function authenticateClient(ws: WebSocket, authToken: string): Promise<voi
 }
 
 describe('Session Limits', () => {
-  let bridge: MCPWebBridge;
+  let bridge: MCPWebBridgeNode;
   let clients: WebSocket[] = [];
-  const wsPort = 4101;
-  const mcpPort = 4102;
+  const port = 4101;
 
   afterEach(async () => {
     // Close all clients
@@ -69,11 +68,10 @@ describe('Session Limits', () => {
   });
 
   test('rejects new session when limit exceeded (reject mode)', async () => {
-    bridge = new MCPWebBridge({
+    bridge = new MCPWebBridgeNode({
       name: 'Test Bridge',
       description: 'Test',
-      wsPort,
-      mcpPort,
+      port,
       maxSessionsPerToken: 2,
       onSessionLimitExceeded: 'reject'
     });
@@ -81,16 +79,16 @@ describe('Session Limits', () => {
     const authToken = 'test-token-reject';
 
     // Create and authenticate 2 sessions (at limit)
-    const client1 = await createMockClient(wsPort, 'session-1');
+    const client1 = await createMockClient(port, 'session-1');
     clients.push(client1);
     await authenticateClient(client1, authToken);
 
-    const client2 = await createMockClient(wsPort, 'session-2');
+    const client2 = await createMockClient(port, 'session-2');
     clients.push(client2);
     await authenticateClient(client2, authToken);
 
     // Try to create a 3rd session - should be rejected
-    const client3 = await createMockClient(wsPort, 'session-3');
+    const client3 = await createMockClient(port, 'session-3');
     clients.push(client3);
 
     const closePromise = new Promise<{ code: number; reason: string }>((resolve) => {
@@ -117,11 +115,10 @@ describe('Session Limits', () => {
   });
 
   test('closes oldest session when limit exceeded (close_oldest mode)', async () => {
-    bridge = new MCPWebBridge({
+    bridge = new MCPWebBridgeNode({
       name: 'Test Bridge',
       description: 'Test',
-      wsPort,
-      mcpPort,
+      port,
       maxSessionsPerToken: 2,
       onSessionLimitExceeded: 'close_oldest'
     });
@@ -129,7 +126,7 @@ describe('Session Limits', () => {
     const authToken = 'test-token-close-oldest';
 
     // Create and authenticate first session
-    const client1 = await createMockClient(wsPort, 'session-oldest-1');
+    const client1 = await createMockClient(port, 'session-oldest-1');
     clients.push(client1);
     await authenticateClient(client1, authToken);
 
@@ -142,12 +139,12 @@ describe('Session Limits', () => {
     await new Promise(resolve => setTimeout(resolve, 50));
 
     // Create and authenticate second session
-    const client2 = await createMockClient(wsPort, 'session-oldest-2');
+    const client2 = await createMockClient(port, 'session-oldest-2');
     clients.push(client2);
     await authenticateClient(client2, authToken);
 
     // Create and authenticate third session - should close the oldest (client1)
-    const client3 = await createMockClient(wsPort, 'session-oldest-3');
+    const client3 = await createMockClient(port, 'session-oldest-3');
     clients.push(client3);
     await authenticateClient(client3, authToken);
 
@@ -161,21 +158,20 @@ describe('Session Limits', () => {
   });
 
   test('different tokens have separate session limits', async () => {
-    bridge = new MCPWebBridge({
+    bridge = new MCPWebBridgeNode({
       name: 'Test Bridge',
       description: 'Test',
-      wsPort,
-      mcpPort,
+      port,
       maxSessionsPerToken: 1,
       onSessionLimitExceeded: 'reject'
     });
 
     // Create sessions with different tokens - both should succeed
-    const client1 = await createMockClient(wsPort, 'session-token-a');
+    const client1 = await createMockClient(port, 'session-token-a');
     clients.push(client1);
     await authenticateClient(client1, 'token-a');
 
-    const client2 = await createMockClient(wsPort, 'session-token-b');
+    const client2 = await createMockClient(port, 'session-token-b');
     clients.push(client2);
     await authenticateClient(client2, 'token-b');
 
@@ -185,11 +181,10 @@ describe('Session Limits', () => {
   });
 
   test('no limit when maxSessionsPerToken is not set', async () => {
-    bridge = new MCPWebBridge({
+    bridge = new MCPWebBridgeNode({
       name: 'Test Bridge',
       description: 'Test',
-      wsPort,
-      mcpPort
+      port
       // No maxSessionsPerToken
     });
 
@@ -197,7 +192,7 @@ describe('Session Limits', () => {
 
     // Create many sessions - all should succeed
     for (let i = 0; i < 5; i++) {
-      const client = await createMockClient(wsPort, `session-no-limit-${i}`);
+      const client = await createMockClient(port, `session-no-limit-${i}`);
       clients.push(client);
       await authenticateClient(client, authToken);
       expect(client.readyState).toBe(WebSocket.OPEN);
@@ -206,10 +201,9 @@ describe('Session Limits', () => {
 });
 
 describe('Query Limits', () => {
-  let bridge: MCPWebBridge;
+  let bridge: MCPWebBridgeNode;
   let clients: WebSocket[] = [];
-  const wsPort = 4201;
-  const mcpPort = 4202;
+  const port = 4201;
   let originalFetch: typeof fetch;
 
   beforeEach(() => {
@@ -237,18 +231,17 @@ describe('Query Limits', () => {
     // Mock fetch to return a never-resolving promise (keeps queries "in flight")
     globalThis.fetch = () => new Promise(() => {});
 
-    bridge = new MCPWebBridge({
+    bridge = new MCPWebBridgeNode({
       name: 'Test Bridge',
       description: 'Test',
-      wsPort,
-      mcpPort,
+      port,
       maxInFlightQueriesPerToken: 2,
       agentUrl: 'http://localhost:9999'
     });
 
     const authToken = 'test-token-query-limit';
 
-    const client = await createMockClient(wsPort, 'session-query-limit');
+    const client = await createMockClient(port, 'session-query-limit');
     clients.push(client);
     await authenticateClient(client, authToken);
 
@@ -299,18 +292,17 @@ describe('Query Limits', () => {
     // Mock fetch to return a never-resolving promise
     globalThis.fetch = () => new Promise(() => {});
 
-    bridge = new MCPWebBridge({
+    bridge = new MCPWebBridgeNode({
       name: 'Test Bridge',
       description: 'Test',
-      wsPort,
-      mcpPort,
+      port,
       agentUrl: 'http://localhost:9999'
       // No maxInFlightQueriesPerToken
     });
 
     const authToken = 'test-token-no-query-limit';
 
-    const client = await createMockClient(wsPort, 'session-no-query-limit');
+    const client = await createMockClient(port, 'session-no-query-limit');
     clients.push(client);
     await authenticateClient(client, authToken);
 
@@ -334,10 +326,9 @@ describe('Query Limits', () => {
 });
 
 describe('Session Timeout', () => {
-  let bridge: MCPWebBridge;
+  let bridge: MCPWebBridgeNode;
   let clients: WebSocket[] = [];
-  const wsPort = 4301;
-  const mcpPort = 4302;
+  const port = 4301;
 
   afterEach(async () => {
     for (const client of clients) {
@@ -356,15 +347,14 @@ describe('Session Timeout', () => {
     // Use a very short duration for testing (100ms)
     // Note: The actual checker runs every 60s, so we need to test differently
     // We'll verify the config is accepted and the timeout checker starts
-    bridge = new MCPWebBridge({
+    bridge = new MCPWebBridgeNode({
       name: 'Test Bridge',
       description: 'Test',
-      wsPort,
-      mcpPort,
+      port,
       sessionMaxDurationMs: 100 // Very short for testing
     });
 
-    const client = await createMockClient(wsPort, 'session-timeout');
+    const client = await createMockClient(port, 'session-timeout');
     clients.push(client);
     await authenticateClient(client, 'test-token-timeout');
 
@@ -377,15 +367,14 @@ describe('Session Timeout', () => {
   });
 
   test('no timeout when sessionMaxDurationMs is not set', async () => {
-    bridge = new MCPWebBridge({
+    bridge = new MCPWebBridgeNode({
       name: 'Test Bridge',
       description: 'Test',
-      wsPort,
-      mcpPort
+      port
       // No sessionMaxDurationMs
     });
 
-    const client = await createMockClient(wsPort, 'session-no-timeout');
+    const client = await createMockClient(port, 'session-no-timeout');
     clients.push(client);
     await authenticateClient(client, 'test-token-no-timeout');
 
@@ -397,11 +386,10 @@ describe('Session Timeout', () => {
 describe('Config Schema', () => {
   test('accepts all new limit properties', async () => {
     // This should not throw
-    const bridge = new MCPWebBridge({
+    const bridge = new MCPWebBridgeNode({
       name: 'Test Bridge',
       description: 'Test',
-      wsPort: 4401,
-      mcpPort: 4402,
+      port: 4401,
       maxSessionsPerToken: 5,
       onSessionLimitExceeded: 'close_oldest',
       maxInFlightQueriesPerToken: 10,
@@ -412,11 +400,10 @@ describe('Config Schema', () => {
   });
 
   test('defaults onSessionLimitExceeded to reject', async () => {
-    const bridge = new MCPWebBridge({
+    const bridge = new MCPWebBridgeNode({
       name: 'Test Bridge',
       description: 'Test',
-      wsPort: 4501,
-      mcpPort: 4502,
+      port: 4501,
       maxSessionsPerToken: 1
       // onSessionLimitExceeded not specified
     });

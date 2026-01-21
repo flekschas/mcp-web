@@ -111,7 +111,7 @@ useTool({
 If you need manual control over the MCPWeb instance, you can pass it explicitly:
 
 ```typescript
-import { MCPWeb } from '@mcp-web/web';
+import { MCPWeb } from '@mcp-web/core';
 import { useTool } from '@mcp-web/react';
 
 const mcpWeb = new MCPWeb({ name: 'My App' });

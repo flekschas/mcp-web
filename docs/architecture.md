@@ -4,7 +4,7 @@ MCP-Web provides the glue to enable AI apps or agents to control and interact
 with your frontend web app. The key architectural design aspect of MCP-Web is
 that is treats the frontend as the source of truth and main control surface.
 
-<div class="img architecture"><div /></div>
+<div id="mcp-web-architecture" class="img"><div /></div>
 
 This is accomplished by having the frontend define tools and exposing those
 directly to AI via a bridge server that links browser sessions to an MCP server.
@@ -12,15 +12,17 @@ This way, both user and AI interactions can trigger the same state changes and
 actions, which ensures user agency while still allowing automation and
 integration through AI.
 
-### MCP-Web vs Classic MCP Server
+## MCP-Web vs Classic MCP Server
 
-To better understand the difference between the MCP-Web approach and a "classic"
-web app plus MCP server, let's compare the two.
+To better understand the difference let's compare MCP-Web approach shown above
+to a"classic" web app plus MCP server architecture:
 
-#### Classic MCP Server Setup
+<div id="classic-architecture" class="img"><div /></div>
+
+### Classic MCP Server Setup
 
 ```
-AI Agent  ↔  MCP Server  ↔  Database  ↔  WebSocket  ↔  Frontend
+AI Agent  ↔  MCP Server  ↔  Database  ↔  WebSocket/SSE  ↔  Frontend
      ╰─ calls ─╯   ╰─ updates ─╯  ╰─ informs ─╯  ╰─ notifies ─╯
 ```
 
@@ -29,11 +31,11 @@ AI Agent  ↔  MCP Server  ↔  Database  ↔  WebSocket  ↔  Frontend
 - Source of truth: Database
 - AI changes → DB → Frontend
 
-#### MCP-Web Setup
+### MCP-Web Setup
 
 ```
-AI Agent  ↔  MCP Server + WebSocket  ↔  Frontend  ↔  Database
-     ╰─ calls ─╯              ╰─ notifies ─╯  ╰─ notifies ─╯
+AI Agent  ↔  MCP Server + WebSocket/SSE  ↔  Frontend  ↔  Database
+     ╰─ calls ─╯                 ╰─ notifies ─╯  ╰─ updates ─╯
 ```
 
 - MCP server routes directly to frontend state and actions
@@ -46,7 +48,7 @@ The key insight here is that with MCP-Web, the frontend becomes the main point
 of control for reading and writing data.
 :::
 
-#### Why MCP-Web's approach?
+## Why MCP-Web's approach?
 
 **Choose MCP-Web when:**
 
@@ -62,7 +64,7 @@ of control for reading and writing data.
 - _Multi-user collaboration_ requires database as source of truth
 - _AI needs to trigger non-user facing_ tools
 
-### How MCP-Web Works
+## How MCP-Web Works
 
 Instead of having AI communicate with a backend database and have the backend
 push changes to the frontend, with MCP-Web, AI directly communicates with the
@@ -71,8 +73,8 @@ connected to your frontend browser sessions. This is accomplished via three
 packages: Web, Bridge, Client. These three packages communicate as follows:
 
 ```
-Frontend  ↔  MCP-Web/Web  ↔  MCP-Web/Bridge  ↔  MCP-Web/Client  ↔  AI App/Agent
-     ╰─ Runs ─╯     ╰─ WebSocket ─╯      ╰─ HTTP ─╯        ╰─ STDIO ─╯
+Frontend  ↔  MCPWeb()  ↔  MCPWebBridge  ↔  MCPWebClient()  ↔  AI Agent
+    ╰─ Runs ─╯    ╰─ WS / SSE ─╯    ╰─ HTTP ─╯        ╰─ STDIO ─╯
 ```
 
 - Frontend app: runs MCP-Web
@@ -83,8 +85,9 @@ Frontend  ↔  MCP-Web/Web  ↔  MCP-Web/Bridge  ↔  MCP-Web/Client  ↔  AI Ap
 
 ## MCP As The Main Tool Protocol
 
-MCP-Web uses the Model Context Protocol (MCP) as the primary communication
-standard between AI agents and your frontend application.
+MCP-Web uses the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/)
+as the primary communication standard between AI agents and your frontend
+application.
 
 ### How Tools Are Exposed
 
@@ -93,7 +96,7 @@ When your frontend registers tools using `mcp.addTool()` or `mcp.addStateTools()
 ```
 1. Frontend calls mcp.addTool()
    ↓
-2. MCPWeb (packages/web) validates tool definition
+2. MCPWeb (packages/core) validates tool definition
    ↓
 3. Tool is sent to Bridge via WebSocket
    ↓
@@ -240,13 +243,16 @@ MCP-Web implements the core MCP specification:
 - **Tool Schema**: Tools use JSON Schema for input/output validation
 - **Error Handling**: Proper MCP error responses with codes and messages
 
-This ensures compatibility with any AI agent that supports the Model Context Protocol, including Claude Desktop, custom agents, and future MCP-compatible systems.
+This ensures compatibility with any AI agent that supports the Model Context
+Protocol, like Claude Desktop, custom agents, and future MCP-compatible systems.
 
 ---
 
 ## AI Agent API
 
-For frontend-triggered queries (when your app wants to ask the AI for help), MCP-Web provides a separate Agent API.
+For frontend-triggered queries (when your app wants to ask the AI for help),
+MCP-Web provides a separate lightweight Agent API that makes use of the same
+MCP tools you've registered.
 
 ### Query Endpoints
 
@@ -458,3 +464,32 @@ startAgent({
 ```
 
 This architecture allows frontends to leverage AI capabilities on-demand while maintaining the security and session management of the overall MCP-Web system.
+
+<style scoped>
+  .img {
+    max-width: 100%;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+  }
+
+  #mcp-web-architecture {
+    width: 100%;
+    background-image: url(assets/images/mcp-web-architecture-light.svg)
+  }
+  #mcp-web-architecture div { padding-top: 20% }
+
+  :root.dark #mcp-web-architecture {
+    background-image: url(assets/images/mcp-web-architecture-dark.svg)
+  }
+
+  #classic-architecture {
+    width: 100%;
+    background-image: url(assets/images/classic-architecture-light.svg)
+  }
+  #classic-architecture div { padding-top: 20% }
+
+  :root.dark #classic-architecture {
+    background-image: url(assets/images/classic-architecture-dark.svg)
+  }
+</style>
