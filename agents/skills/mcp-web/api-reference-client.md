@@ -4,7 +4,7 @@
 
 ### MCPWebClient
 
-Defined in: [packages/client/src/client.ts:47](https://github.com/flekschas/mcp-web/blob/701d3fe1d1596d40b539aa6f6fd07b3675badb7f/packages/client/src/client.ts#L47)
+Defined in: [packages/client/src/client.ts:47](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/client/src/client.ts#L47)
 
 #### Constructors
 
@@ -41,7 +41,7 @@ new MCPWebClient(config: {
 }): MCPWebClient;
 ```
 
-Defined in: [packages/client/src/client.ts:53](https://github.com/flekschas/mcp-web/blob/701d3fe1d1596d40b539aa6f6fd07b3675badb7f/packages/client/src/client.ts#L53)
+Defined in: [packages/client/src/client.ts:53](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/client/src/client.ts#L53)
 
 ###### Parameters
 
@@ -151,7 +151,7 @@ callTool(
 }>;
 ```
 
-Defined in: [packages/client/src/client.ts:257](https://github.com/flekschas/mcp-web/blob/701d3fe1d1596d40b539aa6f6fd07b3675badb7f/packages/client/src/client.ts#L257)
+Defined in: [packages/client/src/client.ts:257](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/client/src/client.ts#L257)
 
 Call a tool, automatically augmented with query context if this is a
 contextualized client.
@@ -247,7 +247,7 @@ contextualized client.
 cancel(reason?: string): Promise<void>;
 ```
 
-Defined in: [packages/client/src/client.ts:451](https://github.com/flekschas/mcp-web/blob/701d3fe1d1596d40b539aa6f6fd07b3675badb7f/packages/client/src/client.ts#L451)
+Defined in: [packages/client/src/client.ts:451](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/client/src/client.ts#L451)
 
 Cancel the current query.
 Can only be called on a contextualized client instance.
@@ -269,7 +269,7 @@ Use this when the user or system needs to abort query processing.
 complete(message: string): Promise<void>;
 ```
 
-Defined in: [packages/client/src/client.ts:374](https://github.com/flekschas/mcp-web/blob/701d3fe1d1596d40b539aa6f6fd07b3675badb7f/packages/client/src/client.ts#L374)
+Defined in: [packages/client/src/client.ts:374](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/client/src/client.ts#L374)
 
 Mark the current query as complete with a message.
 Can only be called on a contextualized client instance.
@@ -314,7 +314,7 @@ contextualize(query: {
 }): MCPWebClient;
 ```
 
-Defined in: [packages/client/src/client.ts:249](https://github.com/flekschas/mcp-web/blob/701d3fe1d1596d40b539aa6f6fd07b3675badb7f/packages/client/src/client.ts#L249)
+Defined in: [packages/client/src/client.ts:249](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/client/src/client.ts#L249)
 
 Create a contextualized client for a specific query.
 All tool calls made through this client will be tagged with the query UUID.
@@ -345,7 +345,7 @@ All tool calls made through this client will be tagged with the query UUID.
 fail(error: string | Error): Promise<void>;
 ```
 
-Defined in: [packages/client/src/client.ts:412](https://github.com/flekschas/mcp-web/blob/701d3fe1d1596d40b539aa6f6fd07b3675badb7f/packages/client/src/client.ts#L412)
+Defined in: [packages/client/src/client.ts:412](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/client/src/client.ts#L412)
 
 Mark the current query as failed with an error message.
 Can only be called on a contextualized client instance.
@@ -390,7 +390,7 @@ listPrompts(sessionId?: string): Promise<
 | ErroredListPromptsResult>;
 ```
 
-Defined in: [packages/client/src/client.ts:332](https://github.com/flekschas/mcp-web/blob/701d3fe1d1596d40b539aa6f6fd07b3675badb7f/packages/client/src/client.ts#L332)
+Defined in: [packages/client/src/client.ts:332](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/client/src/client.ts#L332)
 
 List all available prompts.
 
@@ -452,7 +452,7 @@ listResources(sessionId?: string): Promise<
 | ErroredListResourcesResult>;
 ```
 
-Defined in: [packages/client/src/client.ts:321](https://github.com/flekschas/mcp-web/blob/701d3fe1d1596d40b539aa6f6fd07b3675badb7f/packages/client/src/client.ts#L321)
+Defined in: [packages/client/src/client.ts:321](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/client/src/client.ts#L321)
 
 List all available resources.
 
@@ -532,7 +532,7 @@ listTools(sessionId?: string): Promise<
 | ErroredListToolsResult>;
 ```
 
-Defined in: [packages/client/src/client.ts:298](https://github.com/flekschas/mcp-web/blob/701d3fe1d1596d40b539aa6f6fd07b3675badb7f/packages/client/src/client.ts#L298)
+Defined in: [packages/client/src/client.ts:298](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/client/src/client.ts#L298)
 
 List all available tools.
 If this is a contextualized client with restricted tools, returns only those tools.
@@ -595,7 +595,7 @@ Otherwise fetches all tools from the bridge.
 run(): Promise<void>;
 ```
 
-Defined in: [packages/client/src/client.ts:541](https://github.com/flekschas/mcp-web/blob/701d3fe1d1596d40b539aa6f6fd07b3675badb7f/packages/client/src/client.ts#L541)
+Defined in: [packages/client/src/client.ts:541](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/client/src/client.ts#L541)
 
 ###### Returns
 
@@ -607,7 +607,7 @@ Defined in: [packages/client/src/client.ts:541](https://github.com/flekschas/mcp
 sendProgress(message: string): Promise<void>;
 ```
 
-Defined in: [packages/client/src/client.ts:344](https://github.com/flekschas/mcp-web/blob/701d3fe1d1596d40b539aa6f6fd07b3675badb7f/packages/client/src/client.ts#L344)
+Defined in: [packages/client/src/client.ts:344](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/client/src/client.ts#L344)
 
 Send a progress update for the current query.
 Can only be called on a contextualized client instance.

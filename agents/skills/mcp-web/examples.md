@@ -1,3 +1,4 @@
+@ -1,442 +0,0 @@
 # MCP-Web Examples
 
 Detailed examples and patterns for building MCP-Web applications.
