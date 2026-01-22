@@ -12,6 +12,7 @@
 
   "readme": "none",
   "disableSources": false,
+  "gitRevision": "main",
 
   "categorizeByGroup": true,
   "groupOrder": ["Classes", "Functions", "Type Aliases", "Interfaces"],
