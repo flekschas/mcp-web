@@ -4,7 +4,7 @@
 
 ### PlanBuilder
 
-Defined in: [plan-builder.ts:8](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/plan-builder.ts#L8)
+Defined in: [plan-builder.ts:8](packages/decompose-zod-schema/src/plan-builder.ts#L8)
 
 Plan builder for more ergonomic plan construction
 
@@ -28,7 +28,7 @@ new PlanBuilder(): PlanBuilder;
 addArraySplit(path: string): this;
 ```
 
-Defined in: [plan-builder.ts:41](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/plan-builder.ts#L41)
+Defined in: [plan-builder.ts:41](packages/decompose-zod-schema/src/plan-builder.ts#L41)
 
 ###### Parameters
 
@@ -49,7 +49,7 @@ addConditionalEnumSplit(
    schema: ZodObject<Record<string, ZodType<unknown, unknown, $ZodTypeInternals<unknown, unknown>>>>): this;
 ```
 
-Defined in: [plan-builder.ts:51](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/plan-builder.ts#L51)
+Defined in: [plan-builder.ts:51](packages/decompose-zod-schema/src/plan-builder.ts#L51)
 
 ###### Parameters
 
@@ -69,7 +69,7 @@ Defined in: [plan-builder.ts:51](https://github.com/flekschas/mcp-web/blob/e8aa9
 addEntireEnumSlice(path: string): this;
 ```
 
-Defined in: [plan-builder.ts:36](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/plan-builder.ts#L36)
+Defined in: [plan-builder.ts:36](packages/decompose-zod-schema/src/plan-builder.ts#L36)
 
 ###### Parameters
 
@@ -90,7 +90,7 @@ addEnumSlice(
    end: number): this;
 ```
 
-Defined in: [plan-builder.ts:21](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/plan-builder.ts#L21)
+Defined in: [plan-builder.ts:21](packages/decompose-zod-schema/src/plan-builder.ts#L21)
 
 ###### Parameters
 
@@ -110,7 +110,7 @@ Defined in: [plan-builder.ts:21](https://github.com/flekschas/mcp-web/blob/e8aa9
 addEnumSliceFromIndex(path: string, start: number): this;
 ```
 
-Defined in: [plan-builder.ts:26](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/plan-builder.ts#L26)
+Defined in: [plan-builder.ts:26](packages/decompose-zod-schema/src/plan-builder.ts#L26)
 
 ###### Parameters
 
@@ -129,7 +129,7 @@ Defined in: [plan-builder.ts:26](https://github.com/flekschas/mcp-web/blob/e8aa9
 addEnumSliceToIndex(path: string, end: number): this;
 ```
 
-Defined in: [plan-builder.ts:31](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/plan-builder.ts#L31)
+Defined in: [plan-builder.ts:31](packages/decompose-zod-schema/src/plan-builder.ts#L31)
 
 ###### Parameters
 
@@ -148,7 +148,7 @@ Defined in: [plan-builder.ts:31](https://github.com/flekschas/mcp-web/blob/e8aa9
 addEnumSplit(path: string, chunkSize: number): this;
 ```
 
-Defined in: [plan-builder.ts:16](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/plan-builder.ts#L16)
+Defined in: [plan-builder.ts:16](packages/decompose-zod-schema/src/plan-builder.ts#L16)
 
 ###### Parameters
 
@@ -167,7 +167,7 @@ Defined in: [plan-builder.ts:16](https://github.com/flekschas/mcp-web/blob/e8aa9
 addRecordSplit(path: string): this;
 ```
 
-Defined in: [plan-builder.ts:46](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/plan-builder.ts#L46)
+Defined in: [plan-builder.ts:46](packages/decompose-zod-schema/src/plan-builder.ts#L46)
 
 ###### Parameters
 
@@ -185,7 +185,7 @@ Defined in: [plan-builder.ts:46](https://github.com/flekschas/mcp-web/blob/e8aa9
 addSplit(path: string): this;
 ```
 
-Defined in: [plan-builder.ts:11](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/plan-builder.ts#L11)
+Defined in: [plan-builder.ts:11](packages/decompose-zod-schema/src/plan-builder.ts#L11)
 
 ###### Parameters
 
@@ -203,7 +203,7 @@ Defined in: [plan-builder.ts:11](https://github.com/flekschas/mcp-web/blob/e8aa9
 build(): SplitPlan;
 ```
 
-Defined in: [plan-builder.ts:61](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/plan-builder.ts#L61)
+Defined in: [plan-builder.ts:61](packages/decompose-zod-schema/src/plan-builder.ts#L61)
 
 ###### Returns
 
@@ -213,7 +213,7 @@ Defined in: [plan-builder.ts:61](https://github.com/flekschas/mcp-web/blob/e8aa9
 
 ### SemanticSuggestionStrategy
 
-Defined in: [split-suggestions.ts:217](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/split-suggestions.ts#L217)
+Defined in: [split-suggestions.ts:217](packages/decompose-zod-schema/src/split-suggestions.ts#L217)
 
 Future strategy example: Semantic-based suggestion
 This could analyze schema property names, types, and relationships
@@ -239,7 +239,7 @@ new SemanticSuggestionStrategy(): SemanticSuggestionStrategy;
 
 | Property | Type | Default value | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="name"></a> `name` | `string` | `'semantic'` | [split-suggestions.ts:218](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/split-suggestions.ts#L218) |
+| <a id="name"></a> `name` | `string` | `'semantic'` | [split-suggestions.ts:218](packages/decompose-zod-schema/src/split-suggestions.ts#L218) |
 
 #### Methods
 
@@ -249,7 +249,7 @@ new SemanticSuggestionStrategy(): SemanticSuggestionStrategy;
 suggest(schema: ZodObject<Record<string, ZodType<unknown, unknown, $ZodTypeInternals<unknown, unknown>>>>, _options?: unknown): SplitPlan;
 ```
 
-Defined in: [split-suggestions.ts:220](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/split-suggestions.ts#L220)
+Defined in: [split-suggestions.ts:220](packages/decompose-zod-schema/src/split-suggestions.ts#L220)
 
 ###### Parameters
 
@@ -270,7 +270,7 @@ Defined in: [split-suggestions.ts:220](https://github.com/flekschas/mcp-web/blob
 
 ### SizeBasedSuggestionStrategy
 
-Defined in: [split-suggestions.ts:12](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/split-suggestions.ts#L12)
+Defined in: [split-suggestions.ts:12](packages/decompose-zod-schema/src/split-suggestions.ts#L12)
 
 Size-based suggestion strategy that splits schemas based on token count and enum size limits
 
@@ -294,7 +294,7 @@ new SizeBasedSuggestionStrategy(): SizeBasedSuggestionStrategy;
 
 | Property | Type | Default value | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="name-1"></a> `name` | `string` | `'size-based'` | [split-suggestions.ts:13](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/split-suggestions.ts#L13) |
+| <a id="name-1"></a> `name` | `string` | `'size-based'` | [split-suggestions.ts:13](packages/decompose-zod-schema/src/split-suggestions.ts#L13) |
 
 #### Methods
 
@@ -304,7 +304,7 @@ new SizeBasedSuggestionStrategy(): SizeBasedSuggestionStrategy;
 suggest(schema: ZodObject<Record<string, ZodType<unknown, unknown, $ZodTypeInternals<unknown, unknown>>>>, options: SizeBasedOptions): SplitPlan;
 ```
 
-Defined in: [split-suggestions.ts:15](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/split-suggestions.ts#L15)
+Defined in: [split-suggestions.ts:15](packages/decompose-zod-schema/src/split-suggestions.ts#L15)
 
 ###### Parameters
 
@@ -325,7 +325,7 @@ Defined in: [split-suggestions.ts:15](https://github.com/flekschas/mcp-web/blob/
 
 ### SuggestionStrategyRegistry
 
-Defined in: [split-suggestions.ts:163](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/split-suggestions.ts#L163)
+Defined in: [split-suggestions.ts:163](packages/decompose-zod-schema/src/split-suggestions.ts#L163)
 
 Registry of available suggestion strategies for future extensibility
 
@@ -337,7 +337,7 @@ Registry of available suggestion strategies for future extensibility
 new SuggestionStrategyRegistry(): SuggestionStrategyRegistry;
 ```
 
-Defined in: [split-suggestions.ts:166](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/split-suggestions.ts#L166)
+Defined in: [split-suggestions.ts:166](packages/decompose-zod-schema/src/split-suggestions.ts#L166)
 
 ###### Returns
 
@@ -351,7 +351,7 @@ Defined in: [split-suggestions.ts:166](https://github.com/flekschas/mcp-web/blob
 get(name: string): SuggestionStrategy | undefined;
 ```
 
-Defined in: [split-suggestions.ts:175](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/split-suggestions.ts#L175)
+Defined in: [split-suggestions.ts:175](packages/decompose-zod-schema/src/split-suggestions.ts#L175)
 
 ###### Parameters
 
@@ -369,7 +369,7 @@ Defined in: [split-suggestions.ts:175](https://github.com/flekschas/mcp-web/blob
 list(): string[];
 ```
 
-Defined in: [split-suggestions.ts:179](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/split-suggestions.ts#L179)
+Defined in: [split-suggestions.ts:179](packages/decompose-zod-schema/src/split-suggestions.ts#L179)
 
 ###### Returns
 
@@ -381,7 +381,7 @@ Defined in: [split-suggestions.ts:179](https://github.com/flekschas/mcp-web/blob
 register(strategy: SuggestionStrategy): void;
 ```
 
-Defined in: [split-suggestions.ts:171](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/split-suggestions.ts#L171)
+Defined in: [split-suggestions.ts:171](packages/decompose-zod-schema/src/split-suggestions.ts#L171)
 
 ###### Parameters
 
@@ -402,7 +402,7 @@ suggest(
    options: unknown): SplitPlan;
 ```
 
-Defined in: [split-suggestions.ts:183](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/split-suggestions.ts#L183)
+Defined in: [split-suggestions.ts:183](packages/decompose-zod-schema/src/split-suggestions.ts#L183)
 
 ###### Parameters
 
@@ -420,53 +420,53 @@ Defined in: [split-suggestions.ts:183](https://github.com/flekschas/mcp-web/blob
 
 ### DecomposedSchema
 
-Defined in: [types.ts:5](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/types.ts#L5)
+Defined in: [types.ts:5](packages/decompose-zod-schema/src/types.ts#L5)
 
 #### Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="name-2"></a> `name` | `string` | [types.ts:6](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/types.ts#L6) |
-| <a id="schema"></a> `schema` | `ZodObject` | [types.ts:7](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/types.ts#L7) |
-| <a id="targetpaths"></a> `targetPaths` | `string`[] | [types.ts:8](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/types.ts#L8) |
+| <a id="name-2"></a> `name` | `string` | [types.ts:6](packages/decompose-zod-schema/src/types.ts#L6) |
+| <a id="schema"></a> `schema` | `ZodObject` | [types.ts:7](packages/decompose-zod-schema/src/types.ts#L7) |
+| <a id="targetpaths"></a> `targetPaths` | `string`[] | [types.ts:8](packages/decompose-zod-schema/src/types.ts#L8) |
 
 ***
 
 ### DecompositionOptions
 
-Defined in: [types.ts:40](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/types.ts#L40)
+Defined in: [types.ts:40](packages/decompose-zod-schema/src/types.ts#L40)
 
 #### Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="maxoptionsperenum"></a> `maxOptionsPerEnum?` | `number` | [types.ts:42](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/types.ts#L42) |
-| <a id="maxtokensperschema"></a> `maxTokensPerSchema?` | `number` | [types.ts:41](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/types.ts#L41) |
+| <a id="maxoptionsperenum"></a> `maxOptionsPerEnum?` | `number` | [types.ts:42](packages/decompose-zod-schema/src/types.ts#L42) |
+| <a id="maxtokensperschema"></a> `maxTokensPerSchema?` | `number` | [types.ts:41](packages/decompose-zod-schema/src/types.ts#L41) |
 
 ***
 
 ### SizeBasedOptions
 
-Defined in: [types.ts:55](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/types.ts#L55)
+Defined in: [types.ts:55](packages/decompose-zod-schema/src/types.ts#L55)
 
 #### Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="maxoptionsperenum-1"></a> `maxOptionsPerEnum` | `number` | [types.ts:57](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/types.ts#L57) |
-| <a id="maxtokensperschema-1"></a> `maxTokensPerSchema` | `number` | [types.ts:56](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/types.ts#L56) |
+| <a id="maxoptionsperenum-1"></a> `maxOptionsPerEnum` | `number` | [types.ts:57](packages/decompose-zod-schema/src/types.ts#L57) |
+| <a id="maxtokensperschema-1"></a> `maxTokensPerSchema` | `number` | [types.ts:56](packages/decompose-zod-schema/src/types.ts#L56) |
 
 ***
 
 ### SuggestionStrategy
 
-Defined in: [types.ts:46](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/types.ts#L46)
+Defined in: [types.ts:46](packages/decompose-zod-schema/src/types.ts#L46)
 
 #### Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="name-3"></a> `name` | `string` | [types.ts:47](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/types.ts#L47) |
+| <a id="name-3"></a> `name` | `string` | [types.ts:47](packages/decompose-zod-schema/src/types.ts#L47) |
 
 #### Methods
 
@@ -476,7 +476,7 @@ Defined in: [types.ts:46](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b
 suggest(schema: ZodObject<Record<string, ZodType<unknown, unknown, $ZodTypeInternals<unknown, unknown>>>>, options?: unknown): SplitPlan;
 ```
 
-Defined in: [types.ts:48](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/types.ts#L48)
+Defined in: [types.ts:48](packages/decompose-zod-schema/src/types.ts#L48)
 
 ###### Parameters
 
@@ -497,7 +497,7 @@ Defined in: [types.ts:48](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b
 type Split = z.infer<typeof splitSchema>;
 ```
 
-Defined in: [types.ts:29](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/types.ts#L29)
+Defined in: [types.ts:29](packages/decompose-zod-schema/src/types.ts#L29)
 
 Split types for the decompose function
 
@@ -525,7 +525,7 @@ const splits: Split[] = [
 type SplitPlan = Split[];
 ```
 
-Defined in: [types.ts:37](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/types.ts#L37)
+Defined in: [types.ts:37](packages/decompose-zod-schema/src/types.ts#L37)
 
 ## Variables
 
@@ -535,7 +535,7 @@ Defined in: [types.ts:37](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b
 const defaultStrategyRegistry: SuggestionStrategyRegistry;
 ```
 
-Defined in: [split-suggestions.ts:199](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/split-suggestions.ts#L199)
+Defined in: [split-suggestions.ts:199](packages/decompose-zod-schema/src/split-suggestions.ts#L199)
 
 Default registry instance
 
@@ -550,7 +550,7 @@ function applyPartialUpdate(
    partialUpdate: unknown): unknown;
 ```
 
-Defined in: [apply.ts:15](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/apply.ts#L15)
+Defined in: [apply.ts:15](packages/decompose-zod-schema/src/apply.ts#L15)
 
 #### Parameters
 
@@ -575,7 +575,7 @@ function conditionalEnumSplit(
    schema: ZodObject<Record<string, ZodType<unknown, unknown, $ZodTypeInternals<unknown, unknown>>>>): string[];
 ```
 
-Defined in: [utils.ts:191](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/utils.ts#L191)
+Defined in: [utils.ts:191](packages/decompose-zod-schema/src/utils.ts#L191)
 
 Helper function to create conditional enum splits based on enum size
 
@@ -601,7 +601,7 @@ function decomposeSchema(schema: ZodObject<Record<string, ZodType<unknown, unkno
   | SplitPlan): DecomposedSchema[];
 ```
 
-Defined in: [decompose.ts:19](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/decompose.ts#L19)
+Defined in: [decompose.ts:19](packages/decompose-zod-schema/src/decompose.ts#L19)
 
 Convenience wrapper function that allows either manual split plan or automatic suggestion
 
@@ -626,7 +626,7 @@ Array of decomposed schemas
 function suggestDecompositionPlan(schema: ZodObject<Record<string, ZodType<unknown, unknown, $ZodTypeInternals<unknown, unknown>>>>, options: SizeBasedOptions): SplitPlan;
 ```
 
-Defined in: [split-suggestions.ts:152](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/split-suggestions.ts#L152)
+Defined in: [split-suggestions.ts:152](packages/decompose-zod-schema/src/split-suggestions.ts#L152)
 
 Default size-based suggestion function
 
@@ -652,7 +652,7 @@ function suggestWithStrategy(
    options: unknown): SplitPlan;
 ```
 
-Defined in: [split-suggestions.ts:204](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/split-suggestions.ts#L204)
+Defined in: [split-suggestions.ts:204](packages/decompose-zod-schema/src/split-suggestions.ts#L204)
 
 Convenience function that uses the default registry
 
@@ -676,7 +676,7 @@ Convenience function that uses the default registry
 function validatePlan(plan: SplitPlan, schema: ZodObject<Record<string, ZodType<unknown, unknown, $ZodTypeInternals<unknown, unknown>>>>): string[];
 ```
 
-Defined in: [validate.ts:6](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/decompose-zod-schema/src/validate.ts#L6)
+Defined in: [validate.ts:6](packages/decompose-zod-schema/src/validate.ts#L6)
 
 #### Parameters
 

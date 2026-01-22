@@ -4,7 +4,7 @@
 
 ### `abstract` BaseTool
 
-Defined in: [base.ts:4](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/tools/src/base.ts#L4)
+Defined in: [base.ts:4](packages/tools/src/base.ts#L4)
 
 #### Type Parameters
 
@@ -35,7 +35,7 @@ new BaseTool<TInput, TOutput>(): BaseTool<TInput, TOutput>;
 get definition(): ToolDefinition;
 ```
 
-Defined in: [base.ts:14](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/tools/src/base.ts#L14)
+Defined in: [base.ts:14](packages/tools/src/base.ts#L14)
 
 ###### Returns
 
@@ -49,7 +49,7 @@ Defined in: [base.ts:14](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b2
 get abstract description(): string;
 ```
 
-Defined in: [base.ts:9](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/tools/src/base.ts#L9)
+Defined in: [base.ts:9](packages/tools/src/base.ts#L9)
 
 ###### Returns
 
@@ -63,7 +63,7 @@ Defined in: [base.ts:9](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25
 get abstract handler(): (params: output<TInput>) => output<TOutput> | Promise<output<TOutput>>;
 ```
 
-Defined in: [base.ts:12](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/tools/src/base.ts#L12)
+Defined in: [base.ts:12](packages/tools/src/base.ts#L12)
 
 ###### Returns
 
@@ -89,7 +89,7 @@ Defined in: [base.ts:12](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b2
 get abstract inputSchema(): TInput | undefined;
 ```
 
-Defined in: [base.ts:10](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/tools/src/base.ts#L10)
+Defined in: [base.ts:10](packages/tools/src/base.ts#L10)
 
 ###### Returns
 
@@ -103,7 +103,7 @@ Defined in: [base.ts:10](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b2
 get abstract name(): string;
 ```
 
-Defined in: [base.ts:8](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/tools/src/base.ts#L8)
+Defined in: [base.ts:8](packages/tools/src/base.ts#L8)
 
 ###### Returns
 
@@ -117,7 +117,7 @@ Defined in: [base.ts:8](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25
 get abstract outputSchema(): TOutput;
 ```
 
-Defined in: [base.ts:11](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/tools/src/base.ts#L11)
+Defined in: [base.ts:11](packages/tools/src/base.ts#L11)
 
 ###### Returns
 

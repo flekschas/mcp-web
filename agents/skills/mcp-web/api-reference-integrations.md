@@ -4,27 +4,27 @@
 
 ### MCPWebContextValue
 
-Defined in: integrations/react/src/mcp-web-context.ts:4
+Defined in: [integrations/react/src/mcp-web-context.ts:4](packages/integrations/react/src/mcp-web-context.ts#L4)
 
 #### Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="isconnected"></a> `isConnected` | `boolean` | integrations/react/src/mcp-web-context.ts:6 |
-| <a id="mcpweb"></a> `mcpWeb` | `MCPWeb` | integrations/react/src/mcp-web-context.ts:5 |
+| <a id="isconnected"></a> `isConnected` | `boolean` | [integrations/react/src/mcp-web-context.ts:6](packages/integrations/react/src/mcp-web-context.ts#L6) |
+| <a id="mcpweb"></a> `mcpWeb` | `MCPWeb` | [integrations/react/src/mcp-web-context.ts:5](packages/integrations/react/src/mcp-web-context.ts#L5) |
 
 ***
 
 ### MCPWebProviderPropsWithConfig
 
-Defined in: integrations/react/src/mcp-web-provider.ts:7
+Defined in: [integrations/react/src/mcp-web-provider.ts:7](packages/integrations/react/src/mcp-web-provider.ts#L7)
 
 #### Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="children"></a> `children` | `ReactNode` | integrations/react/src/mcp-web-provider.ts:8 |
-| <a id="config"></a> `config` | \{ `agentUrl?`: `string`; `authToken?`: `string`; `autoConnect?`: `boolean`; `description`: `string`; `host?`: `string`; `icon?`: `string`; `maxInFlightQueriesPerToken?`: `number`; `maxSessionsPerToken?`: `number`; `mcpPort?`: `number`; `name`: `string`; `onSessionLimitExceeded?`: `"reject"` \| `"close_oldest"`; `persistAuthToken?`: `boolean`; `sessionMaxDurationMs?`: `number`; `wsPort?`: `number`; \} | integrations/react/src/mcp-web-provider.ts:9 |
+| <a id="children"></a> `children` | `ReactNode` | [integrations/react/src/mcp-web-provider.ts:8](packages/integrations/react/src/mcp-web-provider.ts#L8) |
+| <a id="config"></a> `config` | \{ `agentUrl?`: `string`; `authToken?`: `string`; `autoConnect?`: `boolean`; `description`: `string`; `host?`: `string`; `icon?`: `string`; `maxInFlightQueriesPerToken?`: `number`; `maxSessionsPerToken?`: `number`; `mcpPort?`: `number`; `name`: `string`; `onSessionLimitExceeded?`: `"reject"` \| `"close_oldest"`; `persistAuthToken?`: `boolean`; `sessionMaxDurationMs?`: `number`; `wsPort?`: `number`; \} | [integrations/react/src/mcp-web-provider.ts:9](packages/integrations/react/src/mcp-web-provider.ts#L9) |
 | `config.agentUrl?` | `string` | types/dist/config.d.ts:9 |
 | `config.authToken?` | `string` | types/dist/config.d.ts:10 |
 | `config.autoConnect?` | `boolean` | types/dist/config.d.ts:12 |
@@ -44,14 +44,14 @@ Defined in: integrations/react/src/mcp-web-provider.ts:7
 
 ### MCPWebProviderPropsWithInstance
 
-Defined in: integrations/react/src/mcp-web-provider.ts:12
+Defined in: [integrations/react/src/mcp-web-provider.ts:12](packages/integrations/react/src/mcp-web-provider.ts#L12)
 
 #### Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="children-1"></a> `children` | `ReactNode` | integrations/react/src/mcp-web-provider.ts:13 |
-| <a id="mcpweb-1"></a> `mcpWeb` | `MCPWeb` | integrations/react/src/mcp-web-provider.ts:14 |
+| <a id="children-1"></a> `children` | `ReactNode` | [integrations/react/src/mcp-web-provider.ts:13](packages/integrations/react/src/mcp-web-provider.ts#L13) |
+| <a id="mcpweb-1"></a> `mcpWeb` | `MCPWeb` | [integrations/react/src/mcp-web-provider.ts:14](packages/integrations/react/src/mcp-web-provider.ts#L14) |
 
 ## Type Aliases
 
@@ -63,7 +63,7 @@ type MCPWebProviderProps =
   | MCPWebProviderPropsWithInstance;
 ```
 
-Defined in: integrations/react/src/mcp-web-provider.ts:17
+Defined in: [integrations/react/src/mcp-web-provider.ts:17](packages/integrations/react/src/mcp-web-provider.ts#L17)
 
 ***
 
@@ -73,7 +73,7 @@ Defined in: integrations/react/src/mcp-web-provider.ts:17
 type RegisterableTool = CreatedTool | CreatedStateTools<any> | ToolDefinition;
 ```
 
-Defined in: integrations/react/src/use-tools.ts:11
+Defined in: [integrations/react/src/use-tools.ts:11](packages/integrations/react/src/use-tools.ts#L11)
 
 A tool that can be registered with useTools.
 Can be a CreatedTool, CreatedStateTools, or a raw ToolDefinition.
@@ -86,7 +86,7 @@ Can be a CreatedTool, CreatedStateTools, or a raw ToolDefinition.
 function MCPWebProvider(__namedParameters: MCPWebProviderProps): FunctionComponentElement<ProviderProps<MCPWebContextValue | null>>;
 ```
 
-Defined in: integrations/react/src/mcp-web-provider.ts:34
+Defined in: [integrations/react/src/mcp-web-provider.ts:34](packages/integrations/react/src/mcp-web-provider.ts#L34)
 
 Provider component for sharing MCPWeb instance across component tree.
 Handles MCPWeb instantiation and connection lifecycle automatically.
@@ -121,7 +121,7 @@ function Root() {
 function useMCPWeb(): MCPWebContextValue;
 ```
 
-Defined in: integrations/react/src/use-mcp-web.ts:19
+Defined in: [integrations/react/src/use-mcp-web.ts:19](packages/integrations/react/src/use-mcp-web.ts#L19)
 
 Hook for accessing MCPWeb instance from context.
 Must be used within MCPWebProvider.
@@ -157,7 +157,7 @@ function useTools(...tools: (
   | RegisterableTool[])[]): void;
 ```
 
-Defined in: integrations/react/src/use-tools.ts:85
+Defined in: [integrations/react/src/use-tools.ts:85](packages/integrations/react/src/use-tools.ts#L85)
 
 Hook for registering pre-created tools with automatic cleanup on unmount.
 
@@ -241,7 +241,7 @@ function useTools(mcpWeb: MCPWeb, ...tools: (
   | RegisterableTool[])[]): void;
 ```
 
-Defined in: integrations/react/src/use-tools.ts:89
+Defined in: [integrations/react/src/use-tools.ts:89](packages/integrations/react/src/use-tools.ts#L89)
 
 Hook for registering pre-created tools with automatic cleanup on unmount.
 

@@ -4,7 +4,7 @@
 
 ### AlarmScheduler
 
-Defined in: packages/bridge/src/adapters/partykit.ts:134
+Defined in: [packages/bridge/src/adapters/partykit.ts:134](packages/bridge/src/adapters/partykit.ts#L134)
 
 Scheduler implementation using PartyKit alarms.
 
@@ -27,7 +27,7 @@ https://docs.partykit.io/guides/scheduling-tasks-with-alarms/
 new AlarmScheduler(room: PartyRoom): AlarmScheduler;
 ```
 
-Defined in: packages/bridge/src/adapters/partykit.ts:140
+Defined in: [packages/bridge/src/adapters/partykit.ts:140](packages/bridge/src/adapters/partykit.ts#L140)
 
 ###### Parameters
 
@@ -47,7 +47,7 @@ Defined in: packages/bridge/src/adapters/partykit.ts:140
 cancel(id: string): void;
 ```
 
-Defined in: packages/bridge/src/adapters/partykit.ts:152
+Defined in: [packages/bridge/src/adapters/partykit.ts:152](packages/bridge/src/adapters/partykit.ts#L152)
 
 Cancel a scheduled one-time callback.
 
@@ -71,7 +71,7 @@ Cancel a scheduled one-time callback.
 cancelInterval(id: string): void;
 ```
 
-Defined in: packages/bridge/src/adapters/partykit.ts:165
+Defined in: [packages/bridge/src/adapters/partykit.ts:165](packages/bridge/src/adapters/partykit.ts#L165)
 
 Cancel a repeating callback.
 
@@ -95,7 +95,7 @@ Cancel a repeating callback.
 dispose(): void;
 ```
 
-Defined in: packages/bridge/src/adapters/partykit.ts:170
+Defined in: [packages/bridge/src/adapters/partykit.ts:170](packages/bridge/src/adapters/partykit.ts#L170)
 
 Clean up all scheduled tasks.
 Called when the bridge is shutting down.
@@ -114,7 +114,7 @@ Called when the bridge is shutting down.
 handleAlarm(): Promise<void>;
 ```
 
-Defined in: packages/bridge/src/adapters/partykit.ts:180
+Defined in: [packages/bridge/src/adapters/partykit.ts:180](packages/bridge/src/adapters/partykit.ts#L180)
 
 Called by the PartyKit server's onAlarm() handler.
 Executes due callbacks and reschedules the next alarm.
@@ -129,7 +129,7 @@ Executes due callbacks and reschedules the next alarm.
 schedule(callback: () => void, delayMs: number): string;
 ```
 
-Defined in: packages/bridge/src/adapters/partykit.ts:144
+Defined in: [packages/bridge/src/adapters/partykit.ts:144](packages/bridge/src/adapters/partykit.ts#L144)
 
 Schedule a one-time callback after a delay.
 
@@ -156,7 +156,7 @@ An ID that can be used to cancel the scheduled callback
 scheduleInterval(callback: () => void, intervalMs: number): string;
 ```
 
-Defined in: packages/bridge/src/adapters/partykit.ts:157
+Defined in: [packages/bridge/src/adapters/partykit.ts:157](packages/bridge/src/adapters/partykit.ts#L157)
 
 Schedule a repeating callback.
 
@@ -181,7 +181,7 @@ An ID that can be used to cancel the interval
 
 ### ~~MCPWebBridge~~
 
-Defined in: packages/bridge/src/core.ts:221
+Defined in: [packages/bridge/src/core.ts:221](packages/bridge/src/core.ts#L221)
 
 #### Deprecated
 
@@ -210,7 +210,7 @@ new MCPWebBridge(config: {
 }, scheduler?: Scheduler): MCPWebBridge;
 ```
 
-Defined in: packages/bridge/src/core.ts:235
+Defined in: [packages/bridge/src/core.ts:235](packages/bridge/src/core.ts#L235)
 
 ###### Parameters
 
@@ -262,7 +262,7 @@ get config(): {
 };
 ```
 
-Defined in: packages/bridge/src/core.ts:255
+Defined in: [packages/bridge/src/core.ts:255](packages/bridge/src/core.ts#L255)
 
 Get the configuration (read-only)
 
@@ -312,7 +312,7 @@ Get the configuration (read-only)
 close(): Promise<void>;
 ```
 
-Defined in: packages/bridge/src/core.ts:276
+Defined in: [packages/bridge/src/core.ts:276](packages/bridge/src/core.ts#L276)
 
 Graceful shutdown - cleanup all sessions and scheduled tasks.
 
@@ -326,7 +326,7 @@ Graceful shutdown - cleanup all sessions and scheduled tasks.
 getHandlers(): BridgeHandlers;
 ```
 
-Defined in: packages/bridge/src/core.ts:262
+Defined in: [packages/bridge/src/core.ts:262](packages/bridge/src/core.ts#L262)
 
 Returns handlers for adapters to wire up to their runtime's I/O.
 
@@ -338,7 +338,7 @@ Returns handlers for adapters to wire up to their runtime's I/O.
 
 ### MCPWebBridgeBun
 
-Defined in: packages/bridge/src/adapters/bun.ts:171
+Defined in: [packages/bridge/src/adapters/bun.ts:171](packages/bridge/src/adapters/bun.ts#L171)
 
 Bun adapter for MCPWebBridge.
 Provides a single-port server using Bun.serve() with native WebSocket support.
@@ -361,7 +361,7 @@ const bridge = new MCPWebBridgeBun({
 new MCPWebBridgeBun(config: MCPWebBridgeBunConfig): MCPWebBridgeBun;
 ```
 
-Defined in: packages/bridge/src/adapters/bun.ts:178
+Defined in: [packages/bridge/src/adapters/bun.ts:178](packages/bridge/src/adapters/bun.ts#L178)
 
 ###### Parameters
 
@@ -383,7 +383,7 @@ Defined in: packages/bridge/src/adapters/bun.ts:178
 get core(): MCPWebBridge;
 ```
 
-Defined in: packages/bridge/src/adapters/bun.ts:293
+Defined in: [packages/bridge/src/adapters/bun.ts:293](packages/bridge/src/adapters/bun.ts#L293)
 
 Get the underlying MCPWebBridge core instance.
 
@@ -399,7 +399,7 @@ Get the underlying MCPWebBridge core instance.
 get port(): number;
 ```
 
-Defined in: packages/bridge/src/adapters/bun.ts:307
+Defined in: [packages/bridge/src/adapters/bun.ts:307](packages/bridge/src/adapters/bun.ts#L307)
 
 Get the port the server is listening on.
 
@@ -415,7 +415,7 @@ Get the port the server is listening on.
 close(): Promise<void>;
 ```
 
-Defined in: packages/bridge/src/adapters/bun.ts:314
+Defined in: [packages/bridge/src/adapters/bun.ts:314](packages/bridge/src/adapters/bun.ts#L314)
 
 Gracefully shut down the bridge.
 
@@ -429,7 +429,7 @@ Gracefully shut down the bridge.
 getHandlers(): BridgeHandlers;
 ```
 
-Defined in: packages/bridge/src/adapters/bun.ts:300
+Defined in: [packages/bridge/src/adapters/bun.ts:300](packages/bridge/src/adapters/bun.ts#L300)
 
 Get the bridge handlers for custom integrations.
 
@@ -441,7 +441,7 @@ Get the bridge handlers for custom integrations.
 
 ### MCPWebBridgeDeno
 
-Defined in: packages/bridge/src/adapters/deno.ts:141
+Defined in: [packages/bridge/src/adapters/deno.ts:141](packages/bridge/src/adapters/deno.ts#L141)
 
 Deno adapter for MCPWebBridge.
 Provides a single-port server using Deno.serve() with WebSocket upgrade.
@@ -464,7 +464,7 @@ const bridge = new MCPWebBridgeDeno({
 new MCPWebBridgeDeno(config: MCPWebBridgeDenoConfig): MCPWebBridgeDeno;
 ```
 
-Defined in: packages/bridge/src/adapters/deno.ts:147
+Defined in: [packages/bridge/src/adapters/deno.ts:147](packages/bridge/src/adapters/deno.ts#L147)
 
 ###### Parameters
 
@@ -486,7 +486,7 @@ Defined in: packages/bridge/src/adapters/deno.ts:147
 get core(): MCPWebBridge;
 ```
 
-Defined in: packages/bridge/src/adapters/deno.ts:221
+Defined in: [packages/bridge/src/adapters/deno.ts:221](packages/bridge/src/adapters/deno.ts#L221)
 
 Get the underlying MCPWebBridge core instance.
 
@@ -502,7 +502,7 @@ Get the underlying MCPWebBridge core instance.
 get port(): number;
 ```
 
-Defined in: packages/bridge/src/adapters/deno.ts:235
+Defined in: [packages/bridge/src/adapters/deno.ts:235](packages/bridge/src/adapters/deno.ts#L235)
 
 Get the port the server is listening on.
 
@@ -518,7 +518,7 @@ Get the port the server is listening on.
 close(): Promise<void>;
 ```
 
-Defined in: packages/bridge/src/adapters/deno.ts:242
+Defined in: [packages/bridge/src/adapters/deno.ts:242](packages/bridge/src/adapters/deno.ts#L242)
 
 Gracefully shut down the bridge.
 
@@ -532,7 +532,7 @@ Gracefully shut down the bridge.
 getHandlers(): BridgeHandlers;
 ```
 
-Defined in: packages/bridge/src/adapters/deno.ts:228
+Defined in: [packages/bridge/src/adapters/deno.ts:228](packages/bridge/src/adapters/deno.ts#L228)
 
 Get the bridge handlers for custom integrations.
 
@@ -544,7 +544,7 @@ Get the bridge handlers for custom integrations.
 
 ### MCPWebBridgeNode
 
-Defined in: packages/bridge/src/adapters/node.ts:104
+Defined in: [packages/bridge/src/adapters/node.ts:104](packages/bridge/src/adapters/node.ts#L104)
 
 Node.js adapter for MCPWebBridge.
 Provides a single-port server for both WebSocket and HTTP traffic.
@@ -557,7 +557,7 @@ Provides a single-port server for both WebSocket and HTTP traffic.
 new MCPWebBridgeNode(config: MCPWebBridgeNodeConfig): MCPWebBridgeNode;
 ```
 
-Defined in: packages/bridge/src/adapters/node.ts:111
+Defined in: [packages/bridge/src/adapters/node.ts:111](packages/bridge/src/adapters/node.ts#L111)
 
 ###### Parameters
 
@@ -579,7 +579,7 @@ Defined in: packages/bridge/src/adapters/node.ts:111
 get core(): MCPWebBridge;
 ```
 
-Defined in: packages/bridge/src/adapters/node.ts:184
+Defined in: [packages/bridge/src/adapters/node.ts:184](packages/bridge/src/adapters/node.ts#L184)
 
 Get the underlying MCPWebBridge core instance.
 Useful for advanced usage or custom integrations.
@@ -596,7 +596,7 @@ Useful for advanced usage or custom integrations.
 get port(): number;
 ```
 
-Defined in: packages/bridge/src/adapters/node.ts:198
+Defined in: [packages/bridge/src/adapters/node.ts:198](packages/bridge/src/adapters/node.ts#L198)
 
 Get the port the server is listening on.
 
@@ -612,7 +612,7 @@ Get the port the server is listening on.
 close(): Promise<void>;
 ```
 
-Defined in: packages/bridge/src/adapters/node.ts:205
+Defined in: [packages/bridge/src/adapters/node.ts:205](packages/bridge/src/adapters/node.ts#L205)
 
 Gracefully shut down the bridge.
 
@@ -626,7 +626,7 @@ Gracefully shut down the bridge.
 getHandlers(): BridgeHandlers;
 ```
 
-Defined in: packages/bridge/src/adapters/node.ts:191
+Defined in: [packages/bridge/src/adapters/node.ts:191](packages/bridge/src/adapters/node.ts#L191)
 
 Get the bridge handlers for custom integrations.
 
@@ -638,7 +638,7 @@ Get the bridge handlers for custom integrations.
 
 ### NoopScheduler
 
-Defined in: packages/bridge/src/runtime/scheduler.ts:110
+Defined in: [packages/bridge/src/runtime/scheduler.ts:110](packages/bridge/src/runtime/scheduler.ts#L110)
 
 No-op scheduler for environments where timing isn't needed or supported.
 Callbacks are simply not executed.
@@ -667,7 +667,7 @@ new NoopScheduler(): NoopScheduler;
 cancel(_id: string): void;
 ```
 
-Defined in: packages/bridge/src/runtime/scheduler.ts:115
+Defined in: [packages/bridge/src/runtime/scheduler.ts:115](packages/bridge/src/runtime/scheduler.ts#L115)
 
 Cancel a scheduled one-time callback.
 
@@ -691,7 +691,7 @@ Cancel a scheduled one-time callback.
 cancelInterval(_id: string): void;
 ```
 
-Defined in: packages/bridge/src/runtime/scheduler.ts:123
+Defined in: [packages/bridge/src/runtime/scheduler.ts:123](packages/bridge/src/runtime/scheduler.ts#L123)
 
 Cancel a repeating callback.
 
@@ -715,7 +715,7 @@ Cancel a repeating callback.
 dispose(): void;
 ```
 
-Defined in: packages/bridge/src/runtime/scheduler.ts:127
+Defined in: [packages/bridge/src/runtime/scheduler.ts:127](packages/bridge/src/runtime/scheduler.ts#L127)
 
 Clean up all scheduled tasks.
 Called when the bridge is shutting down.
@@ -734,7 +734,7 @@ Called when the bridge is shutting down.
 schedule(_callback: () => void, _delayMs: number): string;
 ```
 
-Defined in: packages/bridge/src/runtime/scheduler.ts:111
+Defined in: [packages/bridge/src/runtime/scheduler.ts:111](packages/bridge/src/runtime/scheduler.ts#L111)
 
 Schedule a one-time callback after a delay.
 
@@ -761,7 +761,7 @@ An ID that can be used to cancel the scheduled callback
 scheduleInterval(_callback: () => void, _intervalMs: number): string;
 ```
 
-Defined in: packages/bridge/src/runtime/scheduler.ts:119
+Defined in: [packages/bridge/src/runtime/scheduler.ts:119](packages/bridge/src/runtime/scheduler.ts#L119)
 
 Schedule a repeating callback.
 
@@ -786,7 +786,7 @@ An ID that can be used to cancel the interval
 
 ### TimerScheduler
 
-Defined in: packages/bridge/src/runtime/scheduler.ts:56
+Defined in: [packages/bridge/src/runtime/scheduler.ts:56](packages/bridge/src/runtime/scheduler.ts#L56)
 
 Timer-based scheduler using setTimeout/setInterval.
 Works with Node.js, Deno, and Bun.
@@ -815,7 +815,7 @@ new TimerScheduler(): TimerScheduler;
 cancel(id: string): void;
 ```
 
-Defined in: packages/bridge/src/runtime/scheduler.ts:70
+Defined in: [packages/bridge/src/runtime/scheduler.ts:70](packages/bridge/src/runtime/scheduler.ts#L70)
 
 Cancel a scheduled one-time callback.
 
@@ -839,7 +839,7 @@ Cancel a scheduled one-time callback.
 cancelInterval(id: string): void;
 ```
 
-Defined in: packages/bridge/src/runtime/scheduler.ts:85
+Defined in: [packages/bridge/src/runtime/scheduler.ts:85](packages/bridge/src/runtime/scheduler.ts#L85)
 
 Cancel a repeating callback.
 
@@ -863,7 +863,7 @@ Cancel a repeating callback.
 dispose(): void;
 ```
 
-Defined in: packages/bridge/src/runtime/scheduler.ts:93
+Defined in: [packages/bridge/src/runtime/scheduler.ts:93](packages/bridge/src/runtime/scheduler.ts#L93)
 
 Clean up all scheduled tasks.
 Called when the bridge is shutting down.
@@ -882,7 +882,7 @@ Called when the bridge is shutting down.
 schedule(callback: () => void, delayMs: number): string;
 ```
 
-Defined in: packages/bridge/src/runtime/scheduler.ts:60
+Defined in: [packages/bridge/src/runtime/scheduler.ts:60](packages/bridge/src/runtime/scheduler.ts#L60)
 
 Schedule a one-time callback after a delay.
 
@@ -909,7 +909,7 @@ An ID that can be used to cancel the scheduled callback
 scheduleInterval(callback: () => void, intervalMs: number): string;
 ```
 
-Defined in: packages/bridge/src/runtime/scheduler.ts:78
+Defined in: [packages/bridge/src/runtime/scheduler.ts:78](packages/bridge/src/runtime/scheduler.ts#L78)
 
 Schedule a repeating callback.
 
@@ -934,53 +934,53 @@ An ID that can be used to cancel the interval
 
 ### ActivityMessage
 
-Defined in: [packages/bridge/src/types.ts:42](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L42)
+Defined in: [packages/bridge/src/types.ts:42](packages/bridge/src/types.ts#L42)
 
 #### Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="timestamp"></a> `timestamp` | `number` | [packages/bridge/src/types.ts:44](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L44) |
-| <a id="type"></a> `type` | `"activity"` | [packages/bridge/src/types.ts:43](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L43) |
+| <a id="timestamp"></a> `timestamp` | `number` | [packages/bridge/src/types.ts:44](packages/bridge/src/types.ts#L44) |
+| <a id="type"></a> `type` | `"activity"` | [packages/bridge/src/types.ts:43](packages/bridge/src/types.ts#L43) |
 
 ***
 
 ### AuthenticatedMessage
 
-Defined in: [packages/bridge/src/types.ts:25](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L25)
+Defined in: [packages/bridge/src/types.ts:25](packages/bridge/src/types.ts#L25)
 
 #### Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="mcpport"></a> `mcpPort?` | `number` | [packages/bridge/src/types.ts:27](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L27) |
-| <a id="sessionid"></a> `sessionId` | `string` | [packages/bridge/src/types.ts:28](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L28) |
-| <a id="success"></a> `success` | `boolean` | [packages/bridge/src/types.ts:29](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L29) |
-| <a id="type-1"></a> `type` | `"authenticated"` | [packages/bridge/src/types.ts:26](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L26) |
+| <a id="mcpport"></a> `mcpPort?` | `number` | [packages/bridge/src/types.ts:27](packages/bridge/src/types.ts#L27) |
+| <a id="sessionid"></a> `sessionId` | `string` | [packages/bridge/src/types.ts:28](packages/bridge/src/types.ts#L28) |
+| <a id="success"></a> `success` | `boolean` | [packages/bridge/src/types.ts:29](packages/bridge/src/types.ts#L29) |
+| <a id="type-1"></a> `type` | `"authenticated"` | [packages/bridge/src/types.ts:26](packages/bridge/src/types.ts#L26) |
 
 ***
 
 ### AuthenticateMessage
 
-Defined in: [packages/bridge/src/types.ts:15](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L15)
+Defined in: [packages/bridge/src/types.ts:15](packages/bridge/src/types.ts#L15)
 
 #### Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="authtoken"></a> `authToken` | `string` | [packages/bridge/src/types.ts:18](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L18) |
-| <a id="origin"></a> `origin` | `string` | [packages/bridge/src/types.ts:19](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L19) |
-| <a id="pagetitle"></a> `pageTitle?` | `string` | [packages/bridge/src/types.ts:20](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L20) |
-| <a id="sessionid-1"></a> `sessionId` | `string` | [packages/bridge/src/types.ts:17](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L17) |
-| <a id="timestamp-1"></a> `timestamp` | `number` | [packages/bridge/src/types.ts:22](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L22) |
-| <a id="type-2"></a> `type` | `"authenticate"` | [packages/bridge/src/types.ts:16](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L16) |
-| <a id="useragent"></a> `userAgent?` | `string` | [packages/bridge/src/types.ts:21](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L21) |
+| <a id="authtoken"></a> `authToken` | `string` | [packages/bridge/src/types.ts:18](packages/bridge/src/types.ts#L18) |
+| <a id="origin"></a> `origin` | `string` | [packages/bridge/src/types.ts:19](packages/bridge/src/types.ts#L19) |
+| <a id="pagetitle"></a> `pageTitle?` | `string` | [packages/bridge/src/types.ts:20](packages/bridge/src/types.ts#L20) |
+| <a id="sessionid-1"></a> `sessionId` | `string` | [packages/bridge/src/types.ts:17](packages/bridge/src/types.ts#L17) |
+| <a id="timestamp-1"></a> `timestamp` | `number` | [packages/bridge/src/types.ts:22](packages/bridge/src/types.ts#L22) |
+| <a id="type-2"></a> `type` | `"authenticate"` | [packages/bridge/src/types.ts:16](packages/bridge/src/types.ts#L16) |
+| <a id="useragent"></a> `userAgent?` | `string` | [packages/bridge/src/types.ts:21](packages/bridge/src/types.ts#L21) |
 
 ***
 
 ### BridgeAdapterConfig
 
-Defined in: packages/bridge/src/runtime/types.ts:103
+Defined in: [packages/bridge/src/runtime/types.ts:103](packages/bridge/src/runtime/types.ts#L103)
 
 Configuration for bridge adapters.
 Extends the base MCPWebConfig with adapter-specific options.
@@ -989,14 +989,14 @@ Extends the base MCPWebConfig with adapter-specific options.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="host"></a> `host?` | `string` | Host to bind to | packages/bridge/src/runtime/types.ts:108 |
-| <a id="port-3"></a> `port?` | `number` | Port to listen on (single port for both HTTP and WebSocket) | packages/bridge/src/runtime/types.ts:105 |
+| <a id="host"></a> `host?` | `string` | Host to bind to | [packages/bridge/src/runtime/types.ts:108](packages/bridge/src/runtime/types.ts#L108) |
+| <a id="port-3"></a> `port?` | `number` | Port to listen on (single port for both HTTP and WebSocket) | [packages/bridge/src/runtime/types.ts:105](packages/bridge/src/runtime/types.ts#L105) |
 
 ***
 
 ### BridgeHandlers
 
-Defined in: packages/bridge/src/runtime/types.ts:67
+Defined in: [packages/bridge/src/runtime/types.ts:67](packages/bridge/src/runtime/types.ts#L67)
 
 Handlers that the bridge core provides to adapters.
 Adapters wire these up to their runtime's native APIs.
@@ -1009,7 +1009,7 @@ Adapters wire these up to their runtime's native APIs.
 onHttpRequest(req: HttpRequest): Promise<HttpResponse>;
 ```
 
-Defined in: packages/bridge/src/runtime/types.ts:96
+Defined in: [packages/bridge/src/runtime/types.ts:96](packages/bridge/src/runtime/types.ts#L96)
 
 Called for HTTP requests (MCP JSON-RPC, query endpoints, etc.)
 
@@ -1031,7 +1031,7 @@ The response to send
 onWebSocketClose(sessionId: string): void;
 ```
 
-Defined in: packages/bridge/src/runtime/types.ts:89
+Defined in: [packages/bridge/src/runtime/types.ts:89](packages/bridge/src/runtime/types.ts#L89)
 
 Called when a WebSocket connection closes.
 
@@ -1054,7 +1054,7 @@ onWebSocketConnect(
    url: URL): boolean;
 ```
 
-Defined in: packages/bridge/src/runtime/types.ts:75
+Defined in: [packages/bridge/src/runtime/types.ts:75](packages/bridge/src/runtime/types.ts#L75)
 
 Called when a WebSocket connection is established.
 
@@ -1081,7 +1081,7 @@ onWebSocketMessage(
    data: string): void;
 ```
 
-Defined in: packages/bridge/src/runtime/types.ts:83
+Defined in: [packages/bridge/src/runtime/types.ts:83](packages/bridge/src/runtime/types.ts#L83)
 
 Called when a WebSocket message is received.
 
@@ -1101,7 +1101,7 @@ Called when a WebSocket message is received.
 
 ### HttpRequest
 
-Defined in: packages/bridge/src/runtime/types.ts:32
+Defined in: [packages/bridge/src/runtime/types.ts:32](packages/bridge/src/runtime/types.ts#L32)
 
 Runtime-agnostic HTTP request.
 Abstracts differences between Node.js IncomingMessage, Deno Request, etc.
@@ -1110,10 +1110,10 @@ Abstracts differences between Node.js IncomingMessage, Deno Request, etc.
 
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="headers"></a> `headers` | `readonly` | \{ `get`: `string` \| `null`; \} | Request headers | packages/bridge/src/runtime/types.ts:40 |
-| `headers.get` | `public` | `string` \| `null` | - | packages/bridge/src/runtime/types.ts:41 |
-| <a id="method"></a> `method` | `readonly` | `string` | HTTP method (GET, POST, PUT, etc.) | packages/bridge/src/runtime/types.ts:34 |
-| <a id="url"></a> `url` | `readonly` | `string` | Full URL string | packages/bridge/src/runtime/types.ts:37 |
+| <a id="headers"></a> `headers` | `readonly` | \{ `get`: `string` \| `null`; \} | Request headers | [packages/bridge/src/runtime/types.ts:40](packages/bridge/src/runtime/types.ts#L40) |
+| `headers.get` | `public` | `string` \| `null` | - | [packages/bridge/src/runtime/types.ts:41](packages/bridge/src/runtime/types.ts#L41) |
+| <a id="method"></a> `method` | `readonly` | `string` | HTTP method (GET, POST, PUT, etc.) | [packages/bridge/src/runtime/types.ts:34](packages/bridge/src/runtime/types.ts#L34) |
+| <a id="url"></a> `url` | `readonly` | `string` | Full URL string | [packages/bridge/src/runtime/types.ts:37](packages/bridge/src/runtime/types.ts#L37) |
 
 #### Methods
 
@@ -1123,7 +1123,7 @@ Abstracts differences between Node.js IncomingMessage, Deno Request, etc.
 text(): Promise<string>;
 ```
 
-Defined in: packages/bridge/src/runtime/types.ts:45
+Defined in: [packages/bridge/src/runtime/types.ts:45](packages/bridge/src/runtime/types.ts#L45)
 
 Get the request body as text
 
@@ -1135,7 +1135,7 @@ Get the request body as text
 
 ### HttpResponse
 
-Defined in: packages/bridge/src/runtime/types.ts:52
+Defined in: [packages/bridge/src/runtime/types.ts:52](packages/bridge/src/runtime/types.ts#L52)
 
 Runtime-agnostic HTTP response.
 Used to construct responses that adapters convert to native format.
@@ -1144,15 +1144,15 @@ Used to construct responses that adapters convert to native format.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="body"></a> `body` | `string` | Response body | packages/bridge/src/runtime/types.ts:60 |
-| <a id="headers-1"></a> `headers` | `Record`\<`string`, `string`\> | Response headers | packages/bridge/src/runtime/types.ts:57 |
-| <a id="status"></a> `status` | `number` | HTTP status code | packages/bridge/src/runtime/types.ts:54 |
+| <a id="body"></a> `body` | `string` | Response body | [packages/bridge/src/runtime/types.ts:60](packages/bridge/src/runtime/types.ts#L60) |
+| <a id="headers-1"></a> `headers` | `Record`\<`string`, `string`\> | Response headers | [packages/bridge/src/runtime/types.ts:57](packages/bridge/src/runtime/types.ts#L57) |
+| <a id="status"></a> `status` | `number` | HTTP status code | [packages/bridge/src/runtime/types.ts:54](packages/bridge/src/runtime/types.ts#L54) |
 
 ***
 
 ### MCPWebBridgeBunConfig
 
-Defined in: packages/bridge/src/adapters/bun.ts:60
+Defined in: [packages/bridge/src/adapters/bun.ts:60](packages/bridge/src/adapters/bun.ts#L60)
 
 Configuration for the Bun bridge adapter.
 
@@ -1169,7 +1169,7 @@ Configuration for the Bun bridge adapter.
 | <a id="autoconnect"></a> `autoConnect?` | `boolean` | - | `MCPWebConfig.autoConnect` | packages/types/dist/config.d.ts:12 |
 | <a id="description"></a> `description` | `string` | - | `MCPWebConfig.description` | packages/types/dist/config.d.ts:4 |
 | <a id="host-1"></a> `host?` | `string` | - | `MCPWebConfig.host` | packages/types/dist/config.d.ts:5 |
-| <a id="hostname"></a> `hostname?` | `string` | Hostname to bind to (default: '0.0.0.0') | - | packages/bridge/src/adapters/bun.ts:65 |
+| <a id="hostname"></a> `hostname?` | `string` | Hostname to bind to (default: '0.0.0.0') | - | [packages/bridge/src/adapters/bun.ts:65](packages/bridge/src/adapters/bun.ts#L65) |
 | <a id="icon"></a> `icon?` | `string` | - | `MCPWebConfig.icon` | packages/types/dist/config.d.ts:8 |
 | <a id="maxinflightqueriespertoken"></a> `maxInFlightQueriesPerToken?` | `number` | - | `MCPWebConfig.maxInFlightQueriesPerToken` | packages/types/dist/config.d.ts:18 |
 | <a id="maxsessionspertoken"></a> `maxSessionsPerToken?` | `number` | - | `MCPWebConfig.maxSessionsPerToken` | packages/types/dist/config.d.ts:13 |
@@ -1177,7 +1177,7 @@ Configuration for the Bun bridge adapter.
 | <a id="name"></a> `name` | `string` | - | `MCPWebConfig.name` | packages/types/dist/config.d.ts:3 |
 | <a id="onsessionlimitexceeded"></a> `onSessionLimitExceeded?` | `"reject"` \| `"close_oldest"` | - | `MCPWebConfig.onSessionLimitExceeded` | packages/types/dist/config.d.ts:14 |
 | <a id="persistauthtoken"></a> `persistAuthToken?` | `boolean` | - | `MCPWebConfig.persistAuthToken` | packages/types/dist/config.d.ts:11 |
-| <a id="port-4"></a> `port?` | `number` | Port to listen on (default: 3001) | - | packages/bridge/src/adapters/bun.ts:62 |
+| <a id="port-4"></a> `port?` | `number` | Port to listen on (default: 3001) | - | [packages/bridge/src/adapters/bun.ts:62](packages/bridge/src/adapters/bun.ts#L62) |
 | <a id="sessionmaxdurationms"></a> `sessionMaxDurationMs?` | `number` | - | `MCPWebConfig.sessionMaxDurationMs` | packages/types/dist/config.d.ts:19 |
 | <a id="wsport"></a> `wsPort?` | `number` | - | `MCPWebConfig.wsPort` | packages/types/dist/config.d.ts:6 |
 
@@ -1185,7 +1185,7 @@ Configuration for the Bun bridge adapter.
 
 ### MCPWebBridgeDenoConfig
 
-Defined in: packages/bridge/src/adapters/deno.ts:54
+Defined in: [packages/bridge/src/adapters/deno.ts:54](packages/bridge/src/adapters/deno.ts#L54)
 
 Configuration for the Deno bridge adapter.
 
@@ -1202,7 +1202,7 @@ Configuration for the Deno bridge adapter.
 | <a id="autoconnect-1"></a> `autoConnect?` | `boolean` | - | `MCPWebConfig.autoConnect` | packages/types/dist/config.d.ts:12 |
 | <a id="description-1"></a> `description` | `string` | - | `MCPWebConfig.description` | packages/types/dist/config.d.ts:4 |
 | <a id="host-2"></a> `host?` | `string` | - | `MCPWebConfig.host` | packages/types/dist/config.d.ts:5 |
-| <a id="hostname-1"></a> `hostname?` | `string` | Hostname to bind to (default: '0.0.0.0') | - | packages/bridge/src/adapters/deno.ts:59 |
+| <a id="hostname-1"></a> `hostname?` | `string` | Hostname to bind to (default: '0.0.0.0') | - | [packages/bridge/src/adapters/deno.ts:59](packages/bridge/src/adapters/deno.ts#L59) |
 | <a id="icon-1"></a> `icon?` | `string` | - | `MCPWebConfig.icon` | packages/types/dist/config.d.ts:8 |
 | <a id="maxinflightqueriespertoken-1"></a> `maxInFlightQueriesPerToken?` | `number` | - | `MCPWebConfig.maxInFlightQueriesPerToken` | packages/types/dist/config.d.ts:18 |
 | <a id="maxsessionspertoken-1"></a> `maxSessionsPerToken?` | `number` | - | `MCPWebConfig.maxSessionsPerToken` | packages/types/dist/config.d.ts:13 |
@@ -1210,7 +1210,7 @@ Configuration for the Deno bridge adapter.
 | <a id="name-1"></a> `name` | `string` | - | `MCPWebConfig.name` | packages/types/dist/config.d.ts:3 |
 | <a id="onsessionlimitexceeded-1"></a> `onSessionLimitExceeded?` | `"reject"` \| `"close_oldest"` | - | `MCPWebConfig.onSessionLimitExceeded` | packages/types/dist/config.d.ts:14 |
 | <a id="persistauthtoken-1"></a> `persistAuthToken?` | `boolean` | - | `MCPWebConfig.persistAuthToken` | packages/types/dist/config.d.ts:11 |
-| <a id="port-5"></a> `port?` | `number` | Port to listen on (default: 3001, or PORT env var on Deno Deploy) | - | packages/bridge/src/adapters/deno.ts:56 |
+| <a id="port-5"></a> `port?` | `number` | Port to listen on (default: 3001, or PORT env var on Deno Deploy) | - | [packages/bridge/src/adapters/deno.ts:56](packages/bridge/src/adapters/deno.ts#L56) |
 | <a id="sessionmaxdurationms-1"></a> `sessionMaxDurationMs?` | `number` | - | `MCPWebConfig.sessionMaxDurationMs` | packages/types/dist/config.d.ts:19 |
 | <a id="wsport-1"></a> `wsPort?` | `number` | - | `MCPWebConfig.wsPort` | packages/types/dist/config.d.ts:6 |
 
@@ -1218,7 +1218,7 @@ Configuration for the Deno bridge adapter.
 
 ### MCPWebBridgeNodeConfig
 
-Defined in: packages/bridge/src/adapters/node.ts:32
+Defined in: [packages/bridge/src/adapters/node.ts:32](packages/bridge/src/adapters/node.ts#L32)
 
 Configuration for the Node.js bridge adapter.
 
@@ -1234,7 +1234,7 @@ Configuration for the Node.js bridge adapter.
 | <a id="authtoken-3"></a> `authToken?` | `string` | - | - | `MCPWebConfig.authToken` | packages/types/dist/config.d.ts:10 |
 | <a id="autoconnect-2"></a> `autoConnect?` | `boolean` | - | - | `MCPWebConfig.autoConnect` | packages/types/dist/config.d.ts:12 |
 | <a id="description-2"></a> `description` | `string` | - | - | `MCPWebConfig.description` | packages/types/dist/config.d.ts:4 |
-| <a id="host-3"></a> `host?` | `string` | Host to bind to (default: '0.0.0.0') | `MCPWebConfig.host` | - | packages/bridge/src/adapters/node.ts:37 |
+| <a id="host-3"></a> `host?` | `string` | Host to bind to (default: '0.0.0.0') | `MCPWebConfig.host` | - | [packages/bridge/src/adapters/node.ts:37](packages/bridge/src/adapters/node.ts#L37) |
 | <a id="icon-2"></a> `icon?` | `string` | - | - | `MCPWebConfig.icon` | packages/types/dist/config.d.ts:8 |
 | <a id="maxinflightqueriespertoken-2"></a> `maxInFlightQueriesPerToken?` | `number` | - | - | `MCPWebConfig.maxInFlightQueriesPerToken` | packages/types/dist/config.d.ts:18 |
 | <a id="maxsessionspertoken-2"></a> `maxSessionsPerToken?` | `number` | - | - | `MCPWebConfig.maxSessionsPerToken` | packages/types/dist/config.d.ts:13 |
@@ -1242,7 +1242,7 @@ Configuration for the Node.js bridge adapter.
 | <a id="name-2"></a> `name` | `string` | - | - | `MCPWebConfig.name` | packages/types/dist/config.d.ts:3 |
 | <a id="onsessionlimitexceeded-2"></a> `onSessionLimitExceeded?` | `"reject"` \| `"close_oldest"` | - | - | `MCPWebConfig.onSessionLimitExceeded` | packages/types/dist/config.d.ts:14 |
 | <a id="persistauthtoken-2"></a> `persistAuthToken?` | `boolean` | - | - | `MCPWebConfig.persistAuthToken` | packages/types/dist/config.d.ts:11 |
-| <a id="port-6"></a> `port?` | `number` | Port to listen on (default: 3001) | - | - | packages/bridge/src/adapters/node.ts:34 |
+| <a id="port-6"></a> `port?` | `number` | Port to listen on (default: 3001) | - | - | [packages/bridge/src/adapters/node.ts:34](packages/bridge/src/adapters/node.ts#L34) |
 | <a id="sessionmaxdurationms-2"></a> `sessionMaxDurationMs?` | `number` | - | - | `MCPWebConfig.sessionMaxDurationMs` | packages/types/dist/config.d.ts:19 |
 | <a id="wsport-2"></a> `wsPort?` | `number` | - | - | `MCPWebConfig.wsPort` | packages/types/dist/config.d.ts:6 |
 
@@ -1250,7 +1250,7 @@ Configuration for the Node.js bridge adapter.
 
 ### MCPWebBridgePartyConfig
 
-Defined in: packages/bridge/src/adapters/partykit.ts:112
+Defined in: [packages/bridge/src/adapters/partykit.ts:112](packages/bridge/src/adapters/partykit.ts#L112)
 
 Configuration for the PartyKit bridge adapter.
 Note: Port is not configurable - PartyKit manages this.
@@ -1273,49 +1273,49 @@ Note: Port is not configurable - PartyKit manages this.
 | <a id="name-3"></a> `name` | `string` | - | `Omit.name` | packages/types/dist/config.d.ts:3 |
 | <a id="onsessionlimitexceeded-3"></a> `onSessionLimitExceeded?` | `"reject"` \| `"close_oldest"` | - | `Omit.onSessionLimitExceeded` | packages/types/dist/config.d.ts:14 |
 | <a id="persistauthtoken-3"></a> `persistAuthToken?` | `boolean` | - | `Omit.persistAuthToken` | packages/types/dist/config.d.ts:11 |
-| <a id="sessioncheckintervalms"></a> `sessionCheckIntervalMs?` | `number` | Session timeout check interval in milliseconds. PartyKit uses alarms instead of setInterval, so this determines how often the alarm fires to check for expired sessions. Default: 60000 (1 minute) | - | packages/bridge/src/adapters/partykit.ts:119 |
+| <a id="sessioncheckintervalms"></a> `sessionCheckIntervalMs?` | `number` | Session timeout check interval in milliseconds. PartyKit uses alarms instead of setInterval, so this determines how often the alarm fires to check for expired sessions. Default: 60000 (1 minute) | - | [packages/bridge/src/adapters/partykit.ts:119](packages/bridge/src/adapters/partykit.ts#L119) |
 | <a id="sessionmaxdurationms-3"></a> `sessionMaxDurationMs?` | `number` | - | `Omit.sessionMaxDurationMs` | packages/types/dist/config.d.ts:19 |
 
 ***
 
 ### QueryTracking
 
-Defined in: [packages/bridge/src/types.ts:88](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L88)
+Defined in: [packages/bridge/src/types.ts:88](packages/bridge/src/types.ts#L88)
 
 #### Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="responsetool"></a> `responseTool?` | `string` | [packages/bridge/src/types.ts:90](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L90) |
-| <a id="restricttools"></a> `restrictTools?` | `boolean` | [packages/bridge/src/types.ts:95](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L95) |
-| <a id="sessionid-2"></a> `sessionId` | `string` | [packages/bridge/src/types.ts:89](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L89) |
-| <a id="state"></a> `state` | `QueryState` | [packages/bridge/src/types.ts:93](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L93) |
-| <a id="toolcalls"></a> `toolCalls` | [`TrackedToolCall`](#trackedtoolcall)[] | [packages/bridge/src/types.ts:91](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L91) |
-| <a id="tools"></a> `tools?` | ( \| \{ `description`: `string`; `inputSchema?`: `ZodObject`\<`$ZodLooseShape`, `$strip`\>; `name`: `string`; `outputSchema?`: `ZodType`\<`unknown`, `unknown`, `$ZodTypeInternals`\<`unknown`, `unknown`\>\>; \} \| \{ `description`: `string`; `inputSchema?`: `JSONSchema`; `name`: `string`; `outputSchema?`: `JSONSchema`; \})[] | [packages/bridge/src/types.ts:94](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L94) |
-| <a id="ws"></a> `ws` | `WebSocket` | [packages/bridge/src/types.ts:92](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L92) |
+| <a id="responsetool"></a> `responseTool?` | `string` | [packages/bridge/src/types.ts:90](packages/bridge/src/types.ts#L90) |
+| <a id="restricttools"></a> `restrictTools?` | `boolean` | [packages/bridge/src/types.ts:95](packages/bridge/src/types.ts#L95) |
+| <a id="sessionid-2"></a> `sessionId` | `string` | [packages/bridge/src/types.ts:89](packages/bridge/src/types.ts#L89) |
+| <a id="state"></a> `state` | `QueryState` | [packages/bridge/src/types.ts:93](packages/bridge/src/types.ts#L93) |
+| <a id="toolcalls"></a> `toolCalls` | [`TrackedToolCall`](#trackedtoolcall)[] | [packages/bridge/src/types.ts:91](packages/bridge/src/types.ts#L91) |
+| <a id="tools"></a> `tools?` | ( \| \{ `description`: `string`; `inputSchema?`: `ZodObject`\<`$ZodLooseShape`, `$strip`\>; `name`: `string`; `outputSchema?`: `ZodType`\<`unknown`, `unknown`, `$ZodTypeInternals`\<`unknown`, `unknown`\>\>; \} \| \{ `description`: `string`; `inputSchema?`: `JSONSchema`; `name`: `string`; `outputSchema?`: `JSONSchema`; \})[] | [packages/bridge/src/types.ts:94](packages/bridge/src/types.ts#L94) |
+| <a id="ws"></a> `ws` | `WebSocket` | [packages/bridge/src/types.ts:92](packages/bridge/src/types.ts#L92) |
 
 ***
 
 ### RegisterToolMessage
 
-Defined in: [packages/bridge/src/types.ts:32](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L32)
+Defined in: [packages/bridge/src/types.ts:32](packages/bridge/src/types.ts#L32)
 
 #### Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="tool"></a> `tool` | \{ `description`: `string`; `inputSchema?`: `JSONSchema`; `name`: `string`; `outputSchema?`: `JSONSchema`; \} | [packages/bridge/src/types.ts:34](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L34) |
-| `tool.description` | `string` | [packages/bridge/src/types.ts:36](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L36) |
-| `tool.inputSchema?` | `JSONSchema` | [packages/bridge/src/types.ts:37](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L37) |
-| `tool.name` | `string` | [packages/bridge/src/types.ts:35](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L35) |
-| `tool.outputSchema?` | `JSONSchema` | [packages/bridge/src/types.ts:38](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L38) |
-| <a id="type-3"></a> `type` | `"register-tool"` | [packages/bridge/src/types.ts:33](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L33) |
+| <a id="tool"></a> `tool` | \{ `description`: `string`; `inputSchema?`: `JSONSchema`; `name`: `string`; `outputSchema?`: `JSONSchema`; \} | [packages/bridge/src/types.ts:34](packages/bridge/src/types.ts#L34) |
+| `tool.description` | `string` | [packages/bridge/src/types.ts:36](packages/bridge/src/types.ts#L36) |
+| `tool.inputSchema?` | `JSONSchema` | [packages/bridge/src/types.ts:37](packages/bridge/src/types.ts#L37) |
+| `tool.name` | `string` | [packages/bridge/src/types.ts:35](packages/bridge/src/types.ts#L35) |
+| `tool.outputSchema?` | `JSONSchema` | [packages/bridge/src/types.ts:38](packages/bridge/src/types.ts#L38) |
+| <a id="type-3"></a> `type` | `"register-tool"` | [packages/bridge/src/types.ts:33](packages/bridge/src/types.ts#L33) |
 
 ***
 
 ### Scheduler
 
-Defined in: packages/bridge/src/runtime/scheduler.ts:16
+Defined in: [packages/bridge/src/runtime/scheduler.ts:16](packages/bridge/src/runtime/scheduler.ts#L16)
 
 Abstract scheduler interface.
 Implementations handle the runtime-specific timing mechanism.
@@ -1328,7 +1328,7 @@ Implementations handle the runtime-specific timing mechanism.
 cancel(id: string): void;
 ```
 
-Defined in: packages/bridge/src/runtime/scheduler.ts:29
+Defined in: [packages/bridge/src/runtime/scheduler.ts:29](packages/bridge/src/runtime/scheduler.ts#L29)
 
 Cancel a scheduled one-time callback.
 
@@ -1348,7 +1348,7 @@ Cancel a scheduled one-time callback.
 cancelInterval(id: string): void;
 ```
 
-Defined in: packages/bridge/src/runtime/scheduler.ts:43
+Defined in: [packages/bridge/src/runtime/scheduler.ts:43](packages/bridge/src/runtime/scheduler.ts#L43)
 
 Cancel a repeating callback.
 
@@ -1368,7 +1368,7 @@ Cancel a repeating callback.
 dispose(): void;
 ```
 
-Defined in: packages/bridge/src/runtime/scheduler.ts:49
+Defined in: [packages/bridge/src/runtime/scheduler.ts:49](packages/bridge/src/runtime/scheduler.ts#L49)
 
 Clean up all scheduled tasks.
 Called when the bridge is shutting down.
@@ -1383,7 +1383,7 @@ Called when the bridge is shutting down.
 schedule(callback: () => void, delayMs: number): string;
 ```
 
-Defined in: packages/bridge/src/runtime/scheduler.ts:23
+Defined in: [packages/bridge/src/runtime/scheduler.ts:23](packages/bridge/src/runtime/scheduler.ts#L23)
 
 Schedule a one-time callback after a delay.
 
@@ -1406,7 +1406,7 @@ An ID that can be used to cancel the scheduled callback
 scheduleInterval(callback: () => void, intervalMs: number): string;
 ```
 
-Defined in: packages/bridge/src/runtime/scheduler.ts:37
+Defined in: [packages/bridge/src/runtime/scheduler.ts:37](packages/bridge/src/runtime/scheduler.ts#L37)
 
 Schedule a repeating callback.
 
@@ -1427,51 +1427,51 @@ An ID that can be used to cancel the interval
 
 ### ToolCallMessage
 
-Defined in: [packages/bridge/src/types.ts:47](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L47)
+Defined in: [packages/bridge/src/types.ts:47](packages/bridge/src/types.ts#L47)
 
 #### Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="queryid"></a> `queryId?` | `string` | [packages/bridge/src/types.ts:52](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L52) |
-| <a id="requestid"></a> `requestId` | `string` | [packages/bridge/src/types.ts:49](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L49) |
-| <a id="toolinput"></a> `toolInput?` | `Record`\<`string`, `unknown`\> | [packages/bridge/src/types.ts:51](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L51) |
-| <a id="toolname"></a> `toolName` | `string` | [packages/bridge/src/types.ts:50](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L50) |
-| <a id="type-4"></a> `type` | `"tool-call"` | [packages/bridge/src/types.ts:48](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L48) |
+| <a id="queryid"></a> `queryId?` | `string` | [packages/bridge/src/types.ts:52](packages/bridge/src/types.ts#L52) |
+| <a id="requestid"></a> `requestId` | `string` | [packages/bridge/src/types.ts:49](packages/bridge/src/types.ts#L49) |
+| <a id="toolinput"></a> `toolInput?` | `Record`\<`string`, `unknown`\> | [packages/bridge/src/types.ts:51](packages/bridge/src/types.ts#L51) |
+| <a id="toolname"></a> `toolName` | `string` | [packages/bridge/src/types.ts:50](packages/bridge/src/types.ts#L50) |
+| <a id="type-4"></a> `type` | `"tool-call"` | [packages/bridge/src/types.ts:48](packages/bridge/src/types.ts#L48) |
 
 ***
 
 ### ToolResponseMessage
 
-Defined in: [packages/bridge/src/types.ts:55](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L55)
+Defined in: [packages/bridge/src/types.ts:55](packages/bridge/src/types.ts#L55)
 
 #### Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="requestid-1"></a> `requestId` | `string` | [packages/bridge/src/types.ts:57](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L57) |
-| <a id="result"></a> `result` | `unknown` | [packages/bridge/src/types.ts:58](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L58) |
-| <a id="type-5"></a> `type` | `"tool-response"` | [packages/bridge/src/types.ts:56](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L56) |
+| <a id="requestid-1"></a> `requestId` | `string` | [packages/bridge/src/types.ts:57](packages/bridge/src/types.ts#L57) |
+| <a id="result"></a> `result` | `unknown` | [packages/bridge/src/types.ts:58](packages/bridge/src/types.ts#L58) |
+| <a id="type-5"></a> `type` | `"tool-response"` | [packages/bridge/src/types.ts:56](packages/bridge/src/types.ts#L56) |
 
 ***
 
 ### TrackedToolCall
 
-Defined in: [packages/bridge/src/types.ts:80](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L80)
+Defined in: [packages/bridge/src/types.ts:80](packages/bridge/src/types.ts#L80)
 
 #### Properties
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="arguments"></a> `arguments` | `unknown` | [packages/bridge/src/types.ts:82](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L82) |
-| <a id="result-1"></a> `result` | `unknown` | [packages/bridge/src/types.ts:83](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L83) |
-| <a id="tool-1"></a> `tool` | `string` | [packages/bridge/src/types.ts:81](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L81) |
+| <a id="arguments"></a> `arguments` | `unknown` | [packages/bridge/src/types.ts:82](packages/bridge/src/types.ts#L82) |
+| <a id="result-1"></a> `result` | `unknown` | [packages/bridge/src/types.ts:83](packages/bridge/src/types.ts#L83) |
+| <a id="tool-1"></a> `tool` | `string` | [packages/bridge/src/types.ts:81](packages/bridge/src/types.ts#L81) |
 
 ***
 
 ### WebSocketConnection
 
-Defined in: packages/bridge/src/runtime/types.ts:11
+Defined in: [packages/bridge/src/runtime/types.ts:11](packages/bridge/src/runtime/types.ts#L11)
 
 Runtime-agnostic WebSocket connection.
 Wraps the native WebSocket implementation of each runtime.
@@ -1480,7 +1480,7 @@ Wraps the native WebSocket implementation of each runtime.
 
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="readystate"></a> `readyState` | `readonly` | `"CONNECTING"` \| `"OPEN"` \| `"CLOSING"` \| `"CLOSED"` | Current connection state | packages/bridge/src/runtime/types.ts:19 |
+| <a id="readystate"></a> `readyState` | `readonly` | `"CONNECTING"` \| `"OPEN"` \| `"CLOSING"` \| `"CLOSED"` | Current connection state | [packages/bridge/src/runtime/types.ts:19](packages/bridge/src/runtime/types.ts#L19) |
 
 #### Methods
 
@@ -1490,7 +1490,7 @@ Wraps the native WebSocket implementation of each runtime.
 close(code?: number, reason?: string): void;
 ```
 
-Defined in: packages/bridge/src/runtime/types.ts:16
+Defined in: [packages/bridge/src/runtime/types.ts:16](packages/bridge/src/runtime/types.ts#L16)
 
 Close the connection
 
@@ -1511,7 +1511,7 @@ Close the connection
 offMessage(handler: (data: string) => void): void;
 ```
 
-Defined in: packages/bridge/src/runtime/types.ts:25
+Defined in: [packages/bridge/src/runtime/types.ts:25](packages/bridge/src/runtime/types.ts#L25)
 
 Remove a message handler
 
@@ -1531,7 +1531,7 @@ Remove a message handler
 onMessage(handler: (data: string) => void): void;
 ```
 
-Defined in: packages/bridge/src/runtime/types.ts:22
+Defined in: [packages/bridge/src/runtime/types.ts:22](packages/bridge/src/runtime/types.ts#L22)
 
 Add a message handler
 
@@ -1551,7 +1551,7 @@ Add a message handler
 send(data: string): void;
 ```
 
-Defined in: packages/bridge/src/runtime/types.ts:13
+Defined in: [packages/bridge/src/runtime/types.ts:13](packages/bridge/src/runtime/types.ts#L13)
 
 Send a string message to the client
 
@@ -1580,7 +1580,7 @@ type BridgeMessage =
   | QueryCancelMessage;
 ```
 
-Defined in: [packages/bridge/src/types.ts:71](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L71)
+Defined in: [packages/bridge/src/types.ts:71](packages/bridge/src/types.ts#L71)
 
 ***
 
@@ -1598,7 +1598,7 @@ type FrontendMessage =
   | QueryCancelMessage;
 ```
 
-Defined in: [packages/bridge/src/types.ts:61](https://github.com/flekschas/mcp-web/blob/e8aa9068c06b25ad56ce2eba455aa6b81512d59d/packages/bridge/src/types.ts#L61)
+Defined in: [packages/bridge/src/types.ts:61](packages/bridge/src/types.ts#L61)
 
 ***
 
@@ -1818,7 +1818,7 @@ const handlers = core.getHandlers();
 const Bridge: typeof MCPWebBridgeNode = MCPWebBridgeNode;
 ```
 
-Defined in: packages/bridge/src/adapters/node.ts:236
+Defined in: [packages/bridge/src/adapters/node.ts:236](packages/bridge/src/adapters/node.ts#L236)
 
 For backwards compatibility, also export as Bridge
 
@@ -1854,7 +1854,7 @@ Defined in: packages/types/dist/errors.d.ts:2
 const MCPWebBridgeParty: (room: PartyRoom) => PartyServer;
 ```
 
-Defined in: packages/bridge/src/adapters/partykit.ts:451
+Defined in: [packages/bridge/src/adapters/partykit.ts:451](packages/bridge/src/adapters/partykit.ts#L451)
 
 Pre-configured bridge class for direct export.
 Use `createPartyKitBridge()` if you need custom configuration.
@@ -1929,7 +1929,7 @@ const WebSocketReadyState: {
 };
 ```
 
-Defined in: packages/bridge/src/runtime/types.ts:144
+Defined in: [packages/bridge/src/runtime/types.ts:144](packages/bridge/src/runtime/types.ts#L144)
 
 WebSocket ready state constants (matching the WebSocket API)
 
@@ -1937,10 +1937,10 @@ WebSocket ready state constants (matching the WebSocket API)
 
 | Name | Type | Default value | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="closed"></a> `CLOSED` | `3` | `3` | packages/bridge/src/runtime/types.ts:148 |
-| <a id="closing"></a> `CLOSING` | `2` | `2` | packages/bridge/src/runtime/types.ts:147 |
-| <a id="connecting"></a> `CONNECTING` | `0` | `0` | packages/bridge/src/runtime/types.ts:145 |
-| <a id="open"></a> `OPEN` | `1` | `1` | packages/bridge/src/runtime/types.ts:146 |
+| <a id="closed"></a> `CLOSED` | `3` | `3` | [packages/bridge/src/runtime/types.ts:148](packages/bridge/src/runtime/types.ts#L148) |
+| <a id="closing"></a> `CLOSING` | `2` | `2` | [packages/bridge/src/runtime/types.ts:147](packages/bridge/src/runtime/types.ts#L147) |
+| <a id="connecting"></a> `CONNECTING` | `0` | `0` | [packages/bridge/src/runtime/types.ts:145](packages/bridge/src/runtime/types.ts#L145) |
+| <a id="open"></a> `OPEN` | `1` | `1` | [packages/bridge/src/runtime/types.ts:146](packages/bridge/src/runtime/types.ts#L146) |
 
 ## Functions
 
@@ -1953,7 +1953,7 @@ function createHttpResponse(
    headers: Record<string, string>): HttpResponse;
 ```
 
-Defined in: packages/bridge/src/runtime/types.ts:114
+Defined in: [packages/bridge/src/runtime/types.ts:114](packages/bridge/src/runtime/types.ts#L114)
 
 Helper to create an HttpResponse
 
@@ -1977,7 +1977,7 @@ Helper to create an HttpResponse
 function createPartyKitBridge(config: MCPWebBridgePartyConfig): (room: PartyRoom) => PartyServer;
 ```
 
-Defined in: packages/bridge/src/adapters/partykit.ts:331
+Defined in: [packages/bridge/src/adapters/partykit.ts:331](packages/bridge/src/adapters/partykit.ts#L331)
 
 Creates a PartyKit-compatible bridge server class.
 
@@ -2023,7 +2023,7 @@ export default createPartyKitBridge({
 function jsonResponse(status: number, data: unknown): HttpResponse;
 ```
 
-Defined in: packages/bridge/src/runtime/types.ts:133
+Defined in: [packages/bridge/src/runtime/types.ts:133](packages/bridge/src/runtime/types.ts#L133)
 
 Helper to create a JSON response
 
@@ -2046,7 +2046,7 @@ Helper to create a JSON response
 function readyStateToString(state: number): "CONNECTING" | "OPEN" | "CLOSING" | "CLOSED";
 ```
 
-Defined in: packages/bridge/src/runtime/types.ts:154
+Defined in: [packages/bridge/src/runtime/types.ts:154](packages/bridge/src/runtime/types.ts#L154)
 
 Convert numeric ready state to string
 

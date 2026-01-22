@@ -12,6 +12,7 @@
 
   "readme": "none",
   "disableSources": false,
+  "sourceLinkTemplate": "{path}#L{line}",
 
   "mergeReadme": true,
   "hideGenerator": true,

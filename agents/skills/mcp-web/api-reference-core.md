@@ -4,7 +4,7 @@
 
 ### MCPWeb
 
-Defined in: core/src/web.ts:69
+Defined in: [core/src/web.ts:69](packages/core/src/web.ts#L69)
 
 Main class for integrating web applications with AI agents via the Model Context Protocol (MCP).
 
@@ -71,7 +71,7 @@ new MCPWeb(config: {
 }): MCPWeb;
 ```
 
-Defined in: core/src/web.ts:109
+Defined in: [core/src/web.ts:109](packages/core/src/web.ts#L109)
 
 Creates a new MCPWeb instance with the specified configuration.
 
@@ -129,7 +129,7 @@ const mcp = new MCPWeb({
 get authToken(): string;
 ```
 
-Defined in: core/src/web.ts:152
+Defined in: [core/src/web.ts:152](packages/core/src/web.ts#L152)
 
 Authentication token for this session.
 
@@ -165,7 +165,7 @@ get config(): {
 };
 ```
 
-Defined in: core/src/web.ts:174
+Defined in: [core/src/web.ts:174](packages/core/src/web.ts#L174)
 
 The processed MCPWeb configuration.
 
@@ -219,7 +219,7 @@ The complete configuration object
 get connected(): boolean;
 ```
 
-Defined in: core/src/web.ts:979
+Defined in: [core/src/web.ts:979](packages/core/src/web.ts#L979)
 
 Whether the client is currently connected to the bridge server.
 
@@ -256,7 +256,7 @@ get mcpConfig(): {
 };
 ```
 
-Defined in: core/src/web.ts:193
+Defined in: [core/src/web.ts:193](packages/core/src/web.ts#L193)
 
 Configuration object for the AI host app (e.g., Claude Desktop).
 
@@ -296,7 +296,7 @@ MCP client configuration object
 get sessionId(): string;
 ```
 
-Defined in: core/src/web.ts:140
+Defined in: [core/src/web.ts:140](packages/core/src/web.ts#L140)
 
 Unique session identifier for this frontend instance.
 
@@ -317,7 +317,7 @@ The session ID string
 get tools(): Map<string, ProcessedToolDefinition>;
 ```
 
-Defined in: core/src/web.ts:163
+Defined in: [core/src/web.ts:163](packages/core/src/web.ts#L163)
 
 Map of all registered tools.
 
@@ -341,7 +341,7 @@ addStateTools<T>(created: CreatedStateTools<T> & {
 }): [ToolDefinition, ToolDefinition, () => void];
 ```
 
-Defined in: core/src/web.ts:759
+Defined in: [core/src/web.ts:759](packages/core/src/web.ts#L759)
 
 Add state management tools with optional expanded tool generation.
 When `expand` is true, automatically generates targeted tools for
@@ -424,7 +424,7 @@ addStateTools<T>(created: CreatedStateTools<T> & {
 }): [ToolDefinition, ToolDefinition[], () => void];
 ```
 
-Defined in: core/src/web.ts:761
+Defined in: [core/src/web.ts:761](packages/core/src/web.ts#L761)
 
 Add state management tools with optional expanded tool generation.
 When `expand` is true, automatically generates targeted tools for
@@ -505,7 +505,7 @@ const [getApp, tools, cleanup] = mcp.addStateTools({
 addStateTools<T>(created: CreatedStateTools<T>): [ToolDefinition, ToolDefinition | ToolDefinition[], () => void];
 ```
 
-Defined in: core/src/web.ts:763
+Defined in: [core/src/web.ts:763](packages/core/src/web.ts#L763)
 
 Add state management tools with optional expanded tool generation.
 When `expand` is true, automatically generates targeted tools for
@@ -594,7 +594,7 @@ addStateTools<T>(options: {
 }): [ToolDefinition, ToolDefinition, () => void];
 ```
 
-Defined in: core/src/web.ts:765
+Defined in: [core/src/web.ts:765](packages/core/src/web.ts#L765)
 
 Add state management tools with optional expanded tool generation.
 When `expand` is true, automatically generates targeted tools for
@@ -690,7 +690,7 @@ addStateTools<T>(options: {
 }): [ToolDefinition, ToolDefinition[], () => void];
 ```
 
-Defined in: core/src/web.ts:775
+Defined in: [core/src/web.ts:775](packages/core/src/web.ts#L775)
 
 Add state management tools with optional expanded tool generation.
 When `expand` is true, automatically generates targeted tools for
@@ -786,7 +786,7 @@ addStateTools<T>(options: {
 }): [ToolDefinition, ToolDefinition[], () => void];
 ```
 
-Defined in: core/src/web.ts:784
+Defined in: [core/src/web.ts:784](packages/core/src/web.ts#L784)
 
 Add state management tools with optional expanded tool generation.
 When `expand` is true, automatically generates targeted tools for
@@ -876,7 +876,7 @@ const [getApp, tools, cleanup] = mcp.addStateTools({
 addTool<TInput, TOutput>(tool: CreatedTool<TInput, TOutput>): ToolDefinition;
 ```
 
-Defined in: core/src/web.ts:606
+Defined in: [core/src/web.ts:606](packages/core/src/web.ts#L606)
 
 Registers a tool that AI agents can call.
 
@@ -993,7 +993,7 @@ addTool<TInput, TOutput>(tool: {
 }): ToolDefinition;
 ```
 
-Defined in: core/src/web.ts:612
+Defined in: [core/src/web.ts:612](packages/core/src/web.ts#L612)
 
 Registers a tool that AI agents can call.
 
@@ -1117,7 +1117,7 @@ addTool(tool: {
 }): ToolDefinition;
 ```
 
-Defined in: core/src/web.ts:631
+Defined in: [core/src/web.ts:631](packages/core/src/web.ts#L631)
 
 Registers a tool that AI agents can call.
 
@@ -1224,7 +1224,7 @@ mcp.addTool({
 connect(): Promise<true>;
 ```
 
-Defined in: core/src/web.ts:295
+Defined in: [core/src/web.ts:295](packages/core/src/web.ts#L295)
 
 Establishes connection to the bridge server.
 
@@ -1271,7 +1271,7 @@ if (!mcp.connected) {
 disconnect(): void;
 ```
 
-Defined in: core/src/web.ts:997
+Defined in: [core/src/web.ts:997](packages/core/src/web.ts#L997)
 
 Disconnects from the bridge server.
 
@@ -1297,7 +1297,7 @@ onUnmounted(() => {
 getTools(): string[];
 ```
 
-Defined in: core/src/web.ts:1020
+Defined in: [core/src/web.ts:1020](packages/core/src/web.ts#L1020)
 
 Gets list of all registered tool names.
 
@@ -1320,7 +1320,7 @@ console.log('Available tools:', toolNames);
 query(request: QueryRequest, signal?: AbortSignal): QueryResponse;
 ```
 
-Defined in: core/src/web.ts:1072
+Defined in: [core/src/web.ts:1072](packages/core/src/web.ts#L1072)
 
 Triggers an AI agent query from your frontend code.
 
@@ -1386,7 +1386,7 @@ setTimeout(() => abortController.abort(), 5000);
 removeTool(name: string): void;
 ```
 
-Defined in: core/src/web.ts:697
+Defined in: [core/src/web.ts:697](packages/core/src/web.ts#L697)
 
 Removes a registered tool.
 
@@ -1414,7 +1414,7 @@ mcp.removeTool('create_todo');
 
 ### QueryResponse
 
-Defined in: core/src/query.ts:3
+Defined in: [core/src/query.ts:3](packages/core/src/query.ts#L3)
 
 #### Constructors
 
@@ -1456,7 +1456,7 @@ new QueryResponse(
    cancelFn?: () => void): QueryResponse;
 ```
 
-Defined in: core/src/query.ts:8
+Defined in: [core/src/query.ts:8](packages/core/src/query.ts#L8)
 
 ###### Parameters
 
@@ -1495,7 +1495,7 @@ get result(): Promise<
 }>;
 ```
 
-Defined in: core/src/query.ts:52
+Defined in: [core/src/query.ts:52](packages/core/src/query.ts#L52)
 
 Simplified interface: just get the final result
 Waits for query completion and returns the result or throws on failure
@@ -1567,7 +1567,7 @@ get stream(): AsyncIterableIterator<
 }>;
 ```
 
-Defined in: core/src/query.ts:34
+Defined in: [core/src/query.ts:34](packages/core/src/query.ts#L34)
 
 Stream of query events (progress, completion, failure)
 Use this for fine-grained control over query lifecycle
@@ -1623,7 +1623,7 @@ for await (const event of query.stream) {
 get uuid(): string;
 ```
 
-Defined in: core/src/query.ts:17
+Defined in: [core/src/query.ts:17](packages/core/src/query.ts#L17)
 
 The unique identifier for this query
 
@@ -1639,7 +1639,7 @@ The unique identifier for this query
 cancel(): void;
 ```
 
-Defined in: core/src/query.ts:67
+Defined in: [core/src/query.ts:67](packages/core/src/query.ts#L67)
 
 Cancel this query
 Triggers cancellation either via AbortController or directly through the bridge
@@ -1652,7 +1652,7 @@ Triggers cancellation either via AbortController or directly through the bridge
 
 ### CreatedStateToolsBasic
 
-Defined in: core/src/create-state-tools.ts:32
+Defined in: [core/src/create-state-tools.ts:32](packages/core/src/create-state-tools.ts#L32)
 
 Result type for created state tools without schemaSplit or expand.
 Returns a single getter and single setter.
@@ -1667,28 +1667,28 @@ Returns a single getter and single setter.
 
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="__brand"></a> `__brand` | `readonly` | `"CreatedStateTools"` | Marker to identify this as created state tools. | core/src/create-state-tools.ts:34 |
-| <a id="config-1"></a> `config` | `readonly` | [`CreateStateToolsConfig`](#createstatetoolsconfig)\<`T`\> | The original config. | core/src/create-state-tools.ts:42 |
-| <a id="getter"></a> `getter` | `readonly` | \{ `description`: `string`; `handler`: (...`args`: `any`[]) => `any`; `inputSchema?`: `ZodObject`\<`$ZodLooseShape`, `$strip`\>; `name`: `string`; `outputSchema?`: `ZodType`\<`unknown`, `unknown`, `$ZodTypeInternals`\<`unknown`, `unknown`\>\>; \} | The getter tool definition. | core/src/create-state-tools.ts:36 |
+| <a id="__brand"></a> `__brand` | `readonly` | `"CreatedStateTools"` | Marker to identify this as created state tools. | [core/src/create-state-tools.ts:34](packages/core/src/create-state-tools.ts#L34) |
+| <a id="config-1"></a> `config` | `readonly` | [`CreateStateToolsConfig`](#createstatetoolsconfig)\<`T`\> | The original config. | [core/src/create-state-tools.ts:42](packages/core/src/create-state-tools.ts#L42) |
+| <a id="getter"></a> `getter` | `readonly` | \{ `description`: `string`; `handler`: (...`args`: `any`[]) => `any`; `inputSchema?`: `ZodObject`\<`$ZodLooseShape`, `$strip`\>; `name`: `string`; `outputSchema?`: `ZodType`\<`unknown`, `unknown`, `$ZodTypeInternals`\<`unknown`, `unknown`\>\>; \} | The getter tool definition. | [core/src/create-state-tools.ts:36](packages/core/src/create-state-tools.ts#L36) |
 | `getter.description` | `public` | `string` | - | types/dist/tools.d.ts:14 |
 | `getter.handler` | `public` | (...`args`: `any`[]) => `any` | - | types/dist/tools.d.ts:15 |
 | `getter.inputSchema?` | `public` | `ZodObject`\<`$ZodLooseShape`, `$strip`\> | - | types/dist/tools.d.ts:16 |
 | `getter.name` | `public` | `string` | - | types/dist/tools.d.ts:13 |
 | `getter.outputSchema?` | `public` | `ZodType`\<`unknown`, `unknown`, `$ZodTypeInternals`\<`unknown`, `unknown`\>\> | - | types/dist/tools.d.ts:17 |
-| <a id="isexpanded"></a> `isExpanded` | `readonly` | `false` | Whether this uses expanded/decomposed tools. | core/src/create-state-tools.ts:44 |
-| <a id="setters"></a> `setters` | `readonly` | \{ `description`: `string`; `handler`: (...`args`: `any`[]) => `any`; `inputSchema?`: `ZodObject`\<`$ZodLooseShape`, `$strip`\>; `name`: `string`; `outputSchema?`: `ZodType`\<`unknown`, `unknown`, `$ZodTypeInternals`\<`unknown`, `unknown`\>\>; \} | The setter tool definition(s). Single setter for basic mode. | core/src/create-state-tools.ts:38 |
+| <a id="isexpanded"></a> `isExpanded` | `readonly` | `false` | Whether this uses expanded/decomposed tools. | [core/src/create-state-tools.ts:44](packages/core/src/create-state-tools.ts#L44) |
+| <a id="setters"></a> `setters` | `readonly` | \{ `description`: `string`; `handler`: (...`args`: `any`[]) => `any`; `inputSchema?`: `ZodObject`\<`$ZodLooseShape`, `$strip`\>; `name`: `string`; `outputSchema?`: `ZodType`\<`unknown`, `unknown`, `$ZodTypeInternals`\<`unknown`, `unknown`\>\>; \} | The setter tool definition(s). Single setter for basic mode. | [core/src/create-state-tools.ts:38](packages/core/src/create-state-tools.ts#L38) |
 | `setters.description` | `public` | `string` | - | types/dist/tools.d.ts:14 |
 | `setters.handler` | `public` | (...`args`: `any`[]) => `any` | - | types/dist/tools.d.ts:15 |
 | `setters.inputSchema?` | `public` | `ZodObject`\<`$ZodLooseShape`, `$strip`\> | - | types/dist/tools.d.ts:16 |
 | `setters.name` | `public` | `string` | - | types/dist/tools.d.ts:13 |
 | `setters.outputSchema?` | `public` | `ZodType`\<`unknown`, `unknown`, `$ZodTypeInternals`\<`unknown`, `unknown`\>\> | - | types/dist/tools.d.ts:17 |
-| <a id="tools-1"></a> `tools` | `readonly` | \{ `description`: `string`; `handler`: (...`args`: `any`[]) => `any`; `inputSchema?`: `ZodObject`\<`$ZodLooseShape`, `$strip`\>; `name`: `string`; `outputSchema?`: `ZodType`\<`unknown`, `unknown`, `$ZodTypeInternals`\<`unknown`, `unknown`\>\>; \}[] | All tool definitions as an array. | core/src/create-state-tools.ts:40 |
+| <a id="tools-1"></a> `tools` | `readonly` | \{ `description`: `string`; `handler`: (...`args`: `any`[]) => `any`; `inputSchema?`: `ZodObject`\<`$ZodLooseShape`, `$strip`\>; `name`: `string`; `outputSchema?`: `ZodType`\<`unknown`, `unknown`, `$ZodTypeInternals`\<`unknown`, `unknown`\>\>; \}[] | All tool definitions as an array. | [core/src/create-state-tools.ts:40](packages/core/src/create-state-tools.ts#L40) |
 
 ***
 
 ### CreatedStateToolsExpanded
 
-Defined in: core/src/create-state-tools.ts:51
+Defined in: [core/src/create-state-tools.ts:51](packages/core/src/create-state-tools.ts#L51)
 
 Result type for created state tools with schemaSplit or expand.
 Returns a getter and array of setters.
@@ -1703,23 +1703,23 @@ Returns a getter and array of setters.
 
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="__brand-1"></a> `__brand` | `readonly` | `"CreatedStateTools"` | Marker to identify this as created state tools. | core/src/create-state-tools.ts:53 |
-| <a id="config-2"></a> `config` | `readonly` | [`CreateStateToolsConfig`](#createstatetoolsconfig)\<`T`\> | The original config. | core/src/create-state-tools.ts:61 |
-| <a id="getter-1"></a> `getter` | `readonly` | \{ `description`: `string`; `handler`: (...`args`: `any`[]) => `any`; `inputSchema?`: `ZodObject`\<`$ZodLooseShape`, `$strip`\>; `name`: `string`; `outputSchema?`: `ZodType`\<`unknown`, `unknown`, `$ZodTypeInternals`\<`unknown`, `unknown`\>\>; \} | The getter tool definition. | core/src/create-state-tools.ts:55 |
+| <a id="__brand-1"></a> `__brand` | `readonly` | `"CreatedStateTools"` | Marker to identify this as created state tools. | [core/src/create-state-tools.ts:53](packages/core/src/create-state-tools.ts#L53) |
+| <a id="config-2"></a> `config` | `readonly` | [`CreateStateToolsConfig`](#createstatetoolsconfig)\<`T`\> | The original config. | [core/src/create-state-tools.ts:61](packages/core/src/create-state-tools.ts#L61) |
+| <a id="getter-1"></a> `getter` | `readonly` | \{ `description`: `string`; `handler`: (...`args`: `any`[]) => `any`; `inputSchema?`: `ZodObject`\<`$ZodLooseShape`, `$strip`\>; `name`: `string`; `outputSchema?`: `ZodType`\<`unknown`, `unknown`, `$ZodTypeInternals`\<`unknown`, `unknown`\>\>; \} | The getter tool definition. | [core/src/create-state-tools.ts:55](packages/core/src/create-state-tools.ts#L55) |
 | `getter.description` | `public` | `string` | - | types/dist/tools.d.ts:14 |
 | `getter.handler` | `public` | (...`args`: `any`[]) => `any` | - | types/dist/tools.d.ts:15 |
 | `getter.inputSchema?` | `public` | `ZodObject`\<`$ZodLooseShape`, `$strip`\> | - | types/dist/tools.d.ts:16 |
 | `getter.name` | `public` | `string` | - | types/dist/tools.d.ts:13 |
 | `getter.outputSchema?` | `public` | `ZodType`\<`unknown`, `unknown`, `$ZodTypeInternals`\<`unknown`, `unknown`\>\> | - | types/dist/tools.d.ts:17 |
-| <a id="isexpanded-1"></a> `isExpanded` | `readonly` | `true` | Whether this uses expanded/decomposed tools. | core/src/create-state-tools.ts:63 |
-| <a id="setters-1"></a> `setters` | `readonly` | \{ `description`: `string`; `handler`: (...`args`: `any`[]) => `any`; `inputSchema?`: `ZodObject`\<`$ZodLooseShape`, `$strip`\>; `name`: `string`; `outputSchema?`: `ZodType`\<`unknown`, `unknown`, `$ZodTypeInternals`\<`unknown`, `unknown`\>\>; \}[] | The setter tool definition(s). Array for expanded/decomposed mode. | core/src/create-state-tools.ts:57 |
-| <a id="tools-2"></a> `tools` | `readonly` | \{ `description`: `string`; `handler`: (...`args`: `any`[]) => `any`; `inputSchema?`: `ZodObject`\<`$ZodLooseShape`, `$strip`\>; `name`: `string`; `outputSchema?`: `ZodType`\<`unknown`, `unknown`, `$ZodTypeInternals`\<`unknown`, `unknown`\>\>; \}[] | All tool definitions as an array. | core/src/create-state-tools.ts:59 |
+| <a id="isexpanded-1"></a> `isExpanded` | `readonly` | `true` | Whether this uses expanded/decomposed tools. | [core/src/create-state-tools.ts:63](packages/core/src/create-state-tools.ts#L63) |
+| <a id="setters-1"></a> `setters` | `readonly` | \{ `description`: `string`; `handler`: (...`args`: `any`[]) => `any`; `inputSchema?`: `ZodObject`\<`$ZodLooseShape`, `$strip`\>; `name`: `string`; `outputSchema?`: `ZodType`\<`unknown`, `unknown`, `$ZodTypeInternals`\<`unknown`, `unknown`\>\>; \}[] | The setter tool definition(s). Array for expanded/decomposed mode. | [core/src/create-state-tools.ts:57](packages/core/src/create-state-tools.ts#L57) |
+| <a id="tools-2"></a> `tools` | `readonly` | \{ `description`: `string`; `handler`: (...`args`: `any`[]) => `any`; `inputSchema?`: `ZodObject`\<`$ZodLooseShape`, `$strip`\>; `name`: `string`; `outputSchema?`: `ZodType`\<`unknown`, `unknown`, `$ZodTypeInternals`\<`unknown`, `unknown`\>\>; \}[] | All tool definitions as an array. | [core/src/create-state-tools.ts:59](packages/core/src/create-state-tools.ts#L59) |
 
 ***
 
 ### CreatedTool
 
-Defined in: core/src/create-tool.ts:36
+Defined in: [core/src/create-tool.ts:36](packages/core/src/create-tool.ts#L36)
 
 A created tool that can be registered with MCPWeb.
 
@@ -1737,9 +1737,9 @@ Use `mcpWeb.addTool(createdTool)` or `useTools(createdTool)` to register.
 
 | Property | Modifier | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ | ------ |
-| <a id="__brand-2"></a> `__brand` | `readonly` | `"CreatedTool"` | Marker to identify this as a created tool. | core/src/create-tool.ts:41 |
-| <a id="config-3"></a> `config` | `readonly` | [`CreateToolConfig`](#createtoolconfig)\<`TInput`, `TOutput`\> | The original config for type inference. | core/src/create-tool.ts:45 |
-| <a id="definition"></a> `definition` | `readonly` | \{ `description`: `string`; `handler`: (...`args`: `any`[]) => `any`; `inputSchema?`: `ZodObject`\<`$ZodLooseShape`, `$strip`\>; `name`: `string`; `outputSchema?`: `ZodType`\<`unknown`, `unknown`, `$ZodTypeInternals`\<`unknown`, `unknown`\>\>; \} | The tool definition. | core/src/create-tool.ts:43 |
+| <a id="__brand-2"></a> `__brand` | `readonly` | `"CreatedTool"` | Marker to identify this as a created tool. | [core/src/create-tool.ts:41](packages/core/src/create-tool.ts#L41) |
+| <a id="config-3"></a> `config` | `readonly` | [`CreateToolConfig`](#createtoolconfig)\<`TInput`, `TOutput`\> | The original config for type inference. | [core/src/create-tool.ts:45](packages/core/src/create-tool.ts#L45) |
+| <a id="definition"></a> `definition` | `readonly` | \{ `description`: `string`; `handler`: (...`args`: `any`[]) => `any`; `inputSchema?`: `ZodObject`\<`$ZodLooseShape`, `$strip`\>; `name`: `string`; `outputSchema?`: `ZodType`\<`unknown`, `unknown`, `$ZodTypeInternals`\<`unknown`, `unknown`\>\>; \} | The tool definition. | [core/src/create-tool.ts:43](packages/core/src/create-tool.ts#L43) |
 | `definition.description` | `public` | `string` | - | types/dist/tools.d.ts:14 |
 | `definition.handler` | `public` | (...`args`: `any`[]) => `any` | - | types/dist/tools.d.ts:15 |
 | `definition.inputSchema?` | `public` | `ZodObject`\<`$ZodLooseShape`, `$strip`\> | - | types/dist/tools.d.ts:16 |
@@ -1750,7 +1750,7 @@ Use `mcpWeb.addTool(createdTool)` or `useTools(createdTool)` to register.
 
 ### CreateStateToolsConfig
 
-Defined in: core/src/create-state-tools.ts:11
+Defined in: [core/src/create-state-tools.ts:11](packages/core/src/create-state-tools.ts#L11)
 
 Configuration for creating state tools.
 
@@ -1764,19 +1764,19 @@ Configuration for creating state tools.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="description"></a> `description` | `string` | Description of what this state represents. | core/src/create-state-tools.ts:15 |
-| <a id="expand"></a> `expand?` | `boolean` | When true, generates expanded tools for arrays and records. | core/src/create-state-tools.ts:25 |
-| <a id="get"></a> `get` | () => `T` | Function to get the current state value. | core/src/create-state-tools.ts:17 |
-| <a id="name"></a> `name` | `string` | The name of the state (used as prefix for tool names). | core/src/create-state-tools.ts:13 |
-| <a id="schema"></a> `schema` | `ZodType`\<`T`\> | Zod schema for validating state values. | core/src/create-state-tools.ts:21 |
-| <a id="schemasplit"></a> `schemaSplit?` | `SplitPlan` | Optional split plan for decomposing the schema into multiple setter tools. | core/src/create-state-tools.ts:23 |
-| <a id="set"></a> `set` | (`value`: `T`) => `void` | Function to set the state value. | core/src/create-state-tools.ts:19 |
+| <a id="description"></a> `description` | `string` | Description of what this state represents. | [core/src/create-state-tools.ts:15](packages/core/src/create-state-tools.ts#L15) |
+| <a id="expand"></a> `expand?` | `boolean` | When true, generates expanded tools for arrays and records. | [core/src/create-state-tools.ts:25](packages/core/src/create-state-tools.ts#L25) |
+| <a id="get"></a> `get` | () => `T` | Function to get the current state value. | [core/src/create-state-tools.ts:17](packages/core/src/create-state-tools.ts#L17) |
+| <a id="name"></a> `name` | `string` | The name of the state (used as prefix for tool names). | [core/src/create-state-tools.ts:13](packages/core/src/create-state-tools.ts#L13) |
+| <a id="schema"></a> `schema` | `ZodType`\<`T`\> | Zod schema for validating state values. | [core/src/create-state-tools.ts:21](packages/core/src/create-state-tools.ts#L21) |
+| <a id="schemasplit"></a> `schemaSplit?` | `SplitPlan` | Optional split plan for decomposing the schema into multiple setter tools. | [core/src/create-state-tools.ts:23](packages/core/src/create-state-tools.ts#L23) |
+| <a id="set"></a> `set` | (`value`: `T`) => `void` | Function to set the state value. | [core/src/create-state-tools.ts:19](packages/core/src/create-state-tools.ts#L19) |
 
 ***
 
 ### CreateToolConfig
 
-Defined in: core/src/create-tool.ts:8
+Defined in: [core/src/create-tool.ts:8](packages/core/src/create-tool.ts#L8)
 
 Configuration for creating a tool with Zod schemas.
 
@@ -1791,11 +1791,11 @@ Configuration for creating a tool with Zod schemas.
 
 | Property | Type | Description | Defined in |
 | ------ | ------ | ------ | ------ |
-| <a id="description-1"></a> `description` | `string` | Description of what the tool does. | core/src/create-tool.ts:15 |
-| <a id="handler"></a> `handler` | `TInput` *extends* `ZodObject`\<`$ZodLooseShape`, `$strip`\> ? (`input`: `output`\<`TInput`\<`TInput`\>\>) => `TOutput` *extends* `ZodType`\<`unknown`, `unknown`, `$ZodTypeInternals`\<`unknown`, `unknown`\>\> ? \| `output`\<`TOutput`\<`TOutput`\>\> \| `Promise`\<`output`\<`TOutput`\<`TOutput`\>\>\> : `void` \| `Promise`\<`void`\> : `TOutput` *extends* `ZodType`\<`unknown`, `unknown`, `$ZodTypeInternals`\<`unknown`, `unknown`\>\> ? () => \| `output`\<`TOutput`\<`TOutput`\>\> \| `Promise`\<`output`\<`TOutput`\<`TOutput`\>\>\> : () => `void` \| `Promise`\<`void`\> | The function that handles the tool execution. | core/src/create-tool.ts:17 |
-| <a id="inputschema"></a> `inputSchema?` | `TInput` | Optional Zod schema for validating input. | core/src/create-tool.ts:25 |
-| <a id="name-1"></a> `name` | `string` | The name of the tool (must be unique). | core/src/create-tool.ts:13 |
-| <a id="outputschema"></a> `outputSchema?` | `TOutput` | Optional Zod schema for validating output. | core/src/create-tool.ts:27 |
+| <a id="description-1"></a> `description` | `string` | Description of what the tool does. | [core/src/create-tool.ts:15](packages/core/src/create-tool.ts#L15) |
+| <a id="handler"></a> `handler` | `TInput` *extends* `ZodObject`\<`$ZodLooseShape`, `$strip`\> ? (`input`: `output`\<`TInput`\<`TInput`\>\>) => `TOutput` *extends* `ZodType`\<`unknown`, `unknown`, `$ZodTypeInternals`\<`unknown`, `unknown`\>\> ? \| `output`\<`TOutput`\<`TOutput`\>\> \| `Promise`\<`output`\<`TOutput`\<`TOutput`\>\>\> : `void` \| `Promise`\<`void`\> : `TOutput` *extends* `ZodType`\<`unknown`, `unknown`, `$ZodTypeInternals`\<`unknown`, `unknown`\>\> ? () => \| `output`\<`TOutput`\<`TOutput`\>\> \| `Promise`\<`output`\<`TOutput`\<`TOutput`\>\>\> : () => `void` \| `Promise`\<`void`\> | The function that handles the tool execution. | [core/src/create-tool.ts:17](packages/core/src/create-tool.ts#L17) |
+| <a id="inputschema"></a> `inputSchema?` | `TInput` | Optional Zod schema for validating input. | [core/src/create-tool.ts:25](packages/core/src/create-tool.ts#L25) |
+| <a id="name-1"></a> `name` | `string` | The name of the tool (must be unique). | [core/src/create-tool.ts:13](packages/core/src/create-tool.ts#L13) |
+| <a id="outputschema"></a> `outputSchema?` | `TOutput` | Optional Zod schema for validating output. | [core/src/create-tool.ts:27](packages/core/src/create-tool.ts#L27) |
 
 ## Type Aliases
 
@@ -1805,7 +1805,7 @@ Configuration for creating a tool with Zod schemas.
 type ContextItem = z.infer<typeof ContextItemSchema>;
 ```
 
-Defined in: core/src/types.ts:25
+Defined in: [core/src/types.ts:25](packages/core/src/types.ts#L25)
 
 ***
 
@@ -1817,7 +1817,7 @@ type CreatedStateTools<T> =
 | CreatedStateToolsExpanded<T>;
 ```
 
-Defined in: core/src/create-state-tools.ts:67
+Defined in: [core/src/create-state-tools.ts:67](packages/core/src/create-state-tools.ts#L67)
 
 Union type for created state tools.
 
@@ -1835,7 +1835,7 @@ Union type for created state tools.
 type EphemeralContext = z.infer<typeof EphemeralContextSchema>;
 ```
 
-Defined in: core/src/types.ts:26
+Defined in: [core/src/types.ts:26](packages/core/src/types.ts#L26)
 
 ***
 
@@ -1849,7 +1849,7 @@ type GroupedState<T> = {
 };
 ```
 
-Defined in: core/src/group-state.ts:24
+Defined in: [core/src/group-state.ts:24](packages/core/src/group-state.ts#L24)
 
 The result of groupState: combined schema, getter, and setter.
 
@@ -1863,9 +1863,9 @@ The result of groupState: combined schema, getter, and setter.
 
 | Property | Type | Defined in |
 | ------ | ------ | ------ |
-| <a id="get-1"></a> `get` | () => `{ [K in keyof T]: InferTripleType<T[K]> }` | core/src/group-state.ts:28 |
-| <a id="schema-1"></a> `schema` | `z.ZodObject`\<`{ [K in keyof T]: z.ZodOptional<T[K] extends StateTriple<infer U> ? z.ZodType<U> : never> }`\> | core/src/group-state.ts:25 |
-| <a id="set-1"></a> `set` | (`value`: `Partial`\<`{ [K in keyof T]: InferTripleType<T[K]> }`\>) => `void` | core/src/group-state.ts:29 |
+| <a id="get-1"></a> `get` | () => `{ [K in keyof T]: InferTripleType<T[K]> }` | [core/src/group-state.ts:28](packages/core/src/group-state.ts#L28) |
+| <a id="schema-1"></a> `schema` | `z.ZodObject`\<`{ [K in keyof T]: z.ZodOptional<T[K] extends StateTriple<infer U> ? z.ZodType<U> : never> }`\> | [core/src/group-state.ts:25](packages/core/src/group-state.ts#L25) |
+| <a id="set-1"></a> `set` | (`value`: `Partial`\<`{ [K in keyof T]: InferTripleType<T[K]> }`\>) => `void` | [core/src/group-state.ts:29](packages/core/src/group-state.ts#L29) |
 
 ***
 
@@ -1879,15 +1879,15 @@ type QueryRequest = Omit<z.input<typeof QueryRequestSchema>, "responseTool" | "t
 };
 ```
 
-Defined in: core/src/types.ts:15
+Defined in: [core/src/types.ts:15](packages/core/src/types.ts#L15)
 
 #### Type Declaration
 
 | Name | Type | Defined in |
 | ------ | ------ | ------ |
-| `context?` | (`ToolDefinition` \| [`EphemeralContext`](#ephemeralcontext))[] | core/src/types.ts:18 |
-| `responseTool?` | `ToolDefinition` | core/src/types.ts:16 |
-| `tools?` | `ToolDefinition`[] | core/src/types.ts:17 |
+| `context?` | (`ToolDefinition` \| [`EphemeralContext`](#ephemeralcontext))[] | [core/src/types.ts:18](packages/core/src/types.ts#L18) |
+| `responseTool?` | `ToolDefinition` | [core/src/types.ts:16](packages/core/src/types.ts#L16) |
+| `tools?` | `ToolDefinition`[] | [core/src/types.ts:17](packages/core/src/types.ts#L17) |
 
 ***
 
@@ -1897,7 +1897,7 @@ Defined in: core/src/types.ts:15
 type QueryResponseResult = z.infer<typeof QueryResponseResultSchema>;
 ```
 
-Defined in: core/src/types.ts:14
+Defined in: [core/src/types.ts:14](packages/core/src/types.ts#L14)
 
 ***
 
@@ -1907,7 +1907,7 @@ Defined in: core/src/types.ts:14
 type QueryResponseResultAccepted = z.infer<typeof QueryResponseResultAcceptedSchema>;
 ```
 
-Defined in: core/src/types.ts:21
+Defined in: [core/src/types.ts:21](packages/core/src/types.ts#L21)
 
 ***
 
@@ -1917,7 +1917,7 @@ Defined in: core/src/types.ts:21
 type QueryResponseResultComplete = z.infer<typeof QueryResponseResultCompleteSchema>;
 ```
 
-Defined in: core/src/types.ts:23
+Defined in: [core/src/types.ts:23](packages/core/src/types.ts#L23)
 
 ***
 
@@ -1927,7 +1927,7 @@ Defined in: core/src/types.ts:23
 type QueryResponseResultFailure = z.infer<typeof QueryResponseResultFailureSchema>;
 ```
 
-Defined in: core/src/types.ts:24
+Defined in: [core/src/types.ts:24](packages/core/src/types.ts#L24)
 
 ***
 
@@ -1937,7 +1937,7 @@ Defined in: core/src/types.ts:24
 type QueryResponseResultProgress = z.infer<typeof QueryResponseResultProgressSchema>;
 ```
 
-Defined in: core/src/types.ts:22
+Defined in: [core/src/types.ts:22](packages/core/src/types.ts#L22)
 
 ***
 
@@ -1947,7 +1947,7 @@ Defined in: core/src/types.ts:22
 type StateTriple<T> = [() => T, (value: T) => void, z.ZodType<T>];
 ```
 
-Defined in: core/src/group-state.ts:7
+Defined in: [core/src/group-state.ts:7](packages/core/src/group-state.ts#L7)
 
 A tuple representing a single piece of state: [getter, setter, schema]
 Follows the familiar [value, setter] pattern from React/Jotai hooks.
@@ -1966,7 +1966,7 @@ Follows the familiar [value, setter] pattern from React/Jotai hooks.
 type StateTriples = Record<string, StateTriple<any>>;
 ```
 
-Defined in: core/src/group-state.ts:14
+Defined in: [core/src/group-state.ts:14](packages/core/src/group-state.ts#L14)
 
 Configuration object mapping state names to their getter/setter/schema triples.
 Uses `any` instead of `unknown` to avoid contravariance issues with the setter function.
@@ -2035,7 +2035,7 @@ function createStateTools<T>(config: CreateStateToolsConfig<T> & {
 }): CreatedStateToolsBasic<T>;
 ```
 
-Defined in: core/src/create-state-tools.ts:70
+Defined in: [core/src/create-state-tools.ts:70](packages/core/src/create-state-tools.ts#L70)
 
 ##### Type Parameters
 
@@ -2062,7 +2062,7 @@ function createStateTools<T>(config: CreateStateToolsConfig<T> & {
 }): CreatedStateToolsExpanded<T>;
 ```
 
-Defined in: core/src/create-state-tools.ts:76
+Defined in: [core/src/create-state-tools.ts:76](packages/core/src/create-state-tools.ts#L76)
 
 ##### Type Parameters
 
@@ -2089,7 +2089,7 @@ function createStateTools<T>(config: CreateStateToolsConfig<T> & {
 }): CreatedStateToolsExpanded<T>;
 ```
 
-Defined in: core/src/create-state-tools.ts:82
+Defined in: [core/src/create-state-tools.ts:82](packages/core/src/create-state-tools.ts#L82)
 
 ##### Type Parameters
 
@@ -2115,7 +2115,7 @@ Defined in: core/src/create-state-tools.ts:82
 function createTool<TInput, TOutput>(config: CreateToolConfig<TInput, TOutput>): CreatedTool<TInput, TOutput>;
 ```
 
-Defined in: core/src/create-tool.ts:80
+Defined in: [core/src/create-tool.ts:80](packages/core/src/create-tool.ts#L80)
 
 Creates a tool definition without registering it.
 
@@ -2173,7 +2173,7 @@ function App() {
 function deepMerge(target: unknown, source: unknown): unknown;
 ```
 
-Defined in: core/src/utils.ts:105
+Defined in: [core/src/utils.ts:105](packages/core/src/utils.ts#L105)
 
 Deep merge two objects recursively.
 Used for partial updates to state objects.
@@ -2205,7 +2205,7 @@ Key behaviors:
 function groupState<T>(atoms: T): GroupedState<T>;
 ```
 
-Defined in: core/src/group-state.ts:60
+Defined in: [core/src/group-state.ts:60](packages/core/src/group-state.ts#L60)
 
 Groups multiple atomic state variables into a single schema/getter/setter
 that can be spread into `addStateTools`.
@@ -2258,7 +2258,7 @@ mcpWeb.addStateTools({
 function id<T>(schema: T): T;
 ```
 
-Defined in: core/src/tool-generators/schema-helpers.ts:16
+Defined in: [core/src/tool-generators/schema-helpers.ts:16](packages/core/src/tool-generators/schema-helpers.ts#L16)
 
 Marks a field as the unique identifier for array elements.
 Enables ID-based tools instead of index-based.
@@ -2297,7 +2297,7 @@ const TodoSchema = z.object({
 function isCreatedStateTools(value: unknown): value is CreatedStateTools<unknown>;
 ```
 
-Defined in: core/src/create-state-tools.ts:271
+Defined in: [core/src/create-state-tools.ts:271](packages/core/src/create-state-tools.ts#L271)
 
 Type guard to check if a value is CreatedStateTools.
 
@@ -2319,7 +2319,7 @@ Type guard to check if a value is CreatedStateTools.
 function isCreatedTool(value: unknown): value is CreatedTool<undefined, undefined>;
 ```
 
-Defined in: core/src/create-tool.ts:108
+Defined in: [core/src/create-tool.ts:108](packages/core/src/create-tool.ts#L108)
 
 Type guard to check if a value is a CreatedTool.
 
@@ -2343,7 +2343,7 @@ function isZodSchema(schema:
   | JSONSchema): schema is ZodType<unknown, unknown, $ZodTypeInternals<unknown, unknown>>;
 ```
 
-Defined in: core/src/utils.ts:8
+Defined in: [core/src/utils.ts:8](packages/core/src/utils.ts#L8)
 
 #### Parameters
 
@@ -2363,7 +2363,7 @@ Defined in: core/src/utils.ts:8
 function system<T>(schema: T): T;
 ```
 
-Defined in: core/src/tool-generators/schema-helpers.ts:34
+Defined in: [core/src/tool-generators/schema-helpers.ts:34](packages/core/src/tool-generators/schema-helpers.ts#L34)
 
 Marks a field as system-generated.
 Field is excluded from input schemas (add/set).
@@ -2404,7 +2404,7 @@ function toJSONSchema(schema:
   | JSONSchema): JSONSchema;
 ```
 
-Defined in: core/src/utils.ts:12
+Defined in: [core/src/utils.ts:12](packages/core/src/utils.ts#L12)
 
 #### Parameters
 
@@ -2429,7 +2429,7 @@ function toToolMetadataJson(tool: ToolDefinition): {
 };
 ```
 
-Defined in: core/src/utils.ts:82
+Defined in: [core/src/utils.ts:82](packages/core/src/utils.ts#L82)
 
 Convert a ToolDefinition to ToolMetadataJson for wire transmission.
 Removes the handler and converts Zod schemas to JSON Schema.
@@ -2470,7 +2470,7 @@ function toToolSchema<T>(schema?:
   | ZodType<T, unknown, $ZodTypeInternals<T, unknown>>): ZodObject<$ZodLooseShape, $strip> | JSONSchema;
 ```
 
-Defined in: core/src/utils.ts:36
+Defined in: [core/src/utils.ts:36](packages/core/src/utils.ts#L36)
 
 #### Type Parameters
 
@@ -2498,7 +2498,7 @@ function toToolZodSchema<T>(schema?:
   | ZodType<T, unknown, $ZodTypeInternals<T, unknown>>): ZodObject;
 ```
 
-Defined in: core/src/utils.ts:26
+Defined in: [core/src/utils.ts:26](packages/core/src/utils.ts#L26)
 
 #### Type Parameters
 
@@ -2526,7 +2526,7 @@ function validateInput<T>(input: unknown, schema:
   | ZodType<T, unknown, $ZodTypeInternals<T, unknown>>): T;
 ```
 
-Defined in: core/src/utils.ts:49
+Defined in: [core/src/utils.ts:49](packages/core/src/utils.ts#L49)
 
 #### Type Parameters
 
