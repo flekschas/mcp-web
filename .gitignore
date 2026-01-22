@@ -20,6 +20,7 @@ pnpm-debug.log*
 
 # AI coding tool configurations
 *.local.md
+.plans
 
 # TypeDoc generated files
 docs/api/
