@@ -1,4 +1,3 @@
-@ -1,241 +0,0 @@
 ---
 name: mcp-web
 description: Build frontend apps whose state and actions are exposed to AI agents via MCP. Use when building MCP-Web apps, exposing frontend state to AI, creating AI-controllable web UIs, registering MCP tools, or when the user mentions MCP-Web, MCPWeb, or @mcp-web packages.
