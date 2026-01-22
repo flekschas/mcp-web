@@ -1,0 +1,21 @@
+# Lefthook git hooks configuration
+# https://lefthook.dev/
+
+pre-push:
+  commands:
+    docs-freshness:
+      # Only run if TypeScript source files in packages changed
+      glob: "packages/*/src/**/*.ts"
+      run: |
+        echo "Checking if API reference docs are up to date..."
+        pnpm docs:generate
+        if ! git diff --quiet agents/skills/mcp-web/api-reference*.md; then
+          echo ""
+          echo "ERROR: API reference docs are out of date!"
+          echo "The following files have uncommitted changes after docs:generate:"
+          git diff --name-only agents/skills/mcp-web/api-reference*.md
+          echo ""
+          echo "Please commit the updated api-reference*.md files."
+          exit 1
+        fi
+        echo "API reference docs are up to date."

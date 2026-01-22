@@ -1,0 +1,46 @@
+name: docs-check
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  check-docs-freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build packages (required for typedoc)
+        run: pnpm build
+
+      - name: Generate API docs
+        run: pnpm docs:generate
+
+      - name: Check for uncommitted changes
+        run: |
+          if ! git diff --quiet agents/skills/mcp-web/api-reference*.md; then
+            echo "::error::API reference docs are out of date!"
+            echo ""
+            echo "The following files have changes after running 'pnpm docs:generate':"
+            git diff --name-only agents/skills/mcp-web/api-reference*.md
+            echo ""
+            echo "Please run 'pnpm docs:generate' locally and commit the changes."
+            echo ""
+            echo "Diff:"
+            git diff agents/skills/mcp-web/api-reference*.md
+            exit 1
+          fi
+          echo "API reference docs are up to date."

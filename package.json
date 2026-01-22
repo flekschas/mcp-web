@@ -4,6 +4,7 @@
   "description": "MCP integration for frontend web apps: expose state and actions as tools",
   "type": "module",
   "scripts": {
+    "prepare": "lefthook install",
     "build": "pnpm -r build",
     "build:packages": "pnpm --filter './packages/*' build",
     "dev": "pnpm -r dev",
@@ -33,8 +34,10 @@
   "license": "Apache-2.0",
   "packageManager": "pnpm@10.25.0",
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
     "@biomejs/biome": "^2.3.8",
     "@types/bun": "^1.3.0",
+    "lefthook": "^2.0.15",
     "typedoc": "^0.28.16",
     "typedoc-plugin-markdown": "^4.9.0",
     "typedoc-vitepress-theme": "^1.1.2"
