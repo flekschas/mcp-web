@@ -14,11 +14,11 @@ agents/
 ├── AGENTS.md              # High-level overview & navigation (symlinked to root)
 ├── README.md              # Meta-documentation about the agents folder itself
 └── skills/
-    ├── agent-docs/        # THIS skill - meta documentation maintenance
+    ├── mcp-web-agent-docs/  # THIS skill - meta documentation maintenance
     │   └── SKILL.md
-    └── mcp-web/           # MCP-Web library usage skill
-        ├── SKILL.md       # Main skill document
-        ├── examples.md    # Complete code examples
+    └── mcp-web/             # MCP-Web library usage skill
+        ├── SKILL.md         # Main skill document
+        ├── examples.md      # Complete code examples
         └── api-reference-*.md  # Per-package API documentation
 ```
 
@@ -114,9 +114,10 @@ Current packages in the monorepo:
 
 | Package | Path | Purpose |
 |---------|------|---------|
-| `@mcp-web/core` | `packages/core/` | Frontend library - MCPWeb class, state tools, integrations |
+| `@mcp-web/core` | `packages/core/` | Frontend library - MCPWeb class, state tools |
 | `@mcp-web/bridge` | `packages/bridge/` | WebSocket/HTTP bridge server - MCPWebBridge class |
 | `@mcp-web/client` | `packages/client/` | MCP client for Claude Desktop connection |
+| `@mcp-web/react` | `packages/integrations/react/` | React hooks and components for state management |
 | `@mcp-web/types` | `packages/types/` | Shared TypeScript types |
 | `@mcp-web/decompose-zod-schema` | `packages/decompose-zod-schema/` | Zod schema decomposition utilities |
 | `@mcp-web/tools` | `packages/tools/` | Reusable tool implementations |

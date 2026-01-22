@@ -10,9 +10,10 @@ Claude Desktop <-> MCP Client <-> Bridge Server <-> Frontend Library (in Web App
 
 | Package | Path | Description |
 |---------|------|-------------|
-| `@mcp-web/core` | `packages/core/` | Frontend library - MCPWeb class, state tools, framework integrations |
+| `@mcp-web/core` | `packages/core/` | Frontend library - MCPWeb class, state tools |
 | `@mcp-web/bridge` | `packages/bridge/` | WebSocket/HTTP bridge server - MCPWebBridge class |
 | `@mcp-web/client` | `packages/client/` | MCP client connecting Claude Desktop to bridge |
+| `@mcp-web/react` | `packages/integrations/react/` | React hooks and components for state management |
 | `@mcp-web/types` | `packages/types/` | Shared TypeScript type definitions |
 | `@mcp-web/decompose-zod-schema` | `packages/decompose-zod-schema/` | Zod schema decomposition utilities |
 | `@mcp-web/tools` | `packages/tools/` | Reusable tool implementations |
@@ -24,7 +25,7 @@ Load these skills for detailed guidance on specific tasks:
 | Skill | When to Use |
 |-------|-------------|
 | `mcp-web` | Building MCP-Web apps, exposing frontend state to AI, registering tools, using `@mcp-web/*` packages |
-| `agent-docs` | Updating agent documentation in `./agents/` |
+| `mcp-web-agent-docs` | Updating agent documentation in `./agents/` |
 
 ## Development Commands
 
