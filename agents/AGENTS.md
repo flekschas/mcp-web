@@ -1,97 +1,62 @@
-# CLAUDE.md
+# MCP-Web
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Project Overview
-
-This is the MCP Frontend Integration System - a bridge architecture that allows web frontends to be controlled by Claude Desktop through the Model Context Protocol (MCP). The system consists of three main packages:
-
-1. **Bridge** (`packages/bridge/`) - WebSocket/HTTP server that mediates between frontends and Claude Desktop
-2. **Frontend** (`packages/frontend/`) - JavaScript library that web apps integrate to expose tools to Claude
-3. **Client** (`packages/client/`) - MCP client that connects Claude Desktop to the bridge server
-
-## Architecture
+A bridge architecture that allows web frontends to be controlled by AI agents through the Model Context Protocol (MCP). Web apps expose their state and actions as tools that AI can understand and invoke.
 
 ```
-Claude Desktop ↔ MCP Client ↔ Bridge Server ↔ Frontend Library (in Web App)
+Claude Desktop <-> MCP Client <-> Bridge Server <-> Frontend Library (in Web App)
 ```
+
+## Packages
+
+| Package | Path | Description |
+|---------|------|-------------|
+| `@mcp-web/core` | `packages/core/` | Frontend library - MCPWeb class, state tools, framework integrations |
+| `@mcp-web/bridge` | `packages/bridge/` | WebSocket/HTTP bridge server - MCPWebBridge class |
+| `@mcp-web/client` | `packages/client/` | MCP client connecting Claude Desktop to bridge |
+| `@mcp-web/types` | `packages/types/` | Shared TypeScript type definitions |
+| `@mcp-web/decompose-zod-schema` | `packages/decompose-zod-schema/` | Zod schema decomposition utilities |
+| `@mcp-web/tools` | `packages/tools/` | Reusable tool implementations |
+
+## Available Skills
+
+Load these skills for detailed guidance on specific tasks:
+
+| Skill | When to Use |
+|-------|-------------|
+| `mcp-web` | Building MCP-Web apps, exposing frontend state to AI, registering tools, using `@mcp-web/*` packages |
+| `agent-docs` | Updating agent documentation in `./agents/` |
 
 ## Development Commands
 
-Since this is a PNPM workspace, use these commands from the root:
-
 ```bash
-# Install dependencies for all packages
-pnpm install
+pnpm install          # Install all dependencies
+pnpm build            # Build all packages
+pnpm test             # Run all tests
+pnpm clean            # Clean build artifacts
 
-# Build all packages
-pnpm -r build
-
-# Build specific package
-pnpm --filter bridge build
-pnpm --filter client build  
-pnpm --filter frontend build
-
-# Run specific package in dev mode
-pnpm --filter client dev
-pnpm --filter frontend dev
+# Package-specific
+pnpm --filter @mcp-web/core build
+pnpm --filter @mcp-web/bridge dev
 ```
 
 ## Code Standards
 
-- TypeScript is used throughout the project
-- Biome is configured for linting and formatting (single quotes, 2 spaces, 80 char line width)
-- All packages use ES modules (`"type": "module"`)
+- TypeScript throughout, ES modules (`"type": "module"`)
+- Biome for linting/formatting (single quotes, 2 spaces, 80 char width)
+- Use `unknown` instead of `any` for unknown types
+- Descriptive variable names
 
-## Key Files and Their Purposes
+## Key Entry Points
 
-### Bridge Server (`packages/bridge/src/bridge.ts`)
-- Handles WebSocket connections from frontends on port 3001
-- Provides HTTP/JSON-RPC MCP server interface on port 3002
-- Manages session authentication and tool registration
-- Routes tool calls between Claude Desktop and appropriate frontend sessions
+| Purpose | File |
+|---------|------|
+| Frontend integration | `packages/core/src/index.ts` |
+| Bridge server | `packages/bridge/src/bridge.ts` |
+| MCP client | `packages/client/src/client.ts` |
+| Type definitions | `packages/types/src/index.ts` |
 
-### Frontend Library (`packages/frontend/src/frontend.ts`)
-- `MCPFrontend` class that web apps instantiate
-- Handles WebSocket connection to bridge server
-- Provides `addTool()` method for registering interactive tools
-- Includes built-in UI (floating button) for connection configuration
-- Utility functions in `MCPUtils` for common tool patterns (DOM queries, screenshots, forms)
+## Documentation
 
-### MCP Client (`packages/client/src/client.ts`)
-- Standard MCP server implementation using `@modelcontextprotocol/sdk`
-- Translates MCP requests to bridge server HTTP API calls
-- Handles tool execution responses and session management
-- Configured via environment variables (MCP_SERVER_URL, AUTH_TOKEN)
-
-## Tool Registration Pattern
-
-Frontend tools are registered with this signature:
-```typescript
-addTool(name: string, description: string, handler: Function, inputSchema?: JsonSchema)
-```
-
-The bridge server automatically:
-- Aggregates tools from all active sessions
-- Handles session routing (auto-selects if only one session active)
-- Provides session management tools (`list_active_sessions`)
-
-## Session Management
-
-- Each frontend gets a unique session key (persisted in localStorage)
-- Authentication uses auto-generated tokens
-- Bridge server tracks session metadata (origin, page title, activity)
-- Tools are scoped to sessions but can be called cross-session if needed
-
-## Testing and Debugging
-
-- No test framework is currently configured
-- Frontend library includes debug mode option
-- Bridge server logs all connections and tool calls to console
-- Use browser dev tools to inspect WebSocket messages
-
-## Publishing/Distribution
-
-All packages are currently marked as `"private": true` - they are not published to npm. The README contains installation instructions that reference placeholder package names (`@your-company/mcp-*`).
-- Always use descriptive variable names
-- Do not introduce `any` types. If the type is now known, use `unknown`
+- **Agent docs**: `agents/` (this file + skills)
+- **API docs**: Generated via `pnpm docs:generate` to `docs/`
+- **Package READMEs**: `packages/*/README.md`
