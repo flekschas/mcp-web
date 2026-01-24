@@ -254,144 +254,14 @@ For frontend-triggered queries (when your app wants to ask the AI for help),
 MCP-Web provides a separate lightweight Agent API that makes use of the same
 MCP tools you've registered.
 
-### Query Endpoints
+### Why Frontend-Triggered Queries?
 
-The Agent server exposes HTTP endpoints for frontend-triggered queries:
+While MCP traditionally flows from AI agent → tools, many AI-native web apps
+need the reverse: triggering AI queries from user interactions. The Agent API
+enables this while reusing the same MCP tools, so both AI apps (like Claude
+Desktop) and your web app can use identical tool definitions.
 
-#### PUT /query
-
-Initiate a new AI agent query from the frontend.
-
-**Request:**
-```typescript
-PUT http://localhost:3003/query
-
-{
-  uuid: "unique-query-id",
-  prompt: "Analyze this and suggest improvements",
-  context: [
-    {
-      name: "game_state",
-      value: { /* current state */ },
-      schema: { /* JSON schema */ },
-      description: "Current game state",
-      type: "ephemeral"
-    }
-  ],
-  responseTool: {
-    name: "apply_suggestion",
-    inputSchema: { /* JSON schema */ },
-    outputSchema: { /* JSON schema */ }
-  }
-}
-```
-
-**Response (Streaming):**
-The agent streams events back via WebSocket connection:
-
-```typescript
-// 1. Query accepted
-{
-  type: "query_accepted",
-  uuid: "unique-query-id"
-}
-
-// 2. Progress updates (optional, multiple)
-{
-  type: "query_progress",
-  uuid: "unique-query-id",
-  content: "Analyzing game state..."
-}
-
-// 3. Completion
-{
-  type: "query_complete",
-  uuid: "unique-query-id",
-  result: { /* AI agent's response */ }
-}
-
-// Or failure
-{
-  type: "query_failure",
-  uuid: "unique-query-id",
-  error: "Error message"
-}
-```
-
-### Agent-Specific Query Context
-
-Queries can include context in two forms:
-
-**Ephemeral Context:**
-Data provided just for this query, not exposed as persistent tools:
-
-```typescript
-context: [
-  {
-    name: "user_data",
-    value: { /* data to analyze */ },
-    schema: UserDataSchema,
-    description: "User-uploaded data for analysis",
-    type: "ephemeral"
-  }
-]
-```
-
-**Tool Context:**
-Reference to existing tools that the AI can call:
-
-```typescript
-context: [
-  {
-    name: "get_game_state",
-    type: "tool",
-    // AI agent can call this tool during query processing
-  }
-]
-```
-
-### Authentication for Agent Queries
-
-Agent queries use the same authentication as the main connection:
-
-```typescript
-// Frontend includes auth token in query
-const query = mcp.query({
-  prompt: "...",
-});
-// MCPWeb automatically includes authToken in request
-
-// Agent verifies token matches the session
-if (request.authToken !== session.authToken) {
-  return { error: "Unauthorized" };
-}
-```
-
-### Response Handling
-
-The Agent processes queries by:
-
-1. **Accepting the Query**
-   - Validates authentication
-   - Sends `query_accepted` event
-   - Queues query for processing
-
-2. **Processing**
-   - Calls the underlying AI model/service
-   - Provides query context (ephemeral data + available tools)
-   - Streams progress updates via `query_progress` events
-
-3. **Using Response Tools**
-   - If `responseTool` is specified, instructs AI to respond by calling that tool
-   - Tool call is executed through normal tool call flow
-   - Result is returned in `query_complete` event
-
-4. **Completion**
-   - Sends `query_complete` with final result
-   - Or `query_failure` if processing fails
-   - Cleans up query state
-
-### Query Lifecycle
+### Query Flow
 
 ```
 Frontend                    Agent Server                    AI Service
@@ -413,57 +283,31 @@ Frontend                    Agent Server                    AI Service
    │                             │     │ Tool execution          │
    │                             │◄────┘ via Bridge              │
    │                             │                               │
-   │ ← query_complete            │  ← Final result              │
+   │ ← query_complete            │  ← Final result               │
    │◄────────────────────────────┤◄──────────────────────────────┤
    │                             │                               │
 ```
 
-### Query Cancellation
+The Agent server acts as an intermediary that:
 
-Frontends can cancel in-flight queries:
+1. Receives queries from the frontend via HTTP
+2. Streams progress events back via WebSocket
+3. Can call MCP tools through the Bridge during processing
+4. Returns structured results or executes response tools
 
-```typescript
-// Frontend cancels query
-query.cancel();
-// or via AbortController
-abortController.abort();
-
-// Agent receives cancellation
-{
-  type: "query_cancel",
-  uuid: "unique-query-id"
-}
-
-// Agent stops processing and responds
-{
-  type: "query_cancel",
-  uuid: "unique-query-id"
-}
-```
-
-### Agent Implementation
+### Agent Design Principles
 
 The Agent server is designed to be:
 
-- **Pluggable**: Can integrate with different AI services (Claude API, OpenAI, custom models)
+- **Pluggable**: Integrate with different AI services (Claude API, OpenAI, custom models)
 - **Stateful**: Manages query lifecycle and progress tracking
-- **Streaming**: Provides real-time progress updates
+- **Streaming**: Provides real-time progress updates to the frontend
 - **Secure**: Validates authentication for all query requests
 
-Example agent configuration:
-
-```typescript
-startAgent({
-  port: 3003,
-  bridgeUrl: 'http://localhost:3002',
-  // Provider-specific configuration
-  aiProvider: 'anthropic',
-  apiKey: process.env.ANTHROPIC_API_KEY,
-  model: 'claude-3-5-sonnet-20241022',
-});
-```
-
-This architecture allows frontends to leverage AI capabilities on-demand while maintaining the security and session management of the overall MCP-Web system.
+::: tip Usage Guide
+For implementation details, code examples, and usage patterns, see the
+[Frontend-Triggered Queries](./frontend-triggered-queries.md) guide.
+:::
 
 <style scoped>
   .img {

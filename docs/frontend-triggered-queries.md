@@ -48,6 +48,33 @@ two endpoints:
 - `PUT /query/{uuid}` for new queries
 - `DELETE /query/{uuid}` for canceling queries
 
+#### Query Request Format
+
+When your agent server receives a `PUT /query/{uuid}` request, the body contains:
+
+```typescript
+{
+  uuid: string;              // Unique query identifier
+  prompt: string;            // User's instruction to the AI
+  context?: Array<{          // Optional context items
+    name: string;
+    value: unknown;          // Pre-computed value (for tool context)
+    schema: JSONSchema;      // JSON Schema describing the value
+    description?: string;
+    type: 'ephemeral' | 'tool';
+  }>;
+  responseTool?: {           // Optional: require AI to call this tool
+    name: string;
+    inputSchema: JSONSchema;
+    outputSchema?: JSONSchema;
+  };
+}
+```
+
+Your agent server should stream events back to the frontend via the WebSocket
+connection. See [Query Events Reference](#query-events-reference) for the event
+types your server should emit.
+
 ::: tip Complete Example
 See the [Checkers Demo](../demos/checkers/agent.ts) for a complete agent
 server implementation including query handling, tool routing, and LLM integration.
@@ -224,6 +251,37 @@ async function summarizeTodos() {
     setSummarizing(false);
   }
 }
+```
+
+### Query Events Reference
+
+The following events are streamed from the agent server during query processing:
+
+| Event Type | Description | Properties |
+|------------|-------------|------------|
+| `query_accepted` | Query was received and queued for processing | `uuid` |
+| `query_progress` | Intermediate progress update | `uuid`, `content` (optional message) |
+| `query_complete` | Query finished successfully | `uuid`, `result` |
+| `query_failure` | Query failed | `uuid`, `error` (error message) |
+| `query_cancel` | Query was cancelled | `uuid` |
+
+**Event structure:**
+
+```typescript
+// Accepted
+{ type: 'query_accepted', uuid: string }
+
+// Progress (can be sent multiple times)
+{ type: 'query_progress', uuid: string, content?: string }
+
+// Complete
+{ type: 'query_complete', uuid: string, result: unknown }
+
+// Failure
+{ type: 'query_failure', uuid: string, error: string }
+
+// Cancelled
+{ type: 'query_cancel', uuid: string }
 ```
 
 ## Enforce a Response Tool

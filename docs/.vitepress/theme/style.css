@@ -56,6 +56,7 @@
   --vp-c-text-1: oklch(0.3056 0.0654 288.09);
   --vp-c-text-2: oklch(0.45 0.0654 288.09 / 0.75);
   --vp-c-text-3: oklch(0.55 0.0654 288.09 / 0.6);
+  --vp-c-text-4: oklch(0.9699 0.0013 106.42 / 0.4);
 
   /* Brand colors */
   --vp-c-brand-1: oklch(0.64 0.22 340);
@@ -120,6 +121,7 @@
   --vp-c-text-1: oklch(0.9699 0.0013 106.42);
   --vp-c-text-2: oklch(0.9699 0.0013 106.42 / 0.75);
   --vp-c-text-3: oklch(0.9699 0.0013 106.42 / 0.6);
+  --vp-c-text-4: oklch(0.9699 0.0013 106.42 / 0.4);
 
   /* Brand colors */
   --vp-c-brand-1: oklch(0.7583 0.2 340);
@@ -311,6 +313,25 @@
   margin-bottom: 8px;
 }
 
+.VPFooter.VPFooter a {
+  opacity: 0.33;
+  color: var(--vp-c-text-1);
+  text-decoration-color: oklch(0.9699 0.0013 106.42 / 0);
+  text-underline-offset: 4px;
+  text-decoration-thickness: 1px;
+  transition: all 0.25s ease-in-out;
+}
+
+.dark .VPFooter.VPFooter a {
+  text-decoration-color: oklch(0.9699 0.0013 106.42 / 0);
+}
+
+.VPFooter.VPFooter a:hover {
+  opacity: 1;
+  text-decoration-color: var(--vp-c-text-4);
+  text-underline-offset: 2px;
+}
+
 /**
  * Home Page Overrides
  * These apply only when the .is-home class is on <html>
@@ -335,4 +356,11 @@
   --vp-c-bg: transparent;
   --vp-c-divider: transparent;
   --vp-c-gutter: transparent;
+}
+
+.footer-heart {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: middle;
 }
