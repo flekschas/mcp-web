@@ -1,5 +1,5 @@
 # macOS
-# .DS_Store
+.DS_Store
 
 # JavaScript directories
 node_modules
