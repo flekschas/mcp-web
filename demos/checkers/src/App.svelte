@@ -107,7 +107,7 @@ async function copySweetnessToClipboard() {
     <!-- Footer -->
     <footer class="text-center mt-12 opacity-70 text-sm">
       <p>
-        This demo showcases <a href="https://github.com/flekschas/mcp-web" class="wavy" target="_blank">MCP-Web</a>'s frontend-triggered LLM queries.
+        This demo showcases <a href="https://github.com/flekschas/mcp-web" class="wavy" target="_blank">MCP-Web</a> with frontend-triggered LLM queries.
       </p>
     </footer>
   </div>
