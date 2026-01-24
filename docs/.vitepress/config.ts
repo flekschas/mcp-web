@@ -46,51 +46,74 @@ export default defineConfig({
       }
     ],
 
-    sidebar: [
-      {
-        text: 'Guides',
-        items: [
-          { text: 'Get Started', link: '/get-started' },
-          { text: 'Frontend Queries', link: '/frontend-triggered-queries' },
-          { text: 'Structuring Your App', link: '/structuring-your-app' },
-          { text: 'Integrations', link: '/integrations' },
-          { text: 'Expanded State Tools', link: '/expanded-state-tools' },
-          { text: 'Large Schemas', link: '/large-schema' },
-        ]
-      },
-      {
-        text: 'Learn',
-        items: [
-          { text: 'MCP-Web Architecture', link: '/architecture' },
-          { text: 'Declarative & Reactive State', link: '/declarative-reactive-state' },
-          { text: 'Designing State Tools', link: '/designing-state-tools' },
-        ]
-      },
-      {
-        text: 'Examples',
-        items: [
-          { text: 'Todo', link: '/demos/todo' },
-          { text: 'Checkers', link: '/demos/checkers' },
-          { text: 'HiGlass', link: '/demos/higlass' },
-        ]
-      },
-      {
-        text: 'API Reference',
-        link: '/api/',
-      },
-      {
-        text: 'GitHub',
-        link: 'https://github.com/flekschas/mcp-web/',
-      },
-    ],
+    sidebar: {
+      '/': [
+        {
+          text: 'Guides',
+          items: [
+            { text: 'Get Started', link: '/get-started' },
+            { text: 'Frontend Queries', link: '/frontend-triggered-queries' },
+            { text: 'Structuring Your App', link: '/structuring-your-app' },
+            { text: 'Integrations', link: '/integrations' },
+            { text: 'Expanded State Tools', link: '/expanded-state-tools' },
+            { text: 'Large Schemas', link: '/large-schema' },
+          ]
+        },
+        {
+          text: 'Learn',
+          items: [
+            { text: 'MCP-Web Architecture', link: '/architecture' },
+            { text: 'Declarative & Reactive State', link: '/declarative-reactive-state' },
+            { text: 'Designing State Tools', link: '/designing-state-tools' },
+          ]
+        },
+        {
+          text: 'Examples',
+          items: [
+            { text: 'Todo', link: '/demos/todo' },
+            { text: 'Checkers', link: '/demos/checkers' },
+            { text: 'HiGlass', link: '/demos/higlass' },
+          ]
+        },
+        {
+          text: 'API Reference',
+          link: '/api',
+        },
+        {
+          text: 'GitHub',
+          link: 'https://github.com/flekschas/mcp-web/',
+        },
+      ],
+      '/api/': [
+        {
+          text: 'Packages',
+          items: [
+            { text: 'Core', link: '/api/core' },
+            { text: 'Bridge', link: '/api/bridge' },
+            { text: 'Client', link: '/api/client' },
+            { text: 'Tools', link: '/api/tools' },
+            { text: 'React', link: '/api/react' },
+            { text: 'Decompose Zod Schema', link: '/api/decompose-zod-schema' },
+            { text: 'MCPB', link: '/api/mcpb' },
+          ]
+        },
+      ]
+    },
 
     socialLinks: [
       { icon: 'github', link: 'https://github.com/flekschas/mcp-web/' }
-    ]
+    ],
+
+    footer: {
+      message: '<a href="/made-with-love">Made with <img src="/heart-half-digital.svg" alt="heart" class="footer-heart" /> by Fritz and Claude</a>',
+    }
   },
   markdown: {
     image: {
       lazyLoading: true
     }
+  },
+  sitemap: {
+    hostname: 'https://mcp-web.dev'
   }
 })

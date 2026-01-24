@@ -13,6 +13,7 @@ Claude Desktop <-> MCP Client <-> Bridge Server <-> Frontend Library (in Web App
 | `@mcp-web/core` | `packages/core/` | Frontend library - MCPWeb class, state tools |
 | `@mcp-web/bridge` | `packages/bridge/` | WebSocket/HTTP bridge server - MCPWebBridge class |
 | `@mcp-web/client` | `packages/client/` | MCP client connecting Claude Desktop to bridge |
+| `@mcp-web/mcpb` | `packages/mcpb/` | Generate pre-configured .mcpb bundles for one-click Claude Desktop installation |
 | `@mcp-web/react` | `packages/integrations/react/` | React hooks and components for state management |
 | `@mcp-web/types` | `packages/types/` | Shared TypeScript type definitions |
 | `@mcp-web/decompose-zod-schema` | `packages/decompose-zod-schema/` | Zod schema decomposition utilities |
