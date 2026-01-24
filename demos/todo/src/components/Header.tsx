@@ -34,7 +34,7 @@ export function Header() {
         <button
           type="button"
           onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-          className="btn-3d-ghost"
+          className="btn-subtle btn-subtle-icon"
           title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
         >
           {sortOrder === 'asc' && <ArrowUpIcon className="w-4 h-4" />}
@@ -45,7 +45,7 @@ export function Header() {
         <button
           type="button"
           onClick={() => setShowCompleted(prev => !prev)}
-          className={`btn-3d-ghost ${showCompleted ? 'btn-3d-ghost-active' : ''}`}
+          className="btn-subtle"
         >
           {showCompleted ? <CheckIcon className="w-4 h-4" /> : <MinusIcon className="w-4 h-4" />}
           Completed
@@ -56,7 +56,7 @@ export function Header() {
       <button
         type="button"
         onClick={cycleTheme}
-        className="btn-3d-icon"
+        className="btn-subtle btn-subtle-icon"
         title={`Theme: ${theme}`}
       >
         {theme === 'light' && <SunIcon className="w-4 h-4" />}

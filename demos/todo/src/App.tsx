@@ -59,6 +59,20 @@ function App() {
         <div className="flex-1 flex flex-col">
           <Header />
           <MainContent />
+          <footer className="text-center py-4 opacity-70 text-sm">
+            <p>
+              This demo showcases{' '}
+              <a
+                href="https://github.com/flekschas/mcp-web"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:opacity-80 transition-opacity"
+              >
+                MCP-Web
+              </a>
+              .
+            </p>
+          </footer>
         </div>
       </div>
     </>
