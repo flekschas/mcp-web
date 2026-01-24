@@ -13,6 +13,7 @@
   "dependencies": {
     "@mcp-web/bridge": "workspace:*",
     "@mcp-web/core": "workspace:*",
+    "@mcp-web/tools": "workspace:*",
     "@tailwindcss/vite": "catalog:",
     "higlass": "^2.0.1",
     "jotai": "^2.12.5",

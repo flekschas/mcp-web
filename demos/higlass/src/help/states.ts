@@ -8,7 +8,7 @@ export const helpModalDismissedAtom = atomWithStorage<boolean | undefined>(
   undefined,
   {
     getOnInit: true,
-  }
+  },
 );
 
 const isDismissed = getDefaultStore().get(helpModalDismissedAtom);

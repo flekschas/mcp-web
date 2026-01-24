@@ -38,7 +38,8 @@ export const HIGLASS_DEFAULT_VIEW_CONFIG: HiglassViewConfig = {
             maxZoom: 22,
           },
           {
-            chromInfoPath: 'https://s3.amazonaws.com/pkerp/data/hg19/chromSizes.tsv',
+            chromInfoPath:
+              'https://s3.amazonaws.com/pkerp/data/hg19/chromSizes.tsv',
             type: 'horizontal-chromosome-labels',
             position: 'top',
             name: 'Chromosome Labels (hg19)',
@@ -64,7 +65,8 @@ export const HIGLASS_DEFAULT_VIEW_CONFIG: HiglassViewConfig = {
           //   maxZoom: 22,
           // },
           {
-            chromInfoPath: 'https://s3.amazonaws.com/pkerp/data/hg19/chromSizes.tsv',
+            chromInfoPath:
+              'https://s3.amazonaws.com/pkerp/data/hg19/chromSizes.tsv',
             type: 'vertical-chromosome-labels',
             position: 'left',
             name: 'Chromosome Labels (hg19)',

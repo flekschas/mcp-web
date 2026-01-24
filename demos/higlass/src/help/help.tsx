@@ -12,7 +12,6 @@ export function Help() {
 
   const handleClose = () => {
     setDismissed(true);
-    console.log('setDismissed');
     setIsOpen(false);
   };
 
@@ -32,9 +31,7 @@ export function Help() {
       className="absolute inset-0 bg-black/50 z-10 backdrop-blur-xs"
       onClick={handleBackdropClick}
     >
-      <div
-        className="absolute inset-8 flex items-center justify-center pointer-events-none"
-      >
+      <div className="absolute inset-8 flex items-center justify-center pointer-events-none">
         <div
           ref={modalRef}
           className="bg-white rounded max-w-2xl w-full max-h-full overflow-y-auto text-sm flex flex-col pointer-events-auto"
@@ -73,7 +70,12 @@ export function Help() {
                     1. Add MCP Server Configuration
                   </h3>
                   <p className="text-zinc-700 mb-3">
-                    Add this configuration to your Claude Desktop config (<code>~/Library/Application Support/Claude/claude_desktop_config.json</code>) under <code>mcpServers</code>:
+                    Add this configuration to your Claude Desktop config (
+                    <code>
+                      ~/Library/Application
+                      Support/Claude/claude_desktop_config.json
+                    </code>
+                    ) under <code>mcpServers</code>:
                   </p>
                   <div className="bg-zinc-100 rounded-lg p-4 overflow-x-auto">
                     <pre className="text-xs text-zinc-800 whitespace-pre-wrap">
@@ -94,11 +96,15 @@ export function Help() {
                       🔒 Persistent Auth Token
                     </h4>
                     <p className="text-xs text-green-700 mb-2">
-                      Your auth token is automatically saved and will persist across browser sessions.
-                      Current token: <code className="bg-green-100 px-1 rounded text-xs">{authToken.slice(0, 8)}...</code>
+                      Your auth token is automatically saved and will persist
+                      across browser sessions. Current token:{' '}
+                      <code className="bg-green-100 px-1 rounded text-xs">
+                        {authToken.slice(0, 8)}...
+                      </code>
                     </p>
                     <p className="text-xs text-green-600">
-                      ✅ No need to reconfigure Claude Desktop when you reload this page!
+                      ✅ No need to reconfigure Claude Desktop when you reload
+                      this page!
                     </p>
                   </div>
                 </div>

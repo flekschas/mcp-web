@@ -1,3 +1,4 @@
+// TODO: delete after we verified that the decomposed schemas in schemas/ work
 import { z } from 'zod';
 
 export const higlassViewConfigSchema = z
@@ -2531,4 +2532,3 @@ export const higlassViewConfigSchema = z
   })
   .strict()
   .describe('Root object describing a HiGlass visualization.');
-

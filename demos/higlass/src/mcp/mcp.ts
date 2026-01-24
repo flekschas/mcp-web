@@ -7,7 +7,6 @@ import { MCPWeb } from '@mcp-web/core';
 export const mcp = new MCPWeb({
   name: 'HiGlass',
   description: 'Control the HiGlass web-based genome browser',
-  bridgeUrl: 'ws://localhost:3001',
   // persistAuthToken: true is the default, but shown here for clarity
   persistAuthToken: true,
 });

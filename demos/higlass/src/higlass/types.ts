@@ -47,8 +47,11 @@ export interface HiGlassTileset {
   private: boolean;
 }
 
-export type ChromosomeInfo = Record<string, {
-  size: number;
-  absoluteStart: number;
-  index: number;
-}>
+export type ChromosomeInfo = Record<
+  string,
+  {
+    size: number;
+    absoluteStart: number;
+    index: number;
+  }
+>;
