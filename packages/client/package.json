@@ -11,7 +11,8 @@
   },
   "scripts": {
     "dev": "tsc --watch",
-    "build": "tsc",
+    "build": "tsc && node esbuild.standalone.mjs",
+    "build:standalone": "node esbuild.standalone.mjs",
     "clean": "rm -rf dist",
     "start": "node dist/index.js"
   },
@@ -22,6 +23,7 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "esbuild": "catalog:",
     "typescript": "catalog:"
   }
 }
