@@ -1,4 +1,5 @@
 import { expect, test } from 'bun:test';
+import { ClientNotConextualizedErrorCode, QueryDoneErrorCode } from '@mcp-web/types';
 import { MCPWebClient } from './client.js';
 
 // Store original fetch for tests that need to mock it
@@ -51,7 +52,7 @@ test('callTool validates restrictTools', async () => {
   const contextClient = client.contextualize(query);
 
   // Should throw when calling a tool not in the allowed list
-  await expect(async () => {
+  expect(async () => {
     await contextClient.callTool('forbidden-tool', {});
   }).toThrow('not allowed');
 });
@@ -197,14 +198,14 @@ test('complete marks query as completed and prevents further calls', async () =>
   await contextClient.complete('Done!');
 
   // Should throw when trying to call tools after completion
-  await expect(async () => {
+  expect(async () => {
     await contextClient.callTool('test_tool', {});
-  }).toThrow('Cannot call tools on a completed query');
+  }).toThrow(QueryDoneErrorCode);
 
   // Should throw when trying to complete again
-  await expect(async () => {
+  expect(async () => {
     await contextClient.complete('Done again!');
-  }).toThrow('already completed');
+  }).toThrow(QueryDoneErrorCode);
 
   globalThis.fetch = originalFetch;
 });
@@ -214,9 +215,9 @@ test('sendProgress throws on non-contextualized client', async () => {
     serverUrl: 'http://localhost:3002',
   });
 
-  await expect(async () => {
+  expect(async () => {
     await client.sendProgress('test');
-  }).toThrow('can only be called on a contextualized client');
+  }).toThrow(ClientNotConextualizedErrorCode);
 });
 
 test('complete throws on non-contextualized client', async () => {
@@ -224,9 +225,9 @@ test('complete throws on non-contextualized client', async () => {
     serverUrl: 'http://localhost:3002',
   });
 
-  await expect(async () => {
+  expect(async () => {
     await client.complete('test');
-  }).toThrow('can only be called on a contextualized client');
+  }).toThrow(ClientNotConextualizedErrorCode);
 });
 
 test('fail marks query as failed and prevents further operations', async () => {
@@ -250,9 +251,9 @@ test('fail marks query as failed and prevents further operations', async () => {
   await contextClient.fail('Something went wrong');
 
   // Should throw when trying to call tools after failure
-  await expect(async () => {
+  expect(async () => {
     await contextClient.callTool('test_tool', {});
-  }).toThrow('Cannot call tools on a completed query');
+  }).toThrow(QueryDoneErrorCode);
 
   globalThis.fetch = originalFetch;
 });
