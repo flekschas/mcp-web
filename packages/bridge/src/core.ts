@@ -197,9 +197,12 @@ interface McpResponse {
 
 /**
  * Builds the query URL by appending the UUID to the agent URL.
+ * If no protocol is specified, defaults to http://.
  */
 const buildQueryUrl = (agentUrl: string, uuid: string): string => {
-  const url = new URL(agentUrl);
+  // Add http:// if no protocol specified
+  const urlWithProtocol = agentUrl.includes('://') ? agentUrl : `http://${agentUrl}`;
+  const url = new URL(urlWithProtocol);
 
   if (url.pathname === '/' || url.pathname === '') {
     url.pathname = '/query';

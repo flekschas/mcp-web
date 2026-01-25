@@ -109,7 +109,7 @@ interface PartyServer {
  * Configuration for the PartyKit bridge adapter.
  * Note: Port is not configurable - PartyKit manages this.
  */
-export interface MCPWebBridgePartyConfig extends Omit<MCPWebConfig, 'wsPort' | 'mcpPort' | 'host'> {
+export interface MCPWebBridgePartyConfig extends Omit<MCPWebConfig, 'bridgeUrl'> {
   /**
    * Session timeout check interval in milliseconds.
    * PartyKit uses alarms instead of setInterval, so this determines
@@ -340,12 +340,7 @@ export function createPartyKitBridge(config: MCPWebBridgePartyConfig): new (room
       this.#room = room;
       this.#scheduler = new AlarmScheduler(room);
       this.#core = new MCPWebBridge(
-        {
-          ...config,
-          // These are not used by PartyKit but required by the schema
-          wsPort: 0,
-          mcpPort: 0,
-        },
+        config,
         this.#scheduler
       );
 

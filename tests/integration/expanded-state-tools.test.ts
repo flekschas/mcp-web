@@ -23,16 +23,14 @@ const authToken = 'test-auth-token-expanded-tools';
 const mcpWebConfig = {
   name: 'test-expanded-tools',
   description: 'Test expanded state tools',
-  host: 'localhost',
-  wsPort: BRIDGE_PORT,
-  mcpPort: BRIDGE_PORT,
+  bridgeUrl: `localhost:${BRIDGE_PORT}`,
   persistAuthToken: false,
   autoConnect: false,
   authToken,
 } satisfies MCPWebConfig;
 
 const mcpWebClientConfig: MCPWebClientConfig = {
-  serverUrl: `http://${mcpWebConfig.host}:${BRIDGE_PORT}`,
+  serverUrl: `http://${mcpWebConfig.bridgeUrl}`,
   authToken,
 };
 

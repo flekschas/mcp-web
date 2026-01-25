@@ -51,7 +51,7 @@ import type { HttpRequest, WebSocketConnection } from '../runtime/types.js';
 /**
  * Configuration for the Deno bridge adapter.
  */
-export interface MCPWebBridgeDenoConfig extends MCPWebConfig {
+export interface MCPWebBridgeDenoConfig extends Omit<MCPWebConfig, 'bridgeUrl'> {
   /** Port to listen on (default: 3001, or PORT env var on Deno Deploy) */
   port?: number;
 

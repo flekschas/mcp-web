@@ -29,7 +29,7 @@ import { readyStateToString } from '../runtime/types.js';
 /**
  * Configuration for the Node.js bridge adapter.
  */
-export interface MCPWebBridgeNodeConfig extends MCPWebConfig {
+export interface MCPWebBridgeNodeConfig extends Omit<MCPWebConfig, 'bridgeUrl'> {
   /** Port to listen on (default: 3001) */
   port?: number;
 

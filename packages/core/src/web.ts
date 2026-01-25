@@ -57,11 +57,9 @@ import { toJSONSchema, toToolMetadataJson } from './utils.js';
  * const mcp = new MCPWeb({
  *   name: 'Checkers Game',
  *   description: 'Interactive checkers game controllable by AI agents',
- *   host: 'localhost',
- *   wsPort: 3001,
- *   mcpPort: 3002,
+ *   bridgeUrl: 'localhost:3001',
  *   icon: 'https://example.com/icon.png',
- *   agentUrl: 'http://localhost:3003',
+ *   agentUrl: 'localhost:3003',
  *   autoConnect: true,
  * });
  * ```
@@ -99,9 +97,7 @@ export class MCPWeb {
    * const mcp = new MCPWeb({
    *   name: 'My Todo App',
    *   description: 'A todo application that AI agents can control',
-   *   host: 'localhost',
-   *   wsPort: 3001,
-   *   mcpPort: 3002,
+   *   bridgeUrl: 'localhost:3001',
    *   autoConnect: true,
    * });
    * ```
@@ -116,7 +112,7 @@ export class MCPWeb {
         command: 'npx',
         args: ['@mcp-web/client'],
         env: {
-          MCP_SERVER_URL: `${globalThis.window?.location?.protocol ?? 'http:'}//${this.#config.host}:${this.#config.mcpPort}`,
+          MCP_SERVER_URL: `${this.#getHttpProtocol()}//${this.#config.bridgeUrl}`,
           AUTH_TOKEN: this.#authToken
         }
       }
@@ -196,8 +192,15 @@ export class MCPWeb {
 
 
   #getBridgeWsUrl(): string {
-    const protocol = globalThis.window?.location?.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${this.#config.host}:${this.#config.wsPort}`;
+    return `${this.#getWsProtocol()}//${this.#config.bridgeUrl}`;
+  }
+
+  #getWsProtocol(): 'ws:' | 'wss:' {
+    return globalThis.window?.location?.protocol === 'https:' ? 'wss:' : 'ws:';
+  }
+
+  #getHttpProtocol(): 'http:' | 'https:' {
+    return globalThis.window?.location?.protocol === 'https:' ? 'https:' : 'http:';
   }
 
   #generateSessionId(): string {

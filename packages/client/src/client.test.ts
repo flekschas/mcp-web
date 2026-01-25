@@ -59,7 +59,7 @@ test('callTool validates restrictTools', async () => {
 
 test('callTool allows tools when restrictTools is false', async () => {
   // Mock fetch to return success - Deno has native fetch!
-  globalThis.fetch = async () => {
+  globalThis.fetch = (async () => {
     return new Response(
       JSON.stringify({
         jsonrpc: '2.0',
@@ -68,7 +68,7 @@ test('callTool allows tools when restrictTools is false', async () => {
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
-  };
+  }) as unknown as typeof fetch;
 
   const client = new MCPWebClient({
     serverUrl: 'http://localhost:3002',
@@ -101,7 +101,7 @@ test('callTool includes query context in request', async () => {
   let capturedBody: unknown;
 
   // Mock fetch and capture the request body
-  globalThis.fetch = async (input: Request | URL | string, init?: RequestInit) => {
+  globalThis.fetch = (async (input: Request | URL | string, init?: RequestInit) => {
     // Capture the body from init if it's a string
     if (init && typeof init.body === 'string') {
       capturedBody = JSON.parse(init.body);
@@ -118,7 +118,7 @@ test('callTool includes query context in request', async () => {
       }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
-  };
+  }) as unknown as typeof fetch;
 
   const client = new MCPWebClient({
     serverUrl: 'http://localhost:3002',
@@ -178,9 +178,9 @@ test('listTools returns query tools when available', async () => {
 });
 
 test('complete marks query as completed and prevents further calls', async () => {
-  globalThis.fetch = async () => {
+  globalThis.fetch = (async () => {
     return new Response(JSON.stringify({}), { status: 200 });
-  };
+  }) as unknown as typeof fetch;
 
   const client = new MCPWebClient({
     serverUrl: 'http://localhost:3002',
@@ -231,9 +231,9 @@ test('complete throws on non-contextualized client', async () => {
 });
 
 test('fail marks query as failed and prevents further operations', async () => {
-  globalThis.fetch = async () => {
+  globalThis.fetch = (async () => {
     return new Response(JSON.stringify({}), { status: 200 });
-  };
+  }) as unknown as typeof fetch;
 
   const client = new MCPWebClient({
     serverUrl: 'http://localhost:3002',

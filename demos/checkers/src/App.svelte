@@ -135,7 +135,7 @@ async function copySweetnessToClipboard() {
             <div class="mb-4 bg-red-900 border border-red-700 p-4 rounded">
               <h3 class="font-bold text-red-200 mb-2">⚠️ Not Connected</h3>
               <p class="text-red-300 text-sm">
-                Make sure the MCP-Web bridge is running on {MCP_WEB_CONFIG.host}:{MCP_WEB_CONFIG.wsPort} and the agent
+                Make sure the MCP-Web bridge is running on {MCP_WEB_CONFIG.bridgeUrl} and the agent
                 is running on {MCP_WEB_CONFIG.agentUrl}.
               </p>
               <p class="text-red-300 text-sm mt-2">

@@ -236,7 +236,7 @@ describe('Query Limits', () => {
       description: 'Test',
       port,
       maxInFlightQueriesPerToken: 2,
-      agentUrl: 'http://localhost:9999'
+      agentUrl: 'localhost:9999'
     });
 
     const authToken = 'test-token-query-limit';
@@ -296,7 +296,7 @@ describe('Query Limits', () => {
       name: 'Test Bridge',
       description: 'Test',
       port,
-      agentUrl: 'http://localhost:9999'
+      agentUrl: 'localhost:9999'
       // No maxInFlightQueriesPerToken
     });
 

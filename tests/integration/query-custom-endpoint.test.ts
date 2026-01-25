@@ -24,16 +24,14 @@ const customEndpoint = '/api/v1/agent/query';
 const mcpWebConfig = {
   name: 'test',
   description: 'Test ',
-  host: 'localhost',
-  wsPort: BRIDGE_PORT,
-  mcpPort: BRIDGE_PORT,
+  bridgeUrl: `localhost:${BRIDGE_PORT}`,
   persistAuthToken: false,
   autoConnect: true,
-  agentUrl: `http://localhost:3003${customEndpoint}`,
+  agentUrl: `localhost:3003${customEndpoint}`,
 } satisfies MCPWebConfig;
 
 const mcpWebClientConfig: MCPWebClientConfig = {
-  serverUrl: `http://${mcpWebConfig.host}:${BRIDGE_PORT}`,
+  serverUrl: `http://${mcpWebConfig.bridgeUrl}`,
 };
 
 let bridgeProcess: ReturnType<typeof spawn> | undefined;

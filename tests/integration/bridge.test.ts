@@ -23,15 +23,13 @@ const BRIDGE_PORT = 3001;
 const mcpWebConfig = {
   name: 'test',
   description: 'Test ',
-  host: 'localhost',
-  wsPort: BRIDGE_PORT,
-  mcpPort: BRIDGE_PORT,  // Same port for both WS and HTTP now
+  bridgeUrl: `localhost:${BRIDGE_PORT}`,
   persistAuthToken: false,
   autoConnect: false,
 } satisfies MCPWebConfig;
 
 const mcpWebClientConfig: MCPWebClientConfig = {
-  serverUrl: `http://${mcpWebConfig.host}:${BRIDGE_PORT}`,
+  serverUrl: `http://${mcpWebConfig.bridgeUrl}`,
 };
 
 let bridgeProcess: ReturnType<typeof spawn> | undefined;

@@ -57,7 +57,7 @@ import type { HttpRequest, WebSocketConnection } from '../runtime/types.js';
 /**
  * Configuration for the Bun bridge adapter.
  */
-export interface MCPWebBridgeBunConfig extends MCPWebConfig {
+export interface MCPWebBridgeBunConfig extends Omit<MCPWebConfig, 'bridgeUrl'> {
   /** Port to listen on (default: 3001) */
   port?: number;
 

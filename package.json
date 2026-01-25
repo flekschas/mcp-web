@@ -9,7 +9,7 @@
     "build:packages": "pnpm --filter './packages/*' build",
     "dev": "pnpm -r dev",
     "clean": "pnpm -r clean",
-    "test": "bun test packages",
+    "test": "bun test packages && bun test tests/integration",
     "test:types": "bun test packages/types/src",
     "test:client": "bun test packages/client/src",
     "test:bridge": "bun test packages/bridge/src",
