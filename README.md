@@ -1,112 +1,109 @@
-# MCP-Web: Use Frontend Apps as Tools
+<h1>
+  <img src="https://storage.googleapis.com/flekschas/mcp-web/logo.svg" width="24" height="24" alt="Logo" style="vertical-align: middle" />
+  MCP-Web
+</h1>
 
-This system allows any web frontend application to be controlled by an AI tool (like Claude Desktop) by exposing state and actions as tools using the [MCP](https://modelcontextprotocol.io) protocol via a bridge server architecture.
+Enable AI agents to control frontend web apps directly via [MCP](https://modelcontextprotocol.io). Expose your application's state and actions as tools that AI can understand and invoke.
 
-## Architecture Overview
+**[Documentation](https://mcp-web.dev)** · [Get Started](https://mcp-web.dev/get-started) · [Demos](https://mcp-web.dev/demos/todo)
 
-MCP-Web provides the glue to enable an AI app or agent to control and interact
-with your frontend app via three packages: Web, Bridge, Client
+## How It Works
 
 ```
-Frontend  ↔  MCP-Web/Web  ↔  MCP-Web/Bridge  ↔  MCP-Web/Client  ↔  AI App/Agent
-     ╰─ Runs ─╯     ╰─ WebSocket ─╯      ╰─ HTTP ─╯        ╰─ STDIO ─╯
+Frontend App  ↔  @mcp-web/core  ↔  @mcp-web/bridge  ↔  @mcp-web/client  ↔  AI App/Agent
+          ╰─ runs ─╯       ╰─ WS/SSE ─╯        ╰─ HTTP ─╯          ╰─ STDIO ─╯
 ```
 
-- Web: registers and executes frontend tools
-- Bridge: exposes tools and forwards calls as an MCP server
-- Client: issues requests to the MCP server
+Your frontend registers tools with **core**, which connects to the **bridge** server. AI agents connect via the **client**, which communicates with the bridge to invoke your frontend tools.
+
+## Key Features
+
+- 🤖 **Enable AI to control** your frontend web apps directly via MCP
+- 🛠️ **Dynamically expose state and actions** as type-safe tools
+- ✨ **Auto-generate efficient tools** from schemas with built-in helpers
+- 🔄 **Trigger AI queries from your frontend** using the same tools
+- 🪟 **Interact with multiple browser sessions** independently
+- 🎯 **Works with any framework**: React, Vue, Svelte, vanilla JS
 
 ## Quick Start
 
-### Install
+### 1. Add to Your Frontend
 
 ```bash
-# Install the bridge server
-npm install -g @mcp-web/bridge
-
-# Start the bridge server
-mcp-bridge
-# Runs on ports 3001 (WebSocket) and 3002 (MCP HTTP)
-```
-
-### 2. Install the MCP Client for Claude Desktop
-
-```bash
-# Install the client
-npm install -g @your-company/mcp-client
-```
-
-### 3. Add MCP Frontend to Your Web App
-
-#### Option A: Via npm (recommended)
-```bash
-npm install @your-company/mcp-frontend
+npm install @mcp-web/core
 ```
 
 ```typescript
-import MCPWeb from '@mcp-web/core';
+import { MCPWeb } from '@mcp-web/core';
+import { z } from 'zod';
 
-// Initialize MCP Frontend
-const mcp = new MCPWeb({
-  appName: 'my-dashboard',
-  bridgeUrl: 'wss://yourdomain.com:3001',
+const mcp = new MCPWeb({ name: 'My App', autoConnect: true });
+
+// Add a simple tool
+mcp.addTool({
+  name: 'get_greeting',
+  description: 'Get a personalized greeting',
+  handler: ({ name }) => ({ message: `Hello, ${name}!` }),
+  inputSchema: z.object({ name: z.string() }),
 });
 
-// Add tools that Claude can use
-mcp.addTool(
-  'get-user-data',
-  'Get current user information from the dashboard',
-  () => {
-    return {
-      user: getCurrentUser(),
-      preferences: getUserPreferences()
-    };
-  }
-);
-
-mcp.addTool(
-  'click-button',
-  'Click a button on the page',
-  (selector: string) => {
-    const button = document.querySelector(selector);
-    if (button) {
-      (button as HTMLElement).click();
-      return { success: true, message: `Clicked ${selector}` };
-    }
-    throw new Error(`Button not found: ${selector}`);
-  },
-  {
-    type: "object",
-    properties: {
-      selector: { type: "string", description: "CSS selector for the button" }
-    },
-    required: ["selector"]
-  }
-);
-
-// Add a screenshot tool
-const screenshotTool = MCPUtils.createScreenshotTool(
-  'take-screenshot',
-  'Take a screenshot of the current page'
-);
-mcp.addTool(screenshotTool.name, screenshotTool.description, screenshotTool.handler, screenshotTool.inputSchema);
+// Or expose state with auto-generated getter/setter tools
+let counter = 0;
+mcp.addStateTools({
+  name: 'counter',
+  description: 'A counter value',
+  get: () => counter,
+  set: (value) => { counter = value; },
+  schema: z.number(),
+});
+// Creates: get_counter() and set_counter({ value })
 ```
 
-### 4. Configure Claude Desktop
+### 2. Run the Bridge
 
-Click the 🤖 button in your web app to get the configuration, then add to Claude Desktop:
+```bash
+npx @mcp-web/bridge
+# Runs WebSocket and MCP HTTP server on :3001
+```
+
+### 3. Connect Your AI Agent
+
+Add to Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
 
 ```json
 {
   "mcpServers": {
-    "my-dashboard": {
+    "my-app": {
       "command": "npx",
       "args": ["@mcp-web/client"],
       "env": {
-        "MCP_SERVER_URL": "https://yourdomain.com:3002",
-        "AUTH_TOKEN": "your-generated-auth-token-from-ui"
+        "MCP_SERVER_URL": "http://localhost:3001",
+        "AUTH_TOKEN": "your-auth-token"
       }
     }
   }
 }
 ```
+
+Get the full config (including auth token) from `mcp.mcpConfig` in your frontend.
+
+## Packages
+
+| Package | Description |
+|---------|-------------|
+| [@mcp-web/core](packages/core) | Frontend library for registering tools and state |
+| [@mcp-web/bridge](packages/bridge) | WebSocket/HTTP bridge server |
+| [@mcp-web/client](packages/client) | MCP client for connecting AI agents to the bridge |
+| [@mcp-web/react](packages/integrations/react) | React hooks for state management |
+| [@mcp-web/tools](packages/tools) | Reusable tool implementations (screenshots, etc.) |
+
+## Learn More
+
+- [Get Started Guide](https://mcp-web.dev/get-started) - Full setup walkthrough
+- [Architecture](https://mcp-web.dev/architecture) - How the pieces fit together
+- [API Reference](https://mcp-web.dev/api) - Complete API documentation
+- [Todo Demo](https://mcp-web.dev/demos/todo) - Full CRUD example
+
+## License
+
+[Apache License 2.0](./LICENSE)
