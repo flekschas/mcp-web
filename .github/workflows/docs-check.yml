@@ -21,9 +21,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Build packages (required for typedoc)
-        run: pnpm build
-
       - name: Generate API docs
         run: pnpm docs:generate
 
