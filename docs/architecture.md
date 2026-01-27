@@ -44,11 +44,15 @@ AI Agent  ↔  MCP Server + WebSocket/SSE  ↔  Frontend  ↔  Database
 - AI changes → Frontend (optionally → DB)
 
 ::: tip Key Insight
-The key insight here is that with MCP-Web, the frontend becomes the main point
+With MCP-Web, the **frontend** becomes the main point
 of control for reading and writing data.
 :::
 
-## Why MCP-Web's approach?
+## Why MCP-Web's Approach?
+
+As with everything, MCP-Web's approach of making the frontend the main point of
+control has pros and cons and it depends on your use case whether it's useful or
+not.
 
 **Choose MCP-Web when:**
 
@@ -73,25 +77,38 @@ connected to your frontend browser sessions. This is accomplished via three
 packages: Web, Bridge, Client. These three packages communicate as follows:
 
 ```
-Frontend  ↔  MCPWeb()  ↔  MCPWebBridge  ↔  MCPWebClient()  ↔  AI Agent
-    ╰─ Runs ─╯    ╰─ WS / SSE ─╯    ╰─ HTTP ─╯        ╰─ STDIO ─╯
+Frontend  ↔  MCPWeb()  ↔  MCPWebBridge()  ↔  MCPWebClient()  ↔  AI App/Agent
+    ╰─ Runs ─╯    ╰─ WS / SSE ─╯     ╰─ HTTP ─╯        ╰─ STDIO ─╯
 ```
 
-- Frontend app: runs MCP-Web
-- MCP-Web Web: registers and executes frontend tools
-- MCP-Web Bridge: exposes tools and forwards calls as an MCP server
-- MCP-Web Client: issues requests to the MCP server
+- Frontend app: runs `MCPWeb`
+- `MCPWeb()`: registers and executes frontend tools
+- `MCPWebBridge()`: exposes tools and forwards calls as an MCP server
+- `MCPWebClient()`: issues requests to the MCP server
 - [Optional] AI agent: handles frontend-triggered queries
+
+One can say that with MCP-Web, the frontend becomes the MCP server by executing
+the tool calls. This inversion of control might seem odd at first but it makes
+sense when you th
+
+MCP-Web's bridge server is just a thin layer that exposes the registered tools
+and forwards tool calls and responses between the frontend and client.
+
+The optional AI agent here serves as a way to enable "two-way communication" in
+that it allows the frontend to issue queries. This is most useful if you want to
+reuse the already registered tools.
 
 ## MCP As The Main Tool Protocol
 
 MCP-Web uses the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/)
 as the primary communication standard between AI agents and your frontend
-application.
+application. The obvious benefit here is that it allows you to integrate
+frontend easily with the MCP ecosystem.
 
 ### How Tools Are Exposed
 
-When your frontend registers tools using `mcp.addTool()` or `mcp.addStateTools()` (which returns [getter, setter(s), cleanup]), they are exposed to AI agents through the MCP protocol:
+When your frontend registers tools using `mcp.addTool()` or `mcp.addStateTools()`,
+they are exposed to AI agents through the MCP protocol as follows:
 
 ```
 1. Frontend calls mcp.addTool()
@@ -141,7 +158,7 @@ The Bridge server manages multiple frontend sessions and routes tool calls appro
 
 **Single Session:**
 - If only one frontend is connected, tools are automatically routed to that session
-- No ambiguity—AI agent seamlessly controls the active frontend
+- No need for AI to identify which session to call
 
 **Multiple Sessions:**
 - Each session has unique tools or the same tools for different instances
@@ -189,10 +206,10 @@ The Bridge server aggregates tools from all active sessions:
 // Aggregated tool list exposed via MCP:
 [
   { name: "list_active_sessions", ... },  // Bridge-provided
-  { name: "get_todos", ... },              // From session-abc-123
+  { name: "get_todos", ... },             // From session-abc-123
   { name: "create_todo", ... },
   { name: "update_todo", ... },
-  { name: "get_game_state", ... },         // From session-def-456
+  { name: "get_game_state", ... },        // From session-def-456
   { name: "make_move", ... }
 ]
 ```
@@ -246,13 +263,17 @@ MCP-Web implements the core MCP specification:
 This ensures compatibility with any AI agent that supports the Model Context
 Protocol, like Claude Desktop, custom agents, and future MCP-compatible systems.
 
----
-
 ## AI Agent API
 
-For frontend-triggered queries (when your app wants to ask the AI for help),
-MCP-Web provides a separate lightweight Agent API that makes use of the same
-MCP tools you've registered.
+In a classic MCP setup, requests always get triggered by the AI app/agent. This
+is super fine for scenarios where the user is only interfacing with the AI
+app/agent but in the context of MCP-Web your user might be working with both: an
+AI app and your frontend app.
+
+In this case, it'd be nice to query AI directly from the frontend and reuse
+the existing MCP tools. MCP-Web supports this through frontend-triggered queries
+using a separate lightweight Agent API that makes use of the same MCP tools
+you've registered.
 
 ### Why Frontend-Triggered Queries?
 
@@ -288,7 +309,7 @@ Frontend                    Agent Server                    AI Service
    │                             │                               │
 ```
 
-The Agent server acts as an intermediary that:
+The agent server acts as an intermediary that:
 
 1. Receives queries from the frontend via HTTP
 2. Streams progress events back via WebSocket
@@ -319,21 +340,21 @@ For implementation details, code examples, and usage patterns, see the
 
   #mcp-web-architecture {
     width: 100%;
-    background-image: url(assets/images/mcp-web-architecture-light.svg)
+    background-image: url(https://storage.googleapis.com/flekschas/mcp-web/mcp-web-architecture-light.svg)
   }
   #mcp-web-architecture div { padding-top: 20% }
 
   :root.dark #mcp-web-architecture {
-    background-image: url(assets/images/mcp-web-architecture-dark.svg)
+    background-image: url(https://storage.googleapis.com/flekschas/mcp-web/mcp-web-architecture-dark.svg)
   }
 
   #classic-architecture {
     width: 100%;
-    background-image: url(assets/images/classic-architecture-light.svg)
+    background-image: url(https://storage.googleapis.com/flekschas/mcp-web/classic-architecture-light.svg)
   }
   #classic-architecture div { padding-top: 20% }
 
   :root.dark #classic-architecture {
-    background-image: url(assets/images/classic-architecture-dark.svg)
+    background-image: url(https://storage.googleapis.com/flekschas/mcp-web/classic-architecture-dark.svg)
   }
 </style>
