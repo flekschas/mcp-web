@@ -498,7 +498,7 @@ test('Query can be cancelled by the frontend', async () => {
 
   setTimeout(() => {
     abortController.abort();
-  }, 150);
+  }, 75);
 
   // Get the first event (should be acceptance)
   const firstEvent = await response.stream.next();

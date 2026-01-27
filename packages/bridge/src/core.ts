@@ -64,15 +64,15 @@ import type {
   Tool,
 } from '@modelcontextprotocol/sdk/types.js';
 import type { z } from 'zod';
+import type { Scheduler } from './runtime/scheduler.js';
+import { NoopScheduler } from './runtime/scheduler.js';
 import type {
   BridgeHandlers,
   HttpRequest,
   HttpResponse,
   WebSocketConnection,
 } from './runtime/types.js';
-import { jsonResponse, WebSocketReadyState } from './runtime/types.js';
-import type { Scheduler } from './runtime/scheduler.js';
-import { NoopScheduler } from './runtime/scheduler.js';
+import { jsonResponse, } from './runtime/types.js';
 
 const SessionNotSpecifiedErrorDetails =
   'Multiple sessions available. See `available_sessions` or call the `list_sessions` tool to discover available sessions and specify the session using `_meta.sessionId`.';
@@ -306,7 +306,7 @@ export class MCPWebBridge {
   // ============================================
 
   #handleWebSocketConnect(
-    sessionId: string,
+    _sessionId: string,
     _ws: WebSocketConnection,
     url: URL
   ): boolean {

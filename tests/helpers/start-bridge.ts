@@ -16,7 +16,7 @@ const config = {
   port,
   name: process.env.NAME || 'Test Bridge',
   description: process.env.DESCRIPTION || 'Test bridge server',
-  agentUrl: process.env.AGENT_URL,
+  ...(process.env.AGENT_URL && { agentUrl: process.env.AGENT_URL }),
 };
 
 console.error('[Bridge] Starting with config:', config);
