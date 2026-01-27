@@ -7,6 +7,9 @@
     "prepare": "lefthook install",
     "build": "pnpm -r build",
     "build:packages": "pnpm --filter './packages/*' build",
+    "build:demos": "pnpm --filter './demos/*' build",
+    "build:docs": "npm run build:api-refs && vitepress build docs",
+    "build:api-refs": "tsx scripts/generate-all-api-docs.ts docs/api/ && tsx scripts/generate-all-api-docs.ts agents/skills/mcp-web/ --prefix api-reference-",
     "dev": "pnpm -r dev",
     "clean": "pnpm -r clean",
     "test": "bun test packages && bun test tests/integration",
@@ -15,11 +18,7 @@
     "test:bridge": "bun test packages/bridge/src",
     "test:decompose": "bun test packages/decompose-zod-schema/src",
     "test:integration": "bun test --max-concurrency=1 tests",
-    "test:watch": "bun test --watch packages",
-    "docs:generate": "tsx scripts/generate-all-api-docs.ts docs/api/ && tsx scripts/generate-all-api-docs.ts agents/skills/mcp-web/ --prefix api-reference-",
-    "docs:dev": "pnpm docs:generate && vitepress dev docs",
-    "docs:build": "pnpm docs:generate && vitepress build docs",
-    "docs:preview": "vitepress preview docs"
+    "test:watch": "bun test --watch packages"
   },
   "keywords": [
     "mcp",
