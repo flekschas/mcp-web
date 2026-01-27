@@ -10,11 +10,32 @@ import {
 import { validatePlan } from './validate.js';
 
 /**
- * Convenience wrapper function that allows either manual split plan or automatic suggestion
+ * Decomposes a Zod schema into smaller schemas based on a split plan or options.
  *
- * @param schema - The Zod schema to decompose
- * @param planOrOptions - Either a SplitPlan for manual decomposition or options for automatic suggestion
- * @returns Array of decomposed schemas
+ * This function supports two modes:
+ * 1. **Manual decomposition**: Pass a SplitPlan array to control exactly how the schema is split
+ * 2. **Automatic decomposition**: Pass options to automatically suggest splits based on size
+ *
+ * @param schema - The Zod object schema to decompose
+ * @param planOrOptions - Either a SplitPlan for manual decomposition or DecompositionOptions for automatic
+ * @returns Array of decomposed schemas with their target paths
+ *
+ * @example Manual decomposition with SplitPlan
+ * ```typescript
+ * const decomposed = decomposeSchema(GameStateSchema, [
+ *   'board',
+ *   ['currentPlayer', 'turn'],
+ *   'settings',
+ * ]);
+ * ```
+ *
+ * @example Automatic decomposition with options
+ * ```typescript
+ * const decomposed = decomposeSchema(LargeSchema, {
+ *   maxTokensPerSchema: 2000,
+ *   maxOptionsPerEnum: 200,
+ * });
+ * ```
  */
 export function decomposeSchema(
   schema: ZodObject<Record<string, ZodType>>,

@@ -4,27 +4,60 @@ import React, { type ReactNode, useMemo } from "react";
 import { MCPWebContext } from "./mcp-web-context";
 import { useConnectedMCPWeb } from "./use-connected-mcp-web";
 
+/**
+ * Props for MCPWebProvider when creating a new MCPWeb instance from config.
+ */
 export interface MCPWebProviderPropsWithConfig {
+  /** Child components that can access MCPWeb via useMCPWeb hook. */
   children: ReactNode;
+  /** Configuration for creating a new MCPWeb instance. */
   config: MCPWebConfig;
 }
 
+/**
+ * Props for MCPWebProvider when using an existing MCPWeb instance.
+ */
 export interface MCPWebProviderPropsWithInstance {
+  /** Child components that can access MCPWeb via useMCPWeb hook. */
   children: ReactNode;
+  /** Existing MCPWeb instance to provide to children. */
   mcpWeb: MCPWeb;
 }
 
+/**
+ * Props for MCPWebProvider component.
+ * Either provide a `config` to create a new instance, or `mcpWeb` to use an existing one.
+ */
 export type MCPWebProviderProps = MCPWebProviderPropsWithConfig | MCPWebProviderPropsWithInstance;
 
 /**
- * Provider component for sharing MCPWeb instance across component tree.
- * Handles MCPWeb instantiation and connection lifecycle automatically.
+ * Provider component that shares an MCPWeb instance across the component tree.
  *
- * @example
+ * Handles MCPWeb instantiation (if config provided) and connection lifecycle
+ * automatically. All child components can access the MCPWeb instance via the
+ * `useMCPWeb` hook.
+ *
+ * @example With config (creates new instance)
  * ```tsx
  * function Root() {
  *   return (
- *     <MCPWebProvider config={{ name: 'My App', description: 'My app description' }}>
+ *     <MCPWebProvider config={{
+ *       name: 'My App',
+ *       description: 'My app description',
+ *     }}>
+ *       <App />
+ *     </MCPWebProvider>
+ *   );
+ * }
+ * ```
+ *
+ * @example With existing instance
+ * ```tsx
+ * const mcpWeb = new MCPWeb(config);
+ *
+ * function Root() {
+ *   return (
+ *     <MCPWebProvider mcpWeb={mcpWeb}>
  *       <App />
  *     </MCPWebProvider>
  *   );

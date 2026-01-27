@@ -44,12 +44,54 @@ function isFatalError<T extends object>(result: T | FatalError): result is Fatal
   return 'errorIsFatal' in result && result.errorIsFatal === true;
 }
 
+/**
+ * MCP client that connects AI agents (like Claude Desktop) to the bridge server.
+ *
+ * MCPWebClient implements the MCP protocol and can run as a stdio server for
+ * AI host applications, or be used programmatically in agent server code.
+ *
+ * @example Running as MCP server for Claude Desktop
+ * ```typescript
+ * const client = new MCPWebClient({
+ *   serverUrl: 'http://localhost:3001',
+ *   authToken: 'your-auth-token',
+ * });
+ * await client.run(); // Starts stdio transport
+ * ```
+ *
+ * @example Programmatic usage in agent code
+ * ```typescript
+ * const client = new MCPWebClient({
+ *   serverUrl: 'http://localhost:3001',
+ *   authToken: 'your-auth-token',
+ * });
+ *
+ * // List available tools
+ * const { tools } = await client.listTools();
+ *
+ * // Call a tool
+ * const result = await client.callTool('get_todos');
+ * ```
+ *
+ * @example With query context (for agent servers)
+ * ```typescript
+ * const contextualClient = client.contextualize(query);
+ * const result = await contextualClient.callTool('update_todo', { id: '1' });
+ * await contextualClient.complete('Todo updated successfully');
+ * ```
+ */
 export class MCPWebClient {
   #config: MCPWebClientConfigOutput;
   #server?: Server;
   #query?: Query;
   #isDone = false; // Track if query has been completed
 
+  /**
+   * Creates a new MCPWebClient instance.
+   *
+   * @param config - Client configuration with server URL and auth token
+   * @param query - Optional query for contextualized instances (internal use)
+   */
   constructor(config: MCPWebClientConfig, query?: Query) {
     this.#config = MCPWebClientConfigSchema.parse(config);
 
@@ -241,18 +283,44 @@ export class MCPWebClient {
   }
 
   /**
-   * Create a contextualized client for a specific query.
-   * All tool calls made through this client will be tagged with the query UUID.
+   * Creates a contextualized client for a specific query.
+   *
+   * All tool calls made through the returned client will be tagged with the
+   * query UUID, enabling the bridge to track tool calls for that query.
    *
    * @param query - The query object containing uuid and optional responseTool
+   * @returns A new MCPWebClient instance bound to the query context
+   *
+   * @example
+   * ```typescript
+   * const contextualClient = client.contextualize(query);
+   * await contextualClient.callTool('analyze_data');
+   * await contextualClient.complete('Analysis complete');
+   * ```
    */
   contextualize(query: Query): MCPWebClient {
     return new MCPWebClient(this.#config, query);
   }
 
   /**
-   * Call a tool, automatically augmented with query context if this is a
-   * contextualized client.
+   * Calls a tool on the connected frontend.
+   *
+   * Automatically includes query context if this is a contextualized client.
+   * If the query has tool restrictions, only allowed tools can be called.
+   *
+   * @param name - Name of the tool to call
+   * @param args - Optional arguments to pass to the tool
+   * @param sessionId - Optional session ID for multi-session scenarios
+   * @returns Tool execution result
+   * @throws {Error} If query is already done or tool is not allowed
+   *
+   * @example
+   * ```typescript
+   * const result = await client.callTool('create_todo', {
+   *   title: 'New task',
+   *   priority: 'high',
+   * });
+   * ```
    */
   async callTool(name: string, args?: Record<string, unknown>, sessionId?: string): Promise<CallToolResult> {
     if (this.#query && this.#isDone) {
@@ -291,9 +359,14 @@ export class MCPWebClient {
   }
 
   /**
-   * List all available tools.
-   * If this is a contextualized client with restricted tools, returns only those tools.
-   * Otherwise fetches all tools from the bridge.
+   * Lists all available tools from the connected frontend.
+   *
+   * If this is a contextualized client with restricted tools, returns only
+   * those tools. Otherwise fetches all tools from the bridge.
+   *
+   * @param sessionId - Optional session ID for multi-session scenarios
+   * @returns List of available tools
+   * @throws {Error} If query is already done
    */
   async listTools(sessionId?: string): Promise<ListToolsResult | ErroredListToolsResult> {
     if (this.#isDone) {
@@ -316,7 +389,11 @@ export class MCPWebClient {
   }
 
   /**
-   * List all available resources.
+   * Lists all available resources from the connected frontend.
+   *
+   * @param sessionId - Optional session ID for multi-session scenarios
+   * @returns List of available resources
+   * @throws {Error} If query is already done
    */
   async listResources(sessionId?: string): Promise<ListResourcesResult | ErroredListResourcesResult> {
     if (this.#isDone) {
@@ -327,7 +404,11 @@ export class MCPWebClient {
   }
 
   /**
-   * List all available prompts.
+   * Lists all available prompts from the connected frontend.
+   *
+   * @param sessionId - Optional session ID for multi-session scenarios
+   * @returns List of available prompts
+   * @throws {Error} If query is already done
    */
   async listPrompts(sessionId?: string): Promise<ListPromptsResult | ErroredListPromptsResult> {
     if (this.#isDone) {
@@ -338,8 +419,20 @@ export class MCPWebClient {
   }
 
   /**
-   * Send a progress update for the current query.
+   * Sends a progress update for the current query.
+   *
+   * Use this to provide intermediate updates during long-running operations.
    * Can only be called on a contextualized client instance.
+   *
+   * @param message - Progress message to send to the frontend
+   * @throws {Error} If not a contextualized client or query is done
+   *
+   * @example
+   * ```typescript
+   * await contextualClient.sendProgress('Processing step 1 of 3...');
+   * // ... do work ...
+   * await contextualClient.sendProgress('Processing step 2 of 3...');
+   * ```
    */
   async sendProgress(message: string): Promise<void> {
     if (!this.#query) {
@@ -367,9 +460,19 @@ export class MCPWebClient {
   }
 
   /**
-   * Mark the current query as complete with a message.
+   * Marks the current query as complete with a message.
+   *
    * Can only be called on a contextualized client instance.
-   * Note: If the query specified a responseTool, calling this method will result in an error.
+   * If the query specified a responseTool, call that tool instead - calling
+   * this method will result in an error.
+   *
+   * @param message - Completion message to send to the frontend
+   * @throws {Error} If not a contextualized client, query is done, or responseTool was specified
+   *
+   * @example
+   * ```typescript
+   * await contextualClient.complete('Analysis complete: found 5 issues');
+   * ```
    */
   async complete(message: string): Promise<void> {
     if (!this.#query) {
@@ -405,9 +508,22 @@ export class MCPWebClient {
   }
 
   /**
-   * Mark the current query as failed with an error message.
+   * Marks the current query as failed with an error message.
+   *
    * Can only be called on a contextualized client instance.
-   * Use this when the query encounters an error during processing.
+   * Use this when the query encounters an unrecoverable error.
+   *
+   * @param error - Error message or Error object describing the failure
+   * @throws {Error} If not a contextualized client or query is already done
+   *
+   * @example
+   * ```typescript
+   * try {
+   *   await contextualClient.callTool('risky_operation');
+   * } catch (e) {
+   *   await contextualClient.fail(e);
+   * }
+   * ```
    */
   async fail(error: string | Error): Promise<void> {
     if (!this.#query) {
@@ -444,9 +560,19 @@ export class MCPWebClient {
   }
 
   /**
-   * Cancel the current query.
+   * Cancels the current query.
+   *
    * Can only be called on a contextualized client instance.
    * Use this when the user or system needs to abort query processing.
+   *
+   * @param reason - Optional reason for the cancellation
+   * @throws {Error} If not a contextualized client or query is already done
+   *
+   * @example
+   * ```typescript
+   * // User requested cancellation
+   * await contextualClient.cancel('User cancelled operation');
+   * ```
    */
   async cancel(reason?: string): Promise<void> {
     if (!this.#query) {
@@ -538,6 +664,23 @@ export class MCPWebClient {
     }
   }
 
+  /**
+   * Starts the MCP server using stdio transport.
+   *
+   * This method is intended for running as a subprocess of an AI host like
+   * Claude Desktop. It connects to stdin/stdout for MCP communication.
+   *
+   * Cannot be called on contextualized client instances.
+   *
+   * @throws {Error} If called on a contextualized client or server not initialized
+   *
+   * @example
+   * ```typescript
+   * // In your entry point script
+   * const client = new MCPWebClient(config);
+   * await client.run();
+   * ```
+   */
   async run() {
     if (this.#query) {
       throw new Error('Cannot run a contextualized client instance. Only root clients can be run as MCP servers.');

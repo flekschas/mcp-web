@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+/**
+ * Zod schema for MCPWeb configuration.
+ *
+ * Validates and transforms configuration options for MCPWeb instances.
+ * All URL fields are stripped of protocols as the protocol is determined
+ * automatically based on the page context (http/https).
+ */
 export const McpWebConfigSchema = z.object({
   /** The name of the server. This is used to identify the server and is displayed in your AI App (e.g., Claude Desktop) */
   name: z.string().min(1).describe('The name of the server. This is used to identify the server and is displayed in your AI App (e.g., Claude Desktop)'),
@@ -36,5 +43,27 @@ export const McpWebConfigSchema = z.object({
   sessionMaxDurationMs: z.number().int().positive().optional().describe('Maximum session duration in milliseconds.'),
 });
 
+/**
+ * Input type for MCPWeb configuration.
+ *
+ * Use this type when creating new MCPWeb instances. All fields except
+ * `name` and `description` have sensible defaults.
+ *
+ * @example
+ * ```typescript
+ * const config: MCPWebConfig = {
+ *   name: 'My App',
+ *   description: 'An AI-controllable web application',
+ *   bridgeUrl: 'localhost:3001',
+ * };
+ * ```
+ */
 export type MCPWebConfig = z.input<typeof McpWebConfigSchema>;
+
+/**
+ * Output type for parsed MCPWeb configuration.
+ *
+ * This type represents the configuration after validation and transformation,
+ * with all defaults applied. Used internally by MCPWeb instances.
+ */
 export type MCPWebConfigOutput = z.infer<typeof McpWebConfigSchema>;

@@ -1,20 +1,11 @@
 /**
- * MCPWebBridge - Runtime-agnostic core for the MCP Web Bridge.
+ * @fileoverview MCPWebBridge - Runtime-agnostic core for the MCP Web Bridge.
  *
- * This class contains all the business logic for the bridge but delegates
- * I/O operations to adapters via the BridgeHandlers interface.
- *
- * Usage:
- * ```typescript
- * // Direct usage with custom adapter
- * const bridge = new MCPWebBridge(config);
- * const handlers = bridge.getHandlers();
- * // Wire handlers to your runtime's WebSocket/HTTP servers
- *
- * // Or use a pre-built adapter (recommended)
- * import { MCPWebBridgeNode } from '@mcp-web/bridge';
- * const bridge = new MCPWebBridgeNode(config);
- * ```
+ * This module provides the core bridge functionality that connects web frontends
+ * to AI agents via the Model Context Protocol (MCP). The bridge acts as an
+ * intermediary, handling WebSocket connections from frontends and HTTP requests
+ * from MCP clients.
+ * @module @mcp-web/bridge
  */
 
 import crypto from 'node:crypto';
@@ -221,6 +212,32 @@ const buildQueryUrl = (agentUrl: string, uuid: string): string => {
 // MCPWebBridge Core Class
 // ============================================
 
+/**
+ * Core bridge server that connects web frontends to AI agents via MCP.
+ *
+ * MCPWebBridge manages WebSocket connections from frontends, routes tool calls,
+ * handles queries, and exposes an HTTP API for MCP clients. It is runtime-agnostic
+ * and delegates I/O operations to adapters.
+ *
+ * @example Using with Node.js adapter (recommended)
+ * ```typescript
+ * import { MCPWebBridgeNode } from '@mcp-web/bridge';
+ *
+ * const bridge = new MCPWebBridgeNode({
+ *   name: 'My App Bridge',
+ *   description: 'Bridge for my web application',
+ * });
+ * ```
+ *
+ * @example Using core class with custom adapter
+ * ```typescript
+ * import { MCPWebBridge } from '@mcp-web/bridge';
+ *
+ * const bridge = new MCPWebBridge(config);
+ * const handlers = bridge.getHandlers();
+ * // Wire handlers to your runtime's WebSocket/HTTP servers
+ * ```
+ */
 export class MCPWebBridge {
   #sessions = new Map<string, SessionData>();
   #queries = new Map<string, QueryTracking>();
@@ -235,6 +252,13 @@ export class MCPWebBridge {
   // Message handlers for tool responses (keyed by requestId)
   #toolResponseHandlers = new Map<string, (data: string) => void>();
 
+  /**
+   * Creates a new MCPWebBridge instance.
+   *
+   * @param config - Bridge configuration options
+   * @param scheduler - Optional scheduler for timing operations (used for testing)
+   * @throws {Error} If configuration validation fails
+   */
   constructor(config: MCPWebConfig, scheduler?: Scheduler) {
     const parsedConfig = McpWebConfigSchema.safeParse(config);
     if (!parsedConfig.success) {
@@ -253,14 +277,21 @@ export class MCPWebBridge {
   }
 
   /**
-   * Get the configuration (read-only)
+   * The validated bridge configuration.
+   * @returns The complete configuration object with defaults applied
    */
   get config(): MCPWebConfigOutput {
     return this.#config;
   }
 
   /**
-   * Returns handlers for adapters to wire up to their runtime's I/O.
+   * Returns handlers for wiring to runtime-specific I/O.
+   *
+   * Use these handlers to connect the bridge to your runtime's WebSocket
+   * and HTTP servers. Pre-built adapters (Node, Bun, Deno, PartyKit) handle
+   * this automatically.
+   *
+   * @returns Object containing WebSocket and HTTP handlers
    */
   getHandlers(): BridgeHandlers {
     return {
@@ -274,7 +305,12 @@ export class MCPWebBridge {
   }
 
   /**
-   * Graceful shutdown - cleanup all sessions and scheduled tasks.
+   * Gracefully shuts down the bridge.
+   *
+   * Closes all WebSocket connections, cancels scheduled tasks, and clears
+   * all internal state. Call this when shutting down your server.
+   *
+   * @returns Promise that resolves when shutdown is complete
    */
   async close(): Promise<void> {
     // Stop session timeout checker

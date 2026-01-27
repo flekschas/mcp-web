@@ -2,15 +2,24 @@ import { z } from 'zod';
 
 /**
  * Marks a field as the unique identifier for array elements.
- * Enables ID-based tools instead of index-based.
- * Only one field per schema can be marked with id().
+ *
+ * When an array schema has a field marked with `id()`, the generated tools
+ * use ID-based operations (e.g., `set_todos_by_id`) instead of index-based.
+ * Only one field per schema can be marked with `id()`.
+ *
+ * @param schema - The Zod schema to mark as the key field
+ * @returns The same schema with key field metadata attached
  *
  * @example
  * ```typescript
  * const TodoSchema = z.object({
  *   id: id(z.string()),
- *   value: z.string()
+ *   title: z.string(),
+ *   completed: z.boolean(),
  * });
+ *
+ * // Generates: get_todos, set_todos_by_id, delete_todos_by_id
+ * mcp.addStateTools({ name: 'todos', schema: z.array(TodoSchema), expand: true });
  * ```
  */
 export function id<T extends z.ZodTypeAny>(schema: T): T {
@@ -19,15 +28,24 @@ export function id<T extends z.ZodTypeAny>(schema: T): T {
 }
 
 /**
- * Marks a field as system-generated.
- * Field is excluded from input schemas (add/set).
- * MUST have a default() — error thrown otherwise.
+ * Marks a field as system-generated and excludes it from input schemas.
+ *
+ * System fields are auto-populated and never provided by the AI. They are
+ * excluded from add/set input schemas but included in output/getter schemas.
+ * Fields marked with `system()` MUST have a `.default()` value.
+ *
+ * Common uses: auto-generated IDs, timestamps, version numbers.
+ *
+ * @param schema - The Zod schema to mark as system-generated (must have default)
+ * @returns The same schema with system field metadata attached
+ * @throws {Error} At tool generation time if schema lacks a default value
  *
  * @example
  * ```typescript
  * const TodoSchema = z.object({
  *   id: id(system(z.string().default(() => crypto.randomUUID()))),
- *   created_at: system(z.number().default(() => Date.now()))
+ *   createdAt: system(z.number().default(() => Date.now())),
+ *   title: z.string(),  // User provides this
  * });
  * ```
  */

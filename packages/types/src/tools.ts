@@ -3,11 +3,10 @@ import { z } from 'zod';
 
 /**
  * Re-export MCP SDK's standard Tool type for convenience.
- * This is the wire protocol type used for tool definitions in MCP communication.
  *
- * Note: This differs from our `ToolDefinition` type which includes additional
- * client-side properties like `handler` and `outputSchema` that are not part
- * of the MCP wire protocol.
+ * This is the wire protocol type used for tool definitions in MCP communication.
+ * It differs from `ToolDefinition` which includes additional client-side
+ * properties like `handler` and `outputSchema` not in the MCP wire protocol.
  */
 export type { ListToolsResult, Tool } from '@modelcontextprotocol/sdk/types.js';
 
@@ -69,31 +68,58 @@ export const ToolDefinitionJsonSchema = ToolDefinitionBaseSchema.extend({
 /** Runtime validation schema that accepts either Zod or JSON Schema */
 export const ToolDefinitionSchema = z.union([ToolDefinitionZodSchema, ToolDefinitionJsonSchema]);
 
+/**
+ * Tool definition for client-side use with handler and optional schemas.
+ *
+ * This is the primary type used when registering tools with MCPWeb.
+ * Supports both Zod schemas (recommended) and JSON schemas.
+ */
 export interface ToolDefinition {
+  /** Unique name for the tool. */
   name: string;
+  /** Description of what the tool does (shown to AI). */
   description: string;
+  /** Function that executes the tool logic. */
   // biome-ignore lint/suspicious/noExplicitAny: Handler can accept/return anything
   handler: (input?: any) => any | Promise<any>;
+  /** Input parameter schema (Zod or JSON Schema). */
   inputSchema?: z.ZodObject | Record<string, unknown>;
+  /** Output value schema (Zod or JSON Schema). */
   outputSchema?: z.ZodType | Record<string, unknown>;
 }
 
 /**
- * Tool metadata without the handler for wire protocol transmission.
- * Schemas must be JSON Schema (not Zod objects) to be serializable over the wire.
+ * Tool metadata without handler, for wire protocol transmission.
+ * Schemas must be JSON Schema (not Zod) to be serializable.
  */
 export const ToolMetadataZodSchema = ToolDefinitionZodSchema.omit({ handler: true });
+
+/** Tool metadata type with Zod schemas. */
 export type ToolMetadataZod = z.infer<typeof ToolMetadataJsonSchema>;
 
+/** Tool metadata schema with JSON Schema format. */
 export const ToolMetadataJsonSchema = ToolDefinitionJsonSchema.omit({ handler: true });
+
+/** Tool metadata type with JSON schemas. */
 export type ToolMetadataJson = z.infer<typeof ToolMetadataJsonSchema>;
 
+/** Combined tool metadata schema accepting either format. */
 export const ToolMetadataSchema = z.union([ToolMetadataZodSchema, ToolMetadataJsonSchema]);
+
+/** Tool metadata type (either Zod or JSON Schema format). */
 export type ToolMetadata = z.infer<typeof ToolMetadataSchema>;
 
+/**
+ * Internal processed tool definition with both Zod and JSON schemas.
+ * @internal Used by MCPWeb for tool registration and validation.
+ */
 export type ProcessedToolDefinition = ToolDefinition & {
+  /** Zod schema for input validation (if using Zod). */
   inputZodSchema?: z.ZodObject;
+  /** Zod schema for output validation (if using Zod). */
   outputZodSchema?: z.ZodType;
+  /** JSON Schema for input (always available after processing). */
   inputJsonSchema?: z.core.JSONSchema.JSONSchema;
+  /** JSON Schema for output (always available after processing). */
   outputJsonSchema?: z.core.JSONSchema.JSONSchema;
 }
