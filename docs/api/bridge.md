@@ -6,13 +6,19 @@
 
 *Class* — `packages/bridge/src/core.ts`
 
+Core bridge server that connects web frontends to AI agents via MCP.
+
+MCPWebBridge manages WebSocket connections from frontends, routes tool calls,
+handles queries, and exposes an HTTP API for MCP clients. It is runtime-agnostic
+and delegates I/O operations to adapters.
+
 **Accessors:**
 
 ```ts
 get config(): MCPWebConfigOutput
 ```
 
-Get the configuration (read-only)
+The validated bridge configuration.
 
 **Methods:**
 
@@ -20,13 +26,20 @@ Get the configuration (read-only)
 getHandlers(): BridgeHandlers
 ```
 
-Returns handlers for adapters to wire up to their runtime's I/O.
+Returns handlers for wiring to runtime-specific I/O.
+
+Use these handlers to connect the bridge to your runtime's WebSocket
+and HTTP servers. Pre-built adapters (Node, Bun, Deno, PartyKit) handle
+this automatically.
 
 ```ts
 close(): Promise<void>
 ```
 
-Graceful shutdown - cleanup all sessions and scheduled tasks.
+Gracefully shuts down the bridge.
+
+Closes all WebSocket connections, cancels scheduled tasks, and clears
+all internal state. Call this when shutting down your server.
 
 ### AuthenticateMessage
 

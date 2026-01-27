@@ -6,76 +6,99 @@
 
 *Class* — `packages/client/src/client.ts`
 
+MCP client that connects AI agents (like Claude Desktop) to the bridge server.
+
+MCPWebClient implements the MCP protocol and can run as a stdio server for
+AI host applications, or be used programmatically in agent server code.
+
 **Methods:**
 
 ```ts
 contextualize(query: Query): MCPWebClient
 ```
 
-Create a contextualized client for a specific query.
-All tool calls made through this client will be tagged with the query UUID.
+Creates a contextualized client for a specific query.
+
+All tool calls made through the returned client will be tagged with the
+query UUID, enabling the bridge to track tool calls for that query.
 
 ```ts
 callTool(name: string, args?: Record<string, unknown>, sessionId?: string): Promise<CallToolResult>
 ```
 
-Call a tool, automatically augmented with query context if this is a
-contextualized client.
+Calls a tool on the connected frontend.
+
+Automatically includes query context if this is a contextualized client.
+If the query has tool restrictions, only allowed tools can be called.
 
 ```ts
 listTools(sessionId?: string): Promise<ListToolsResult | ErroredListToolsResult>
 ```
 
-List all available tools.
-If this is a contextualized client with restricted tools, returns only those tools.
-Otherwise fetches all tools from the bridge.
+Lists all available tools from the connected frontend.
+
+If this is a contextualized client with restricted tools, returns only
+those tools. Otherwise fetches all tools from the bridge.
 
 ```ts
 listResources(sessionId?: string): Promise<ListResourcesResult | ErroredListResourcesResult>
 ```
 
-List all available resources.
+Lists all available resources from the connected frontend.
 
 ```ts
 listPrompts(sessionId?: string): Promise<ListPromptsResult | ErroredListPromptsResult>
 ```
 
-List all available prompts.
+Lists all available prompts from the connected frontend.
 
 ```ts
 sendProgress(message: string): Promise<void>
 ```
 
-Send a progress update for the current query.
+Sends a progress update for the current query.
+
+Use this to provide intermediate updates during long-running operations.
 Can only be called on a contextualized client instance.
 
 ```ts
 complete(message: string): Promise<void>
 ```
 
-Mark the current query as complete with a message.
+Marks the current query as complete with a message.
+
 Can only be called on a contextualized client instance.
-Note: If the query specified a responseTool, calling this method will result in an error.
+If the query specified a responseTool, call that tool instead - calling
+this method will result in an error.
 
 ```ts
 fail(error: string | Error): Promise<void>
 ```
 
-Mark the current query as failed with an error message.
+Marks the current query as failed with an error message.
+
 Can only be called on a contextualized client instance.
-Use this when the query encounters an error during processing.
+Use this when the query encounters an unrecoverable error.
 
 ```ts
 cancel(reason?: string): Promise<void>
 ```
 
-Cancel the current query.
+Cancels the current query.
+
 Can only be called on a contextualized client instance.
 Use this when the user or system needs to abort query processing.
 
 ```ts
 run(): void
 ```
+
+Starts the MCP server using stdio transport.
+
+This method is intended for running as a subprocess of an AI host like
+Claude Desktop. It connects to stdin/stdout for MCP communication.
+
+Cannot be called on contextualized client instances.
 
 ### MCPWebClientConfig
 

@@ -6,27 +6,39 @@
 
 *Class* — `packages/core/src/query.ts`
 
+Represents an in-flight query to an AI agent.
+
+QueryResponse provides multiple ways to interact with query results:
+- `stream` for fine-grained event handling
+- `result` for simple await-the-final-result usage
+- `cancel()` to abort the query
+
 **Accessors:**
 
 ```ts
 get uuid(): any
 ```
 
-The unique identifier for this query
+Unique identifier for this query.
+Can be used to track or reference the query externally.
 
 ```ts
 get stream(): AsyncIterableIterator<QueryResponseResult>
 ```
 
-Stream of query events (progress, completion, failure)
-Use this for fine-grained control over query lifecycle
+Async iterator of query events (progress, completion, failure, cancel).
+
+Use this for fine-grained control over query lifecycle, such as
+displaying progress updates to users.
 
 ```ts
 get result(): Promise<QueryResponseResultComplete | QueryResponseResultFailure>
 ```
 
-Simplified interface: just get the final result
-Waits for query completion and returns the result or throws on failure
+Promise that resolves to the final query result.
+
+This is a convenience property for when you only care about the final
+outcome and don't need to track progress events.
 
 **Methods:**
 
@@ -34,8 +46,10 @@ Waits for query completion and returns the result or throws on failure
 cancel(): void
 ```
 
-Cancel this query
-Triggers cancellation either via AbortController or directly through the bridge
+Cancels the in-flight query.
+
+Triggers cancellation via AbortController or directly through the bridge,
+depending on how the query was created.
 
 ### MCPWeb
 
