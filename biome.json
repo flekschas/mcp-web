@@ -16,6 +16,19 @@
   },
   "linter": {
     "enabled": true,
-    "rules": {}
+    "rules": {
+      "recommended": true
+    }
+  },
+  "css": {
+    "linter": {
+      "enabled": true,
+      "rules": {
+        "recommended": true,
+        "nursery": {
+          "unknownAtRules": "off"
+        }
+      }
+    }
   }
 }
