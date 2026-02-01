@@ -12,11 +12,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
-
-      - uses: pnpm/action-setup@v4
+          cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install
@@ -26,16 +27,25 @@ jobs:
 
       - name: Check for uncommitted changes
         run: |
-          if ! git diff --quiet agents/skills/mcp-web/api-reference*.md; then
+          # Find all api*.md files in skill folders
+          API_FILES=$(find agents/skills/*/api*.md -type f 2>/dev/null || true)
+
+          if [ -z "$API_FILES" ]; then
+            echo "No API reference docs found to check."
+            exit 0
+          fi
+
+          # Check if any API docs have uncommitted changes
+          if ! git diff --quiet $API_FILES; then
             echo "::error::API reference docs are out of date!"
             echo ""
-            echo "The following files have changes after running 'pnpm docs:generate':"
-            git diff --name-only agents/skills/mcp-web/api-reference*.md
+            echo "The following files have changes after running 'pnpm build:docs':"
+            git diff --name-only $API_FILES
             echo ""
-            echo "Please run 'pnpm docs:generate' locally and commit the changes."
+            echo "Please run 'pnpm build:docs' locally and commit the changes."
             echo ""
             echo "Diff:"
-            git diff agents/skills/mcp-web/api-reference*.md
+            git diff $API_FILES
             exit 1
           fi
           echo "API reference docs are up to date."

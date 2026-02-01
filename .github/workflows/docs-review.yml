@@ -21,11 +21,12 @@ jobs:
         with:
           fetch-depth: 2  # Need previous commit for diff
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
-
-      - uses: pnpm/action-setup@v4
+          cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install
