@@ -1,4 +1,32 @@
-# Frontend Query Demo: Spanish Checkers Game
+# Frontend Query Demo: Spanish Checkers Game :cherries:
 
-In this demo, we're going to see how we can reuse MCP tools for frontend
-triggered queries.
+The _Checkers_ demo showcases **action tools** and **frontend-triggered queries**.
+Play a game of Spanish Checkers against an AI opponent—when you make a move,
+the frontend queries the AI agent for its counter-move in real-time.
+
+<video autoplay loop muted playsinline width="1256" data-name="checkers">
+  <source
+    src="https://storage.googleapis.com/mcp-web/checkers-light.mp4"
+    type="video/mp4"
+  />
+</video>
+
+This demo illustrates how MCP-Web can power bidirectional AI interactions:
+the AI can control the game board, but the frontend can also request the AI
+to analyze positions and suggest moves.
+
+**Live Version:** https://checkers.demos.mcp-web.dev
+
+**Code:** https://github.com/flekschas/mcp-web/tree/main/demos/checkers
+
+## Key Components
+
+- `src/tools.ts`: Defines action tools for game moves and board state exposure.
+
+- `src/agent-query.ts`: Shows how to trigger AI queries from the frontend
+   when the player makes a move.
+
+<script setup>
+  import { videoColorModeSrcSwitcher } from './utils';
+  videoColorModeSrcSwitcher();
+</script>
