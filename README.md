@@ -1,5 +1,5 @@
 <h1>
-  <img src="https://storage.googleapis.com/flekschas/mcp-web/logo.svg" width="24" height="24" alt="Logo" style="vertical-align: middle" />
+  <img src="https://storage.googleapis.com/mcp-web/logo.svg" width="24" height="24" alt="Logo" style="vertical-align: middle" />
   MCP-Web
 </h1>
 
