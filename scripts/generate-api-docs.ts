@@ -400,9 +400,14 @@ function generateMarkdown(entries: DocEntry[], title: string, description: strin
     return aIdx - bIdx;
   });
 
+  // Skip "Other" heading if it's the only category (nothing was explicitly categorized)
+  const skipCategoryHeadings = sortedCategories.length === 1 && sortedCategories[0][0] === "Other";
+
   for (const [category, catEntries] of sortedCategories) {
-    lines.push(`## ${category}`);
-    lines.push("");
+    if (!skipCategoryHeadings) {
+      lines.push(`## ${category}`);
+      lines.push("");
+    }
 
     // Group by kind within category
     const classes = catEntries.filter((e) => e.kind === "class");
