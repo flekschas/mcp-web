@@ -14,5 +14,8 @@
     "dev": "vitepress dev",
     "build": "vitepress build",
     "preview": "vitepress preview"
+  },
+  "dependencies": {
+    "gsap": "^3.14.2"
   }
 }

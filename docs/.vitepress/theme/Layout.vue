@@ -1,8 +1,9 @@
 <script setup>
 import DefaultTheme from 'vitepress/theme';
 import { useData } from 'vitepress';
-import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, computed, watch, createApp, h } from 'vue';
 import NoiseBackgroundGL from './NoiseBackground.vue';
+import FooterHeart from './FooterHeart.vue';
 
 const { frontmatter } = useData();
 
@@ -54,6 +55,21 @@ onMounted(() => {
   });
   classObserver.observe(document.documentElement, { attributes: true });
   checkDarkMode();
+
+  // Mount FooterHeart component into the footer
+  const mountFooterHeart = () => {
+    const mountPoint = document.getElementById('footer-heart-mount');
+    if (mountPoint && !mountPoint.hasChildNodes()) {
+      const app = createApp({
+        render: () => h(FooterHeart)
+      });
+      app.mount(mountPoint);
+    }
+  };
+
+  // Try mounting immediately and also after a short delay (for page transitions)
+  mountFooterHeart();
+  setTimeout(mountFooterHeart, 100);
 
   return () => {
     window.removeEventListener('resize', updateSize);

@@ -358,9 +358,7 @@
   --vp-c-gutter: transparent;
 }
 
-.footer-heart {
+#footer-heart-mount {
   display: inline-block;
-  width: 1em;
-  height: 1em;
   vertical-align: middle;
 }
