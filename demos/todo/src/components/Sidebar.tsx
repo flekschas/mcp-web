@@ -105,7 +105,7 @@ export function Sidebar() {
             <InboxIcon className="w-4 h-4" />
             Inbox
           </span>
-          <span className="inline-flex items-center justify-center min-w-6 h-5 px-1.5 text-[0.625rem] font-bold tracking-wider bg-(--color-border) text-(--color-text) rounded-full">
+          <span className={`inline-flex items-center justify-center min-w-6 h-5 px-1.5 text-[0.625rem] font-bold tracking-wider rounded-full ${view.type === 'inbox' ? 'text-(--color-bg) bg-(--color-border-dark)' : 'text-(--color-text) bg-(--color-border)'}`}>
             {inboxCount}
           </span>
         </button>

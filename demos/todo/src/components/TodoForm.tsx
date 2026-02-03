@@ -1,13 +1,18 @@
 import { PlusIcon } from '@heroicons/react/20/solid';
 import { useAtomValue, useSetAtom } from 'jotai';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TodoSchema } from '../schemas';
 import { todosAtom, viewAtom } from '../states';
 
 export function TodoForm() {
   const [title, setTitle] = useState('');
+  const [disabled, setDisabled] = useState(false);
   const setTodos = useSetAtom(todosAtom);
   const view = useAtomValue(viewAtom);
+
+  useEffect(() => {
+    setDisabled(title.trim().length === 0);
+  }, [title]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +39,8 @@ export function TodoForm() {
         />
         <button
           type="submit"
-          className="inline-flex items-center justify-center w-11 h-10.5 bg-(--color-accent) text-(--color-bg) border-2 border-(--color-accent) rounded-md shadow-[0_2px_0_var(--color-accent-dark)] btn-3d-press-sm hover:bg-(--color-accent-hover) hover:border-(--color-accent-hover) cursor-pointer select-none"
+          className="inline-flex items-center justify-center w-11 h-10.5 rounded-md bg-(--color-accent) text-(--color-bg) border-2 border-(--color-accent) shadow-[0_2px_0_var(--color-accent-dark)] btn-3d-press-sm hover:bg-(--color-accent-hover) hover:border-(--color-accent-hover) cursor-pointer select-none disabled:opacity-50 disabled:cursor-default"
+          disabled={disabled}
         >
           <PlusIcon className="w-5 h-5" />
         </button>

@@ -116,6 +116,19 @@ export const statisticsAtom = atom((get) => {
     ...Object.values(projects).map((p) => ({ id: p.id, name: p.title })),
   ];
 
+  // Per-project statistics
+  const projectStats = projectList.map((p) => {
+    const projectTodos = todos.filter((t) => t.project_id === p.id);
+    const projectCompleted = projectTodos.filter((t) => t.completed_at).length;
+    return {
+      id: p.id,
+      name: p.name,
+      total: projectTodos.length,
+      completed: projectCompleted,
+      active: projectTodos.length - projectCompleted,
+    };
+  });
+
   return {
     totalTodos,
     completedTodos,
@@ -125,5 +138,6 @@ export const statisticsAtom = atom((get) => {
     completedTodosWithTime,
     completedTodosWithDueDate,
     projects: projectList,
+    projectStats,
   } satisfies StatisticsProps;
 });

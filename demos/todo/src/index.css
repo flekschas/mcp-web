@@ -25,7 +25,9 @@
   --color-bg-alt: var(--color-light-alt);
   --color-text: var(--color-dark);
   --color-text-secondary: var(--color-dark-muted);
-  --color-border: rgba(26, 26, 26, 0.2);
+  --color-border-dark: rgba(26, 26, 26, 0.2);
+  --color-border-light: rgba(255, 255, 255, 0.2);
+  --color-border: var(--color-border-dark);
 
   /* Button shadows */
   --shadow-3d: 0 4px 0 var(--color-dark);
@@ -46,7 +48,7 @@
   --color-bg-alt: var(--color-dark-alt);
   --color-text: var(--color-light);
   --color-text-secondary: #999999;
-  --color-border: rgba(255, 255, 255, 0.2);
+  --color-border: var(--color-border-light);
   --color-accent: oklch(0.9 0.1954 119.02);
   --color-accent-hover: oklch(0.95 0.1954 119.02);
   --color-accent-dark: oklch(0.75 0.1954 119.02);
@@ -127,6 +129,10 @@ body {
 
   &:hover {
     border-color: var(--color-text);
+  }
+
+  &:checked:hover {
+    border-color: var(--color-accent);
   }
 }
 

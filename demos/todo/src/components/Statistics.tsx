@@ -1,6 +1,6 @@
-import { CheckIcon, MinusIcon } from '@heroicons/react/20/solid';
+import { CalendarIcon, CheckIcon, ClockIcon, MinusIcon } from '@heroicons/react/20/solid';
 import * as Plot from '@observablehq/plot';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
 import '../index.css';
 
@@ -19,6 +19,14 @@ const plotContainerStyle = `
   [class*="plot-"] [aria-label="y-axis"] line,
   [class*="plot-"] [aria-label="x-axis"] line {
     stroke: var(--color-text) !important;
+  }
+  /* Tooltip styling for dark mode */
+  [class*="plot-"] [aria-label="tip"] g {
+    fill: var(--color-bg) !important;
+    stroke: var(--color-border) !important;
+  }
+  [class*="plot-"] [aria-label="tip"] text {
+    fill: var(--color-text) !important;
   }
 `;
 
@@ -58,6 +66,17 @@ export const StatisticsPropsSchema = z.object({
       })
     )
     .describe('List of projects for filtering'),
+  projectStats: z
+    .array(
+      z.object({
+        id: z.string().nullable(),
+        name: z.string(),
+        total: z.number(),
+        completed: z.number(),
+        active: z.number(),
+      })
+    )
+    .describe('Per-project statistics for filtering'),
 });
 
 export type StatisticsProps = z.infer<typeof StatisticsPropsSchema>;
@@ -113,40 +132,45 @@ function getBucket(value: number, buckets: TimeBucket[]): string {
 
 /* -------------------------------- Patterns -------------------------------- */
 
-// SVG pattern definitions for stratified bars
-const PATTERN_DEFS = [
-  { id: 'pattern-diagonal', render: (color: string) => `
+// Pattern IDs matching CSS class names for consistency
+const PATTERN_IDS = [
+  'pattern-diagonal',
+  'pattern-dots',
+  'pattern-hlines',
+  'pattern-vlines',
+  'pattern-grid',
+] as const;
+
+// SVG pattern definitions using native SVG elements
+// Note: foreignObject approach doesn't work for patterns in most browsers
+function createPatternDefs(): string {
+  const color = 'var(--color-text)';
+  const bg = 'var(--color-bg)';
+  
+  return `
     <pattern id="pattern-diagonal" patternUnits="userSpaceOnUse" width="7" height="7">
-      <rect width="7" height="7" fill="var(--color-bg)"/>
+      <rect width="7" height="7" fill="${bg}"/>
       <line x1="0" y1="7" x2="7" y2="0" stroke="${color}" stroke-width="2"/>
     </pattern>
-  `},
-  { id: 'pattern-dots', render: (color: string) => `
     <pattern id="pattern-dots" patternUnits="userSpaceOnUse" width="6" height="6">
-      <rect width="6" height="6" fill="var(--color-bg)"/>
+      <rect width="6" height="6" fill="${bg}"/>
       <circle cx="3" cy="3" r="1.5" fill="${color}"/>
     </pattern>
-  `},
-  { id: 'pattern-hlines', render: (color: string) => `
     <pattern id="pattern-hlines" patternUnits="userSpaceOnUse" width="6" height="6">
-      <rect width="6" height="6" fill="var(--color-bg)"/>
+      <rect width="6" height="6" fill="${bg}"/>
       <line x1="0" y1="3" x2="6" y2="3" stroke="${color}" stroke-width="2"/>
     </pattern>
-  `},
-  { id: 'pattern-vlines', render: (color: string) => `
     <pattern id="pattern-vlines" patternUnits="userSpaceOnUse" width="6" height="6">
-      <rect width="6" height="6" fill="var(--color-bg)"/>
+      <rect width="6" height="6" fill="${bg}"/>
       <line x1="3" y1="0" x2="3" y2="6" stroke="${color}" stroke-width="2"/>
     </pattern>
-  `},
-  { id: 'pattern-grid', render: (color: string) => `
     <pattern id="pattern-grid" patternUnits="userSpaceOnUse" width="7" height="7">
-      <rect width="7" height="7" fill="var(--color-bg)"/>
+      <rect width="7" height="7" fill="${bg}"/>
       <line x1="0" y1="0" x2="7" y2="0" stroke="${color}" stroke-width="2"/>
       <line x1="0" y1="0" x2="0" y2="7" stroke="${color}" stroke-width="2"/>
     </pattern>
-  `},
-];
+  `;
+}
 
 /* ------------------------------- Components ------------------------------- */
 
@@ -189,9 +213,7 @@ function PatternLegend({ projects }: { projects: string[] }) {
       {projects.map((name, i) => (
         <div key={name} className="flex items-center gap-1.5">
           <div
-            className={`w-4 h-4 rounded border border-(--color-border) ${
-              ['pattern-diagonal', 'pattern-dots', 'pattern-hlines', 'pattern-vlines', 'pattern-grid'][i % 5]
-            }`}
+            className={`w-4 h-4 rounded border border-(--color-border) ${PATTERN_IDS[i % PATTERN_IDS.length]}`}
           />
           <span className="text-(--color-text-secondary)">{name}</span>
         </div>
@@ -214,7 +236,6 @@ function CompletionTimeChart({
   projectNames: string[];
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const patternId = useId();
 
   const filteredData = useMemo(() => {
     if (projectFilter === 'all') return data;
@@ -251,38 +272,65 @@ function CompletionTimeChart({
         grid: true,
       },
       color: stratifyByProject
-        ? { domain: projectNames, range: projectNames.map((_, i) => `url(#${patternId}-${i})`) }
+        ? { domain: projectNames, range: projectNames.map((_, i) => `url(#${PATTERN_IDS[i % PATTERN_IDS.length]})`) }
         : undefined,
-      marks: [
-        Plot.barY(
-          chartData,
-          Plot.groupX(
-            { y: 'count' },
-            {
-              x: 'bucket',
-              fill: stratifyByProject ? 'projectName' : 'var(--color-accent)',
-            }
-          )
-        ),
-        Plot.ruleY([0]),
-      ],
+      marks: stratifyByProject
+        ? [
+            // Stratified: stacked bars with per-segment tooltips
+            Plot.barY(
+              chartData,
+              Plot.stackY(
+                Plot.groupX(
+                  { y: 'count' },
+                  { x: 'bucket', fill: 'projectName' }
+                )
+              )
+            ),
+            Plot.ruleY([0]),
+            Plot.tip(
+              chartData,
+              Plot.pointer(
+                Plot.stackY(
+                  Plot.groupX(
+                    { y: 'count' },
+                    { x: 'bucket', fill: 'projectName' }
+                  )
+                )
+              )
+            ),
+          ]
+        : [
+            // Non-stratified: simple bars with tooltip
+            Plot.barY(
+              chartData,
+              Plot.groupX(
+                { y: 'count' },
+                { x: 'bucket', fill: 'var(--color-accent)' }
+              )
+            ),
+            Plot.ruleY([0]),
+            Plot.tip(
+              chartData,
+              Plot.pointerX(
+                Plot.groupX(
+                  { y: 'count' },
+                  { x: 'bucket' }
+                )
+              )
+            ),
+          ],
     });
 
     // Inject SVG pattern definitions
     if (stratifyByProject) {
-      const svg = plot.querySelector('svg');
-      if (svg) {
-        const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-        defs.innerHTML = PATTERN_DEFS.map((p, i) =>
-          p.render('var(--color-text)').replace(new RegExp(p.id, 'g'), `${patternId}-${i}`)
-        ).join('');
-        svg.insertBefore(defs, svg.firstChild);
-      }
+      const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+      defs.innerHTML = createPatternDefs();
+      plot.insertBefore(defs, plot.firstChild);
     }
 
     containerRef.current.replaceChildren(plot);
     return () => plot.remove();
-  }, [chartData, stratifyByProject, bucketOrder, projectNames, patternId]);
+  }, [chartData, stratifyByProject, bucketOrder, projectNames]);
 
   if (filteredData.length === 0) {
     return (
@@ -313,7 +361,6 @@ function DueVarianceChart({
   projectNames: string[];
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const patternId = useId();
 
   const filteredData = useMemo(() => {
     if (projectFilter === 'all') return data;
@@ -349,38 +396,65 @@ function DueVarianceChart({
         grid: true,
       },
       color: stratifyByProject
-        ? { domain: projectNames, range: projectNames.map((_, i) => `url(#${patternId}-${i})`) }
+        ? { domain: projectNames, range: projectNames.map((_, i) => `url(#${PATTERN_IDS[i % PATTERN_IDS.length]})`) }
         : undefined,
-      marks: [
-        Plot.barY(
-          chartData,
-          Plot.groupX(
-            { y: 'count' },
-            {
-              x: 'bucket',
-              fill: stratifyByProject ? 'projectName' : 'var(--color-accent)',
-            }
-          )
-        ),
-        Plot.ruleY([0]),
-      ],
+      marks: stratifyByProject
+        ? [
+            // Stratified: stacked bars with per-segment tooltips
+            Plot.barY(
+              chartData,
+              Plot.stackY(
+                Plot.groupX(
+                  { y: 'count' },
+                  { x: 'bucket', fill: 'projectName' }
+                )
+              )
+            ),
+            Plot.ruleY([0]),
+            Plot.tip(
+              chartData,
+              Plot.pointer(
+                Plot.stackY(
+                  Plot.groupX(
+                    { y: 'count' },
+                    { x: 'bucket', fill: 'projectName' }
+                  )
+                )
+              )
+            ),
+          ]
+        : [
+            // Non-stratified: simple bars with tooltip
+            Plot.barY(
+              chartData,
+              Plot.groupX(
+                { y: 'count' },
+                { x: 'bucket', fill: 'var(--color-accent)' }
+              )
+            ),
+            Plot.ruleY([0]),
+            Plot.tip(
+              chartData,
+              Plot.pointerX(
+                Plot.groupX(
+                  { y: 'count' },
+                  { x: 'bucket' }
+                )
+              )
+            ),
+          ],
     });
 
     // Inject SVG pattern definitions
     if (stratifyByProject) {
-      const svg = plot.querySelector('svg');
-      if (svg) {
-        const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-        defs.innerHTML = PATTERN_DEFS.map((p, i) =>
-          p.render('var(--color-text)').replace(new RegExp(p.id, 'g'), `${patternId}-${i}`)
-        ).join('');
-        svg.insertBefore(defs, svg.firstChild);
-      }
+      const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+      defs.innerHTML = createPatternDefs();
+      plot.insertBefore(defs, plot.firstChild);
     }
 
     containerRef.current.replaceChildren(plot);
     return () => plot.remove();
-  }, [chartData, stratifyByProject, bucketOrder, projectNames, patternId]);
+  }, [chartData, stratifyByProject, bucketOrder, projectNames]);
 
   if (filteredData.length === 0) {
     return (
@@ -409,6 +483,7 @@ export function Statistics({
   completedTodosWithTime,
   completedTodosWithDueDate,
   projects,
+  projectStats,
 }: StatisticsProps) {
   // Shared filter state for both charts
   const [projectFilter, setProjectFilter] = useState<string | null | 'all'>('all');
@@ -418,20 +493,16 @@ export function Statistics({
   // Get unique project names for stratification
   const projectNames = useMemo(() => projects.map((p) => p.name), [projects]);
 
-  // Calculate stats for filtered view
+  // Get stats for filtered view from pre-computed projectStats
   const filteredStats = useMemo(() => {
     if (projectFilter === 'all') {
       return { total: totalTodos, completed: completedTodos, active: activeTodos };
     }
-    const filteredCompleted = completedTodosWithTime.filter(
-      (t) => t.projectId === projectFilter
-    ).length;
-    return {
-      total: filteredCompleted,
-      completed: filteredCompleted,
-      active: 0,
-    };
-  }, [projectFilter, totalTodos, completedTodos, activeTodos, completedTodosWithTime]);
+    const stats = projectStats.find((p) => p.id === projectFilter);
+    return stats 
+      ? { total: stats.total, completed: stats.completed, active: stats.active }
+      : { total: 0, completed: 0, active: 0 };
+  }, [projectFilter, totalTodos, completedTodos, activeTodos, projectStats]);
 
   const displayCompletionRate =
     projectFilter === 'all'
@@ -450,6 +521,10 @@ export function Statistics({
           onChange={(e) => {
             const val = e.target.value;
             setProjectFilter(val === 'all' ? 'all' : val === 'inbox' ? null : val);
+            // Disable stratify when filtering by project
+            if (val !== 'all') {
+              setStratifyByProject(false);
+            }
           }}
           className="select-retro py-2 pr-8 pl-3 text-xs font-semibold uppercase tracking-wide text-(--color-text) border-2 border-transparent rounded-md cursor-pointer transition-all"
         >
@@ -461,21 +536,26 @@ export function Statistics({
           ))}
         </select>
 
-        {/* Bucket type selector */}
-        <select
-          value={bucketType}
-          onChange={(e) => setBucketType(e.target.value as BucketType)}
-          className="select-retro py-2 pr-8 pl-3 text-xs font-semibold uppercase tracking-wide text-(--color-text) border-2 border-transparent rounded-md cursor-pointer transition-all"
+        {/* Time bucket toggle */}
+        <button
+          type="button"
+          onClick={() => setBucketType((prev) => prev === 'days' ? 'hours' : 'days')}
+          className="inline-flex items-center justify-center gap-1.5 py-2 px-3 bg-(--color-accent-subtle) hover:bg-(--color-accent-subtle-hover) text-(--color-text) border-2 border-transparent rounded-md text-xs font-semibold uppercase tracking-wide transition-all cursor-pointer select-none"
         >
-          <option value="days">Time: Days</option>
-          <option value="hours">Time: Hours</option>
-        </select>
+          {bucketType === 'days' ? <CalendarIcon className="w-4 h-4" /> : <ClockIcon className="w-4 h-4" />}
+          {bucketType === 'days' ? 'Days' : 'Hours'}
+        </button>
 
-        {/* Stratify toggle */}
+        {/* Stratify toggle - disabled when filtering by project */}
         <button
           type="button"
           onClick={() => setStratifyByProject((prev) => !prev)}
-          className="inline-flex items-center justify-center gap-1.5 py-2 px-3 bg-(--color-accent-subtle) hover:bg-(--color-accent-subtle-hover) text-(--color-text) border-2 border-transparent rounded-md text-xs font-semibold uppercase tracking-wide transition-all cursor-pointer select-none"
+          disabled={projectFilter !== 'all'}
+          className={`inline-flex items-center justify-center gap-1.5 py-2 px-3 bg-(--color-accent-subtle) text-(--color-text) border-2 border-transparent rounded-md text-xs font-semibold uppercase tracking-wide transition-all select-none ${
+            projectFilter !== 'all' 
+              ? 'opacity-40 cursor-not-allowed' 
+              : 'hover:bg-(--color-accent-subtle-hover) cursor-pointer'
+          }`}
         >
           {stratifyByProject ? <CheckIcon className="w-4 h-4" /> : <MinusIcon className="w-4 h-4" />}
           Stratify
