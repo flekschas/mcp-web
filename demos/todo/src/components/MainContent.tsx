@@ -1,10 +1,12 @@
 import { TrashIcon } from '@heroicons/react/20/solid';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
-import { projectsAtom, todosAtom, viewAtom } from '../states';
+import { projectsAtom, statisticsAtom, todosAtom, viewAtom } from '../states';
 import { TodoList } from './TodoList';
+import { Statistics } from './Statistics';
 
 export function MainContent() {
   const [view, setView] = useAtom(viewAtom);
+  const statistics = useAtomValue(statisticsAtom);
   const projects = useAtomValue(projectsAtom);
   const setTodos = useSetAtom(todosAtom);
   const setProjects = useSetAtom(projectsAtom);
@@ -17,35 +19,42 @@ export function MainContent() {
       const { [projectId]: _, ...rest } = prev;
       return rest;
     });
-    // If this project was selected, switch to inbox
-    if (view !== null) {
-      setView(null);
-    }
+    // Switch to inbox
+    setView({ type: 'inbox' });
   };
 
-  const title = view === null
+  // Determine title and project based on view type
+  const project = view.type === 'project' ? projects[view.id] : null;
+  const title = view.type === 'inbox'
     ? 'Inbox'
-    : (view ? projects[view]?.title : null) || 'Project';
+    : view.type === 'statistics'
+      ? 'Statistics'
+      : project?.title || 'Project';
 
   return (
     <div className="flex-1 overflow-auto bg-transparent p-6">
       <div className="max-w-3xl mx-auto">
         <header className="flex items-center justify-between mb-8 group relative">
-          <h2 className="font-display text-3xl font-bold text-(--color-text) tracking-tight">
-            {title}
-          </h2>
-          {view !== null && (
+        <div className="flex items-center gap-2">
+            {project && (
+              <div className={`w-8 h-8 rounded-full border-2 border-(--color-text) inset-ring-2 inset-ring-(--color-bg) ${project.pattern}`} />
+            )}
+            <h2 className="font-display text-3xl font-bold text-(--color-text) tracking-tight">
+              {title}
+            </h2>
+          </div>
+          {view.type === 'project' && (
             <button
               type="button"
-              onClick={() => deleteProject(view)}
-              className="btn-3d-danger opacity-0 group-hover:opacity-70 transition-opacity"
+              onClick={() => deleteProject(view.id)}
+              className="inline-flex items-center justify-center p-1.5 text-(--color-text) rounded hover:bg-(--color-border) cursor-pointer select-none opacity-0 group-hover:opacity-30 hover:opacity-100 transition-opacity"
               title="Delete project"
             >
               <TrashIcon className="w-5 h-5" />
             </button>
           )}
         </header>
-        <TodoList />
+        {view.type === 'statistics' ? <Statistics {...statistics} /> : <TodoList />}
       </div>
     </div>
   );

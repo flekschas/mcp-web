@@ -27,7 +27,7 @@ export function TodoItem({ todo }: TodoItemProps) {
   const isCompleted = !!todo.completed_at;
 
   return (
-    <div className="group card-retro p-4 flex items-start gap-4 transition-all hover:shadow-md">
+    <div className="group bg-(--color-bg) border-2 border-(--color-border) rounded-lg p-4 flex items-center gap-4 transition-all">
       <input
         type="checkbox"
         checked={isCompleted}
@@ -42,9 +42,9 @@ export function TodoItem({ todo }: TodoItemProps) {
         {todo.description && (
           <div className="text-sm text-(--color-text-secondary) mt-1 opacity-80">{todo.description}</div>
         )}
-        {todo.due_date && (
+        {todo.due_at && (
           <div className="text-xs text-(--color-text-secondary) mt-2 font-medium uppercase tracking-wide opacity-70">
-            Due: {new Date(todo.due_date).toLocaleDateString()}
+            Due: {new Date(todo.due_at).toLocaleDateString()}
           </div>
         )}
       </div>
@@ -52,7 +52,7 @@ export function TodoItem({ todo }: TodoItemProps) {
       <button
         type="button"
         onClick={deleteTodo}
-        className="btn-3d-danger opacity-0 group-hover:opacity-70 transition-opacity"
+        className="inline-flex items-center justify-center p-1.5 text-(--color-text) rounded hover:bg-(--color-border) cursor-pointer select-none opacity-0 group-hover:opacity-30 hover:opacity-100 transition-opacity"
       >
         <TrashIcon className="w-4 h-4" />
       </button>

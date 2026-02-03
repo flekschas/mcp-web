@@ -1,12 +1,9 @@
-import { useTools } from '@mcp-web/react';
+import { useMCPApps, useMCPTools } from '@mcp-web/react';
 import { useAtom } from 'jotai';
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
+import { statisticsApp } from './mcp-apps';
 import { Header } from './components/Header';
 import { MainContent } from './components/MainContent';
-import {
-  DarkNoiseBackground,
-  NoiseBackground,
-} from './components/NoiseBackground';
 import { Sidebar } from './components/Sidebar';
 import { themeAtom } from './states';
 import { projectTools, settingsTools, todoTools } from './tools';
@@ -15,14 +12,10 @@ function App() {
   const [theme] = useAtom(themeAtom);
 
   // Register all state tools app-wide
-  useTools(todoTools, projectTools, settingsTools);
+  useMCPTools(todoTools, projectTools, settingsTools);
 
-  // Determine if dark mode should be active
-  const isDarkMode = useMemo(() => {
-    if (theme === 'dark') return true;
-    if (theme === 'light') return false;
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
-  }, [theme]);
+  // Register MCP Apps for visual AI rendering
+  useMCPApps(statisticsApp);
 
   // Handle dark mode
   useEffect(() => {
@@ -38,44 +31,27 @@ function App() {
   }, [theme]);
 
   return (
-    <>
-      {isDarkMode ? (
-        <DarkNoiseBackground
-          grain={0.04}
-          vignette={0.661}
-          noiseFrequency={0.0008}
-          animationSpeed={0.00008}
-        />
-      ) : (
-        <NoiseBackground
-          grain={0.04}
-          vignette={0.661}
-          noiseFrequency={0.0008}
-          animationSpeed={0.00008}
-        />
-      )}
-      <div className="flex h-screen">
-        <Sidebar />
-        <div className="flex-1 flex flex-col">
-          <Header />
-          <MainContent />
-          <footer className="text-center py-4 opacity-70 text-sm">
-            <p>
-              This demo showcases{' '}
-              <a
-                href="https://github.com/flekschas/mcp-web"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline hover:opacity-80 transition-opacity"
-              >
-                MCP-Web
-              </a>
-              .
-            </p>
-          </footer>
-        </div>
+    <div className="flex h-screen">
+      <Sidebar />
+      <div className="flex-1 flex flex-col">
+        <Header />
+        <MainContent />
+        <footer className="text-center py-4 opacity-30 text-sm">
+          <p>
+            This demo showcases{' '}
+            <a
+              href="https://github.com/flekschas/mcp-web"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:opacity-80 transition-opacity"
+            >
+              MCP-Web
+            </a>
+            .
+          </p>
+        </footer>
       </div>
-    </>
+    </div>
   );
 }
 

@@ -1,5 +1,13 @@
 import type { z } from 'zod';
-import type { ProjectSchema, ShowCompletedSchema, SortBySchema, SortOrderSchema, ThemeSchema, TodoSchema, ViewSchema } from './schemas';
+import type {
+  ProjectSchema,
+  ShowCompletedSchema,
+  SortBySchema,
+  SortOrderSchema,
+  ThemeSchema,
+  TodoSchema,
+  ViewSchema,
+} from './schemas';
 
 export type Project = z.infer<typeof ProjectSchema>;
 export type Todo = z.infer<typeof TodoSchema>;

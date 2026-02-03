@@ -9,7 +9,6 @@ import {
   SortOrderSchema,
   ThemeSchema,
   TodosSchema,
-  ViewSchema,
 } from './schemas';
 import {
   projectsAtom,
@@ -18,7 +17,6 @@ import {
   sortOrderAtom,
   themeAtom,
   todosAtom,
-  viewAtom,
 } from './states';
 
 const store = getDefaultStore();
@@ -84,6 +82,5 @@ export const settingsTools = createStateTools({
     sort_by: createStateTriple(store, sortByAtom, SortBySchema),
     sort_order: createStateTriple(store, sortOrderAtom, SortOrderSchema),
     show_completed: createStateTriple(store, showCompletedAtom, ShowCompletedSchema),
-    view: createStateTriple(store, viewAtom, ViewSchema),
   }),
 });

@@ -30,11 +30,11 @@ export function TodoForm() {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Add a new todo..."
-          className="input-retro flex-1"
+          className="w-full py-2 px-4 text-base bg-(--color-bg) text-(--color-text) border-2 border-(--color-border) rounded-md transition-[border-color] placeholder:text-(--color-text-secondary) placeholder:opacity-60 focus:outline-none focus:border-(--color-text) flex-1"
         />
         <button
           type="submit"
-          className="btn-3d-icon w-[calc(2.5rem+2px)]! h-[calc(2.5rem+2px)]!"
+          className="inline-flex items-center justify-center w-11 h-10.5 bg-(--color-accent) text-(--color-bg) border-2 border-(--color-accent) rounded-md shadow-[0_2px_0_var(--color-accent-dark)] btn-3d-press-sm hover:bg-(--color-accent-hover) hover:border-(--color-accent-hover) cursor-pointer select-none"
         >
           <PlusIcon className="w-5 h-5" />
         </button>
