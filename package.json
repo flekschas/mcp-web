@@ -7,7 +7,7 @@
     "prepare": "lefthook install",
     "build": "pnpm -r build",
     "build:packages": "pnpm --filter './packages/*' build",
-    "build:demos": "pnpm --filter './demos/*' build",
+    "build:demos": "tsx scripts/build-demos.ts",
     "build:docs": "npm run build:api-refs && vitepress build docs",
     "build:api-refs": "tsx scripts/generate-all-api-docs.ts docs/api/ && tsx scripts/generate-all-api-docs.ts agents/skills/mcp-web/ --prefix api-reference-",
     "dev": "pnpm -r dev",

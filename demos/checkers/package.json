@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "concurrently \"pnpm run dev:app\" \"pnpm run dev:agent\" \"pnpm run dev:bridge\"",
     "dev:app": "vite",
-    "dev:agent": "tsx watch agent.ts",
+    "dev:agent": "tsx watch serve-agent.ts",
     "dev:bridge": "tsx watch bridge.ts",
     "build": "vite build",
     "preview": "vite preview",

@@ -1,0 +1,21 @@
+{
+  "name": "mcp-web-checkers",
+  "tasks": {
+    "start": "deno run --allow-net --allow-env --allow-read main.ts",
+    "dev": "deno run --watch --allow-net --allow-env --allow-read main.ts",
+    "start:agent": "deno run --allow-net --allow-env --allow-read serve-agent.ts",
+    "dev:agent": "deno run --watch --allow-net --allow-env --allow-read serve-agent.ts"
+  },
+  "imports": {
+    "@mcp-web/types": "npm:@mcp-web/types@^0.1.0",
+    "@mcp-web/bridge": "npm:@mcp-web/bridge@^0.1.0",
+    "@mcp-web/client": "npm:@mcp-web/client@^0.1.0",
+    "@ai-sdk/anthropic": "npm:@ai-sdk/anthropic@^2.0.0",
+    "@ai-sdk/cerebras": "npm:@ai-sdk/cerebras@^1.0.0",
+    "@ai-sdk/google": "npm:@ai-sdk/google@^2.0.0",
+    "@ai-sdk/openai": "npm:@ai-sdk/openai@^2.0.0",
+    "ai": "npm:ai@^5.0.0",
+    "hono": "npm:hono@^4.10.0",
+    "hono/cors": "npm:hono@^4.10.0/cors"
+  }
+}

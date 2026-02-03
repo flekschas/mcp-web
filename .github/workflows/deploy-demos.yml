@@ -1,0 +1,175 @@
+name: Deploy Demos to Deno Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'demos/**'
+      - 'packages/**'
+      - '.github/workflows/deploy-demos.yml'
+  workflow_dispatch:
+    inputs:
+      demo:
+        description: 'Demo to deploy (all, higlass, todo, checkers, checkers-agent)'
+        required: false
+        default: 'all'
+
+env:
+  DENO_VERSION: 2.x
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        demo: [higlass, todo, checkers]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+
+      - uses: pnpm/action-setup@v4
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Build demo
+        run: |
+          cd demos/${{ matrix.demo }}
+          pnpm build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.demo }}-dist
+          path: demos/${{ matrix.demo }}/dist
+          retention-days: 1
+
+  deploy-higlass:
+    needs: build
+    if: |
+      github.event.inputs.demo == 'all' ||
+      github.event.inputs.demo == 'higlass' ||
+      github.event.inputs.demo == ''
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: higlass-dist
+          path: demos/deploy/higlass/static
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
+      - name: Deploy to Deno Deploy
+        uses: denoland/deployctl@v1
+        with:
+          project: mcp-web-higlass
+          entrypoint: main.ts
+          root: demos/deploy/higlass
+
+  deploy-todo:
+    needs: build
+    if: |
+      github.event.inputs.demo == 'all' ||
+      github.event.inputs.demo == 'todo' ||
+      github.event.inputs.demo == ''
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: todo-dist
+          path: demos/deploy/todo/static
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
+      - name: Deploy to Deno Deploy
+        uses: denoland/deployctl@v1
+        with:
+          project: mcp-web-todo
+          entrypoint: main.ts
+          root: demos/deploy/todo
+
+  deploy-checkers:
+    needs: build
+    if: |
+      github.event.inputs.demo == 'all' ||
+      github.event.inputs.demo == 'checkers' ||
+      github.event.inputs.demo == ''
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: checkers-dist
+          path: demos/deploy/checkers/static
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
+      - name: Deploy Bridge to Deno Deploy
+        uses: denoland/deployctl@v1
+        with:
+          project: mcp-web-checkers
+          entrypoint: main.ts
+          root: demos/deploy/checkers
+
+  deploy-checkers-agent:
+    needs: build
+    if: |
+      github.event.inputs.demo == 'all' ||
+      github.event.inputs.demo == 'checkers' ||
+      github.event.inputs.demo == 'checkers-agent' ||
+      github.event.inputs.demo == ''
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
+      - name: Deploy Agent to Deno Deploy
+        uses: denoland/deployctl@v1
+        with:
+          project: mcp-web-checkers-agent
+          entrypoint: serve-agent.ts
+          root: demos/deploy/checkers
