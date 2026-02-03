@@ -28,6 +28,6 @@ using a `<Statistics />` component that we turn into a MCP App with our
    `<Statistics />` component into an MCP App. Todo App controllable by AI.
 
 <script setup>
-  import { videoColorModeSrcSwitcher } from './utils';
+  import { videoColorModeSrcSwitcher } from '../utils';
   videoColorModeSrcSwitcher();
 </script>

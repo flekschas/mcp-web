@@ -28,6 +28,6 @@ schemas by decomposing them into manageable tool definitions.
    state management that MCP-Web can observe and control.
 
 <script setup>
-  import { videoColorModeSrcSwitcher } from './utils';
+  import { videoColorModeSrcSwitcher } from '../utils';
   videoColorModeSrcSwitcher();
 </script>

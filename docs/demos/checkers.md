@@ -1,8 +1,10 @@
 # Frontend Query Demo: Spanish Checkers Game :cherries:
 
 The _Checkers_ demo showcases **action tools** and **frontend-triggered queries**.
-Play a game of Spanish Checkers against an AI opponent—when you make a move,
-the frontend queries the AI agent for its counter-move in real-time.
+Play a game of Spanish Checkers against an AI opponent. When you make a move,
+the frontend automatically queries the AI agent for its counter-move. To check
+out entirely, you can also ask AI (through your favorite MCP-compatible AI app)
+to make moves for your.
 
 <video autoplay loop muted playsinline width="1256" data-name="checkers">
   <source
@@ -21,12 +23,12 @@ to analyze positions and suggest moves.
 
 ## Key Components
 
-- `src/tools.ts`: Defines action tools for game moves and board state exposure.
+- `src/queries/`: Defines action tools for game moves and board state exposure.
 
 - `src/agent-query.ts`: Shows how to trigger AI queries from the frontend
    when the player makes a move.
 
 <script setup>
-  import { videoColorModeSrcSwitcher } from './utils';
+  import { videoColorModeSrcSwitcher } from '../utils';
   videoColorModeSrcSwitcher();
 </script>
