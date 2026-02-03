@@ -15,6 +15,12 @@ catalogs:
     '@types/node':
       specifier: ^25.0.9
       version: 25.0.9
+    '@types/react':
+      specifier: ^18.3.24
+      version: 18.3.24
+    '@types/react-dom':
+      specifier: ^18.3.7
+      version: 18.3.7
     ajv:
       specifier: ^8.17.1
       version: 8.17.1
@@ -290,6 +296,9 @@ importers:
       '@heroicons/react':
         specifier: ^2.2.0
         version: 2.2.0(react@18.3.1)
+      '@mcp-web/app':
+        specifier: workspace:*
+        version: link:../../packages/app
       '@mcp-web/bridge':
         specifier: workspace:*
         version: link:../../packages/bridge
@@ -302,6 +311,9 @@ importers:
       '@mcp-web/types':
         specifier: workspace:*
         version: link:../../packages/types
+      '@observablehq/plot':
+        specifier: ^0.6.17
+        version: 0.6.17
       '@tailwindcss/vite':
         specifier: 'catalog:'
         version: 4.1.18(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2))
@@ -363,6 +375,40 @@ importers:
       vue:
         specifier: ^3.5.24
         version: 3.5.24(typescript@5.9.3)
+
+  packages/app:
+    dependencies:
+      '@mcp-web/types':
+        specifier: workspace:*
+        version: link:../types
+      react:
+        specifier: '>=17.0.0'
+        version: 18.3.1
+      react-dom:
+        specifier: '>=17.0.0'
+        version: 18.3.1(react@18.3.1)
+      vite-plugin-singlefile:
+        specifier: ^2.3.0
+        version: 2.3.0(rollup@4.53.3)(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2))
+      zod:
+        specifier: 'catalog:'
+        version: 4.1.12
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 25.0.9
+      '@types/react':
+        specifier: 'catalog:'
+        version: 18.3.24
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 18.3.7(@types/react@18.3.24)
+      typescript:
+        specifier: 'catalog:'
+        version: 5.9.3
+      vite:
+        specifier: 'catalog:'
+        version: 7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/bridge:
     dependencies:
@@ -542,6 +588,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 25.0.9
+      '@types/react':
+        specifier: 'catalog:'
+        version: 18.3.24
       typescript:
         specifier: 'catalog:'
         version: 5.9.3
@@ -569,6 +618,10 @@ importers:
       zod:
         specifier: 'catalog:'
         version: 4.1.12
+    devDependencies:
+      '@types/react':
+        specifier: 'catalog:'
+        version: 18.3.24
 
 packages:
 
@@ -4628,6 +4681,13 @@ packages:
 
   vfile@6.0.3:
     resolution: {integrity: sha512-KzIbH/9tXat2u30jf+smMwFCsno4wHVdNmzFyL+T/L3UGqqk6JKfVqOFOZEpZSHADH1k40ab6NUIXZq422ov3Q==}
+
+  vite-plugin-singlefile@2.3.0:
+    resolution: {integrity: sha512-DAcHzYypM0CasNLSz/WG0VdKOCxGHErfrjOoyIPiNxTPTGmO6rRD/te93n1YL/s+miXq66ipF1brMBikf99c6A==}
+    engines: {node: '>18.0.0'}
+    peerDependencies:
+      rollup: ^4.44.1
+      vite: ^5.4.11 || ^6.0.0 || ^7.0.0
 
   vite@7.1.4:
     resolution: {integrity: sha512-X5QFK4SGynAeeIt+A7ZWnApdUyHYm+pzv/8/A57LqSGcI88U6R6ipOs3uCesdc6yl7nl+zNO0t8LmqAdXcQihw==}
@@ -8836,6 +8896,12 @@ snapshots:
     dependencies:
       '@types/unist': 3.0.3
       vfile-message: 4.0.3
+
+  vite-plugin-singlefile@2.3.0(rollup@4.53.3)(vite@7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2)):
+    dependencies:
+      micromatch: 4.0.8
+      rollup: 4.53.3
+      vite: 7.3.1(@types/node@25.0.9)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2)
 
   vite@7.1.4(@types/node@24.3.0)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2):
     dependencies:

@@ -1,7 +1,5 @@
 # MCP-Web Core API
 
-## Other
-
 ### QueryResponse
 
 *Class* — `packages/core/src/query.ts`
@@ -88,6 +86,22 @@ get tools(): any
 Map of all registered tools.
 
 Provides access to the internal tool registry. Each tool is keyed by its name.
+
+```ts
+get resources(): any
+```
+
+Map of all registered resources.
+
+Provides access to the internal resource registry. Each resource is keyed by its URI.
+
+```ts
+get apps(): any
+```
+
+Map of all registered MCP Apps.
+
+Provides access to the internal app registry. Each app is keyed by its name.
 
 ```ts
 get config(): any
@@ -178,6 +192,42 @@ Removes a registered tool.
 
 After removal, AI agents will no longer be able to call this tool.
 Useful for dynamically disabling features or cleaning up when tools are no longer needed.
+
+```ts
+addResource(resource: ResourceDefinition): ResourceDefinition
+```
+
+Registers a resource that AI agents can read.
+
+Resources are content that AI agents can request, such as HTML for MCP Apps.
+The handler function is called when the AI requests the resource content.
+
+```ts
+removeResource(uri: string): void
+```
+
+Removes a registered resource.
+
+After removal, AI agents will no longer be able to read this resource.
+
+```ts
+addApp(app: AppDefinition | CreatedApp): AppDefinition
+```
+
+Registers an MCP App that AI agents can invoke to show visual UI.
+
+An MCP App combines a tool (that AI calls to get props) with a resource (the HTML UI).
+When AI calls the tool, the handler returns props. The tool response includes
+`_meta.ui.resourceUri` which tells the host to fetch and render the app HTML.
+
+```ts
+removeApp(name: string): void
+```
+
+Removes a registered MCP App.
+
+After removal, AI agents will no longer be able to invoke this app.
+This also removes the associated tool and resource.
 
 ```ts
 addStateTools<T>(created: CreatedStateTools<T> & { isExpanded: false }): [ToolDefinition, ToolDefinition, () => void]
@@ -607,6 +657,11 @@ isCreatedStateTools(value: unknown): value is CreatedStateTools<unknown>
 *Function* — `packages/core/src/create-tool.ts`
 
 Creates a tool definition without registering it.
+
+Useful for:
+- Read-only tools (derived state, computed values)
+- Custom action tools that don't map directly to state
+- Tools that need to be conditionally registered
 
 This follows the Jotai pattern of creating atoms outside React components.
 Tools can be defined at module scope and registered when needed.

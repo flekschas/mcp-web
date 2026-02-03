@@ -107,6 +107,8 @@ export class MCPWebBridgeNode {
   #wss: WebSocketServer;
   #port: number;
   #host: string;
+  #readyPromise: Promise<void>;
+  #isReady = false;
 
   constructor(config: MCPWebBridgeNodeConfig) {
     this.#port = config.port ?? 3001;
@@ -169,12 +171,57 @@ export class MCPWebBridgeNode {
       });
     });
 
-    // Start listening
-    this.#server.listen(this.#port, this.#host, () => {
-      console.log(`🌉 MCP Web Bridge (Node.js) listening on ${this.#host}:${this.#port}`);
-      console.log(`   WebSocket: ws://${this.#host === '0.0.0.0' ? 'localhost' : this.#host}:${this.#port}`);
-      console.log(`   HTTP/MCP:  http://${this.#host === '0.0.0.0' ? 'localhost' : this.#host}:${this.#port}`);
+    // Create a promise that resolves when the server is ready or rejects on error
+    this.#readyPromise = new Promise<void>((resolve, reject) => {
+      // Handle server errors (including EADDRINUSE)
+      this.#server.on('error', (error: NodeJS.ErrnoException) => {
+        if (error.code === 'EADDRINUSE') {
+          const displayHost = this.#host === '0.0.0.0' ? 'localhost' : this.#host;
+          console.error(`\n❌ Port ${this.#port} is already in use.`);
+          console.error(`   Another process is listening on ${displayHost}:${this.#port}`);
+          console.error(`\n   To fix this, either:`);
+          console.error(`   1. Stop the other process using port ${this.#port}:`);
+          console.error(`      lsof -i :${this.#port}  # Find the process`);
+          console.error(`      kill <PID>             # Kill it`);
+          console.error(`   2. Or use a different port in your bridge config\n`);
+        } else {
+          console.error(`\n❌ Failed to start bridge server:`, error.message);
+        }
+        reject(error);
+      });
+
+      // Start listening
+      this.#server.listen(this.#port, this.#host, () => {
+        this.#isReady = true;
+        const displayHost = this.#host === '0.0.0.0' ? 'localhost' : this.#host;
+        console.log(`🌉 MCP Web Bridge listening on ${displayHost}:${this.#port}`);
+        console.log(`   WebSocket: ws://${displayHost}:${this.#port}`);
+        console.log(`   HTTP/MCP:  http://${displayHost}:${this.#port}`);
+        resolve();
+      });
     });
+  }
+
+  /**
+   * Returns a promise that resolves when the server is ready to accept connections.
+   * Rejects if the server fails to start (e.g., port already in use).
+   *
+   * @example
+   * ```typescript
+   * const bridge = new MCPWebBridgeNode({ name: 'My App', port: 3001 });
+   * await bridge.ready();
+   * console.log('Bridge is ready!');
+   * ```
+   */
+  ready(): Promise<void> {
+    return this.#readyPromise;
+  }
+
+  /**
+   * Whether the server is ready to accept connections.
+   */
+  get isReady(): boolean {
+    return this.#isReady;
   }
 
   /**

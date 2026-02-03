@@ -37,6 +37,7 @@ import {
   QueryNotActiveErrorCode,
   QueryNotFoundErrorCode,
   QueryProgressMessageSchema,
+  type ResourceMetadata,
   SessionExpiredErrorCode,
   SessionLimitExceededErrorCode,
   SessionNotFoundErrorCode,
@@ -92,6 +93,31 @@ interface RegisterToolMessage {
   };
 }
 
+interface RegisterResourceMessage {
+  type: 'register-resource';
+  resource: {
+    uri: string;
+    name: string;
+    description?: string;
+    mimeType?: string;
+  };
+}
+
+interface ResourceReadMessage {
+  type: 'resource-read';
+  requestId: string;
+  uri: string;
+}
+
+interface ResourceResponseMessage {
+  type: 'resource-response';
+  requestId: string;
+  content?: string;
+  blob?: string;
+  mimeType: string;
+  error?: string;
+}
+
 interface ActivityMessage {
   type: 'activity';
   timestamp: number;
@@ -114,8 +140,10 @@ interface ToolResponseMessage {
 type FrontendMessage =
   | AuthenticateMessage
   | RegisterToolMessage
+  | RegisterResourceMessage
   | ActivityMessage
   | ToolResponseMessage
+  | ResourceResponseMessage
   | QueryMessage
   | QueryCancelMessage;
 
@@ -136,6 +164,7 @@ interface SessionData {
   connectedAt: number;
   lastActivity: number;
   tools: Map<string, ToolDefinition>;
+  resources: Map<string, ResourceMetadata>;
 }
 
 interface TrackedToolCall {
@@ -251,6 +280,8 @@ export class MCPWebBridge {
 
   // Message handlers for tool responses (keyed by requestId)
   #toolResponseHandlers = new Map<string, (data: string) => void>();
+  // Message handlers for resource responses (keyed by requestId)
+  #resourceResponseHandlers = new Map<string, (data: string) => void>();
 
   /**
    * Creates a new MCPWebBridge instance.
@@ -372,6 +403,17 @@ export class MCPWebBridge {
         }
       }
 
+      // Check if this is a resource response
+      if (message.type === 'resource-response') {
+        const handler = this.#resourceResponseHandlers.get(
+          (message as ResourceResponseMessage).requestId
+        );
+        if (handler) {
+          handler(data);
+          return;
+        }
+      }
+
       this.#handleFrontendMessage(sessionId, message, ws);
     } catch (error) {
       console.error('Invalid JSON message:', error);
@@ -399,10 +441,16 @@ export class MCPWebBridge {
       case 'register-tool':
         this.#handleToolRegistration(sessionId, message);
         break;
+      case 'register-resource':
+        this.#handleResourceRegistration(sessionId, message);
+        break;
       case 'activity':
         this.#handleActivity(sessionId, message);
         break;
       case 'tool-response':
+        // Handled by per-request listeners
+        break;
+      case 'resource-response':
         // Handled by per-request listeners
         break;
       case 'query':
@@ -454,6 +502,7 @@ export class MCPWebBridge {
       connectedAt: Date.now(),
       lastActivity: Date.now(),
       tools: new Map(),
+      resources: new Map(),
     };
 
     this.#sessions.set(sessionId, sessionData);
@@ -484,6 +533,20 @@ export class MCPWebBridge {
 
     console.log('registering tool for session', sessionId, message);
     session.tools.set(message.tool.name, message.tool);
+  }
+
+  #handleResourceRegistration(
+    sessionId: string,
+    message: RegisterResourceMessage
+  ): void {
+    const session = this.#sessions.get(sessionId);
+    if (!session) {
+      console.warn(`Resource registration for unknown session: ${sessionId}`);
+      return;
+    }
+
+    console.log('registering resource for session', sessionId, message);
+    session.resources.set(message.resource.uri, message.resource);
   }
 
   #handleActivity(sessionId: string, message: ActivityMessage): void {
@@ -1161,6 +1224,16 @@ export class MCPWebBridge {
 
     const resources: Resource[] = [sessionListResource];
 
+    // Add frontend-registered resources
+    for (const resource of session.resources.values()) {
+      resources.push({
+        uri: resource.uri,
+        name: resource.name,
+        description: resource.description,
+        mimeType: resource.mimeType ?? 'text/html',
+      });
+    }
+
     return { resources } satisfies ListResourcesResult;
   }
 
@@ -1168,7 +1241,7 @@ export class MCPWebBridge {
     sessions: Map<string, SessionData>,
     params?: McpRequest['params']
   ): Promise<unknown> {
-    const { uri } = (params as { uri?: string }) || {};
+    const { uri, _meta } = (params as { uri?: string; _meta?: { sessionId?: string } }) || {};
 
     if (!uri) {
       return { error: 'Resource URI is required' };
@@ -1187,7 +1260,24 @@ export class MCPWebBridge {
       };
     }
 
-    return { error: 'Resource not found' };
+    // Look for frontend-registered resource
+    const [sessionId, session] = this.#getSessionAndSessionId(sessions, _meta?.sessionId) || [];
+
+    if (!sessionId || !session) {
+      // If no session specified and multiple sessions, check all sessions for the resource
+      for (const [sid, sess] of sessions.entries()) {
+        if (sess.resources.has(uri)) {
+          return this.#forwardResourceReadToSession(sid, uri);
+        }
+      }
+      return { error: 'Resource not found' };
+    }
+
+    if (!session.resources.has(uri)) {
+      return { error: 'Resource not found' };
+    }
+
+    return this.#forwardResourceReadToSession(sessionId, uri);
   }
 
   #listSessions(sessions: Map<string, SessionData>): AvailableSession[] {
@@ -1318,6 +1408,87 @@ export class MCPWebBridge {
       this.#toolResponseHandlers.set(requestId, handleResponse);
       session.ws.onMessage(handleResponse);
       session.ws.send(JSON.stringify(toolCall));
+    });
+  }
+
+  async #forwardResourceReadToSession(
+    sessionId: string,
+    uri: string
+  ): Promise<unknown> {
+    const session = this.#sessions.get(sessionId);
+    if (!session || session.ws.readyState !== 'OPEN') {
+      return { error: 'Session not available' };
+    }
+
+    const requestId = crypto.randomUUID();
+
+    const resourceRead: ResourceReadMessage = {
+      type: 'resource-read',
+      requestId,
+      uri,
+    };
+
+    return new Promise((resolve) => {
+      let timeoutId: string | undefined;
+
+      const handleResponse = (data: string): void => {
+        try {
+          const message: ResourceResponseMessage = JSON.parse(data);
+          if (
+            message.type === 'resource-response' &&
+            message.requestId === requestId
+          ) {
+            if (timeoutId) {
+              this.#scheduler.cancel(timeoutId);
+            }
+            this.#resourceResponseHandlers.delete(requestId);
+            session.ws.offMessage(handleResponse);
+
+            if (message.error) {
+              resolve({ error: message.error });
+              return;
+            }
+
+            // Build MCP resource read response
+            if (message.blob) {
+              // Binary content (base64 encoded)
+              resolve({
+                contents: [
+                  {
+                    uri,
+                    mimeType: message.mimeType,
+                    blob: message.blob,
+                  },
+                ],
+              });
+            } else {
+              // Text content
+              resolve({
+                contents: [
+                  {
+                    uri,
+                    mimeType: message.mimeType,
+                    text: message.content,
+                  },
+                ],
+              });
+            }
+          }
+        } catch {
+          // Ignore invalid JSON
+        }
+      };
+
+      // Set up timeout
+      timeoutId = this.#scheduler.schedule(() => {
+        this.#resourceResponseHandlers.delete(requestId);
+        session.ws.offMessage(handleResponse);
+        resolve({ error: 'Resource read timeout' });
+      }, 30000);
+
+      this.#resourceResponseHandlers.set(requestId, handleResponse);
+      session.ws.onMessage(handleResponse);
+      session.ws.send(JSON.stringify(resourceRead));
     });
   }
 

@@ -178,11 +178,11 @@ Now you can ask your AI app to "add a todo to my-app".
 
   #overview {
     width: 100%;
-    background-image: url(https://storage.googleapis.com/flekschas/mcp-web/overview-light.svg)
+    background-image: url(https://storage.googleapis.com/mcp-web/overview-light.svg)
   }
   #overview div { padding-top: 60% }
 
   :root.dark #overview {
-    background-image: url(https://storage.googleapis.com/flekschas/mcp-web/overview-dark.svg)
+    background-image: url(https://storage.googleapis.com/mcp-web/overview-dark.svg)
   }
 </style>

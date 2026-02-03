@@ -1,6 +1,4 @@
-# MCP-Client API
-
-## Other
+# MCP-Web Client API
 
 ### MCPWebClient
 

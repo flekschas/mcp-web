@@ -41,20 +41,21 @@ if (prefixIndex !== -1 && args[prefixIndex + 1]) {
 // Package configurations: [source-dir, filename-base, title]
 const packages: Array<[string, string, string]> = [
 	["packages/core/src", "core", "MCP-Web Core API"],
-	["packages/bridge/src", "bridge", "MCP-Bridge API"],
-	["packages/client/src", "client", "MCP-Client API"],
+	["packages/bridge/src", "bridge", "MCP-Web Bridge API"],
+	["packages/client/src", "client", "MCP-Web Client API"],
+	["packages/app/src", "app", "MCP-Web Apps API"],
 	[
 		"packages/decompose-zod-schema/src",
 		"decompose-zod-schema",
-		"Decompose Zod Schema API",
+		"MCP-Web Decompose Zod Schema API",
 	],
 	[
 		"packages/integrations/react/src",
 		"integrations",
-		"React Integration API",
+		"MCP-Web React Integration API",
 	],
-	["packages/tools/src", "tools", "MCP-Tools API"],
-	["packages/mcpb/src", "mcpb", "MCP-B Bundle API"],
+	["packages/tools/src", "tools", "MCP-Web Tools API"],
+	["packages/mcpb/src", "mcpb", "MCP-Web MCPB Bundle API"],
 ];
 
 // Generate docs for each package

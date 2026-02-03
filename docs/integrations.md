@@ -29,20 +29,24 @@ always returns fresh values.
 ### React with Jotai
 
 [Jotai](https://jotai.org) is the **recommended approach** for React. Its
-architecture naturally separates state from components—atoms are created at
-module level, just like MCP-Web tools.
+architecture separates state from components, which makes it straightforward to
+to expose the state as tools with MCP-Web.
 
-**Define your state:**
+**1. Define your schemas, types, and state:**
 
 ```typescript
+// schemas.ts
+export const TodoSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  completed: z.boolean(),
+});
+
+export type Todo = z.infer<typeof TodoSchema>;
+
 // states.ts
 import { atom } from 'jotai';
-
-export interface Todo {
-  id: string;
-  title: string;
-  completed: boolean;
-}
+import { type Todo } from './schemas';
 
 // Atoms (like useState but external)
 export const todosAtom = atom<Todo[]>([]);
@@ -54,27 +58,17 @@ export const activeTodosAtom = atom((get) => {
 });
 ```
 
-::: tip Optional: Persistent state
-Use `atomWithStorage` from `jotai/utils` if you want state to persist across
-page reloads. This is orthogonal to MCP-Web—regular atoms work perfectly fine.
-:::
-
-**Define your tools:**
+**2. Define your tools:**
 
 ```typescript
 // tools.ts
-import { createStateTools, createTool } from '@mcp-web/core';
+import { createTool, createStateTools } from '@mcp-web/core';
 import { getDefaultStore } from 'jotai';
 import { z } from 'zod';
 import { todosAtom, themeAtom, activeTodosAtom } from './states';
+import { TodoSchema } from './schema';
 
 const store = getDefaultStore();
-
-const TodoSchema = z.object({
-  id: z.string(),
-  title: z.string(),
-  completed: z.boolean(),
-});
 
 // State tools for read-write atoms
 export const todoTools = createStateTools({
@@ -103,7 +97,10 @@ export const activeTodosTool = createTool({
 });
 ```
 
-**Register tools in React:**
+**3. Register tools in React:**
+
+While you can manually create a `MCBWeb()` instance, it's more convenient to
+use our provider to handle auto-connection and simplify `useMCPTools()`.
 
 ```typescript
 // main.tsx
@@ -118,16 +115,19 @@ createRoot(document.getElementById('root')!).render(
 );
 ```
 
+Finally, expose the tools using `useMCPTools()`. This hook manages the lifecycle
+of the tool registration automatically for you.
+
 ```typescript
 // App.tsx
-import { useTools } from '@mcp-web/react';
+import { useMCPTools } from '@mcp-web/react';
 import { useAtom } from 'jotai';
 import { todosAtom, themeAtom } from './states';
 import { todoTools, themeTools, activeTodosTool } from './tools';
 
 function App() {
   // Register all tools - cleaned up when component unmounts
-  useTools(todoTools, themeTools, activeTodosTool);
+  useMCPTools(todoTools, themeTools, activeTodosTool);
 
   // Use Jotai atoms normally in your UI
   const [todos] = useAtom(todosAtom);
@@ -143,27 +143,23 @@ function App() {
 }
 ```
 
-The `MCPWebProvider` automatically:
-- Creates the MCPWeb instance from config
-- Connects to the bridge server on mount
-- Disconnects on unmount
-- Makes the instance available to `useTools`
-
 #### Dynamic Tool Registration
 
-Tools are tied to component lifecycle. This enables conditional tool exposure:
+Tools are tied to the component lifecycle with `useMCPTools()`. Meaning, when the
+component mounts, tools are registered. And when the component unmounts tools
+are revoked. This makes it easy to conditionally expose tools.
 
 ```typescript
 function AdminPanel() {
   // These tools only exist while AdminPanel is mounted
-  useTools(adminTools, dangerousTools);
+  useMCPTools(adminTools, dangerousTools);
   return <div>Admin controls</div>;
 }
 
 function App() {
   const [isAdmin] = useAtom(isAdminAtom);
   
-  useTools(todoTools, themeTools); // Always available
+  useMCPTools(todoTools, themeTools); // Always available
   
   return (
     <div>
@@ -212,7 +208,7 @@ export const useTodoStore = create<TodoStore>((set) => ({
 **`tools.ts`**:
 
 ```typescript
-import { createStateTools, createTool } from '@mcp-web/core';
+import { createStateTools } from '@mcp-web/core';
 import { z } from 'zod';
 import { useTodoStore } from './store';
 
@@ -230,44 +226,56 @@ export const todoTools = createStateTools({
   schema: z.array(TodoSchema),
   expand: true,
 });
-
-export const createTodoTool = createTool({
-  name: 'create_todo',
-  description: 'Create a new todo',
-  handler: ({ title }) => {
-    useTodoStore.getState().addTodo(title);
-    return useTodoStore.getState().todos.at(-1)!;
-  },
-  inputSchema: z.object({ title: z.string() }),
-  outputSchema: TodoSchema,
-});
 ```
 
 **`App.tsx`**:
 
 ```typescript
-import { useTools } from '@mcp-web/react';
+import { useMCPTools, useMCPWeb } from '@mcp-web/react';
 import { useTodoStore } from './store';
-import { todoTools, createTodoTool } from './tools';
+import { todoTools } from './tools';
+import { z } from 'zod';
+
+const TodoSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  completed: z.boolean(),
+});
 
 function App() {
-  useTools(todoTools, createTodoTool);
-  
+  const mcp = useMCPWeb();
+  useMCPTools(todoTools);
+
+  // Register custom action tool
+  React.useEffect(() => {
+    mcp.addTool({
+      name: 'create_todo',
+      description: 'Create a new todo',
+      handler: ({ title }) => {
+        useTodoStore.getState().addTodo(title);
+        return useTodoStore.getState().todos.at(-1)!;
+      },
+      inputSchema: z.object({ title: z.string() }),
+      outputSchema: TodoSchema,
+    });
+  }, [mcp]);
+
   const todos = useTodoStore((state) => state.todos);
-  
+
   return <div>{/* Your UI */}</div>;
 }
 ```
 
 ## Svelte
 
-Svelte's architecture naturally externalizes state, making it work seamlessly
-with MCP-Web without the closure issues that affect React and Vue.
+Svelte's architecture also allows externalizing state, which makes it work
+seamlessly with MCP-Web without any the need for a special state management
+library.
 
 ### Svelte with Runes (Svelte 5)
 
-[Svelte 5's runes](https://svelte.dev/docs/svelte/what-are-runes) provide
-reactive state that lives outside components.
+[Svelte 5's runes](https://svelte.dev/docs/svelte/what-are-runes) are all you
+need as they provide reactive state that can live outside components.
 
 **`state.svelte.ts`**:
 

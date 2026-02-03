@@ -1,6 +1,4 @@
-# React Integration API
-
-## Other
+# MCP-Web React Integration API
 
 ### MCPWebContextValue
 
@@ -69,11 +67,18 @@ Existing MCPWeb instance to provide to children.
 Props for MCPWebProvider component.
 Either provide a `config` to create a new instance, or `mcpWeb` to use an existing one.
 
+### RegisterableApp
+
+*Type* — `packages/integrations/react/src/use-mcp-apps.ts`
+
+An app that can be registered with useApps.
+Can be a CreatedApp or a raw AppDefinition.
+
 ### RegisterableTool
 
-*Type* — `packages/integrations/react/src/use-tools.ts`
+*Type* — `packages/integrations/react/src/use-mcp-tools.ts`
 
-A tool that can be registered with useTools.
+A tool that can be registered with useMCPTools.
 Can be a CreatedTool, CreatedStateTools, or a raw ToolDefinition.
 
 ### MCPWebProvider
@@ -102,6 +107,37 @@ Returns reactive connection state for triggering re-renders.
 useConnectedMCPWeb(mcpInstance: MCPWeb): MCPWebContextValue
 ```
 
+### useMCPApps
+
+*Function* — `packages/integrations/react/src/use-mcp-apps.ts`
+
+Hook for registering MCP Apps with automatic cleanup on unmount.
+
+This is the recommended way to register MCP Apps in React applications.
+Apps are registered when the component mounts and automatically
+unregistered when the component unmounts.
+
+MCP Apps are visual UI components that AI can render inline in chat
+interfaces like Claude Desktop.
+
+```ts
+useMCPApps(apps: (RegisterableApp | RegisterableApp[])[]): void
+```
+
+### useMCPTools
+
+*Function* — `packages/integrations/react/src/use-mcp-tools.ts`
+
+Hook for registering MCP tools with automatic cleanup on unmount.
+
+This is the recommended way to register tools in React applications.
+Tools are registered when the component mounts and automatically
+unregistered when the component unmounts.
+
+```ts
+useMCPTools(tools: (RegisterableTool | RegisterableTool[])[]): void
+```
+
 ### useMCPWeb
 
 *Function* — `packages/integrations/react/src/use-mcp-web.ts`
@@ -111,20 +147,6 @@ Must be used within MCPWebProvider.
 
 ```ts
 useMCPWeb(): MCPWebContextValue
-```
-
-### useTools
-
-*Function* — `packages/integrations/react/src/use-tools.ts`
-
-Hook for registering pre-created tools with automatic cleanup on unmount.
-
-This is the recommended way to register tools in React applications.
-Tools are registered when the component mounts and automatically
-unregistered when the component unmounts.
-
-```ts
-useTools(tools: (RegisterableTool | RegisterableTool[])[]): void
 ```
 
 ### MCPWebContext

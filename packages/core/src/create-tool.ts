@@ -29,7 +29,7 @@ export interface CreateToolConfig<
 
 /**
  * A created tool that can be registered with MCPWeb.
- * 
+ *
  * Created tools are validated at creation time but not yet registered.
  * Use `mcpWeb.addTool(createdTool)` or `useTools(createdTool)` to register.
  */
@@ -47,32 +47,53 @@ export interface CreatedTool<
 
 /**
  * Creates a tool definition without registering it.
- * 
+ *
+ * Useful for:
+ * - Read-only tools (derived state, computed values)
+ * - Custom action tools that don't map directly to state
+ * - Tools that need to be conditionally registered
+ *
  * This follows the Jotai pattern of creating atoms outside React components.
  * Tools can be defined at module scope and registered when needed.
- * 
- * @example Module-level tool definition
+ *
+ * @example Read-only derived state
  * ```typescript
  * // tools.ts
  * import { createTool } from '@mcp-web/core';
  * import { z } from 'zod';
- * 
- * export const getCurrentTimeTool = createTool({
- *   name: 'get_current_time',
- *   description: 'Get the current time in ISO format',
- *   handler: () => ({ time: new Date().toISOString() }),
- *   outputSchema: z.object({ time: z.string() }),
+ * import { activeTodosAtom } from './atoms';
+ *
+ * export const activeTodosTool = createTool({
+ *   name: 'get_active_todos',
+ *   description: 'Get all incomplete todos',
+ *   handler: () => store.get(activeTodosAtom),
+ *   outputSchema: z.array(TodoSchema),
  * });
  * ```
- * 
+ *
+ * @example Custom action
+ * ```typescript
+ * export const createTodoTool = createTool({
+ *   name: 'create_todo',
+ *   description: 'Create a new todo',
+ *   handler: ({ title }) => {
+ *     const todo = { id: crypto.randomUUID(), title, completed: false };
+ *     todos.push(todo);
+ *     return todo;
+ *   },
+ *   inputSchema: z.object({ title: z.string() }),
+ *   outputSchema: TodoSchema,
+ * });
+ * ```
+ *
  * @example Registration options
  * ```typescript
  * // Option 1: Direct registration
- * mcpWeb.addTool(getCurrentTimeTool);
- * 
+ * mcpWeb.addTool(activeTodosTool);
+ *
  * // Option 2: React hook (auto cleanup on unmount)
  * function App() {
- *   useTools(getCurrentTimeTool);
+ *   useTools(activeTodosTool);
  *   return <div>...</div>;
  * }
  * ```

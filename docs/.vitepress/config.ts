@@ -53,6 +53,7 @@ export default defineConfig({
           items: [
             { text: 'Get Started', link: '/get-started' },
             { text: 'Frontend Queries', link: '/frontend-triggered-queries' },
+            { text: 'Interactive Apps', link: '/interactive-apps' },
             { text: 'Structuring Your App', link: '/structuring-your-app' },
             { text: 'Integrations', link: '/integrations' },
             { text: 'Expanded State Tools', link: '/expanded-state-tools' },
@@ -86,13 +87,14 @@ export default defineConfig({
       ],
       '/api/': [
         {
-          text: 'Packages',
+          text: 'API Reference by Package:',
           items: [
             { text: 'Core', link: '/api/core' },
             { text: 'Bridge', link: '/api/bridge' },
             { text: 'Client', link: '/api/client' },
+            { text: 'App', link: '/api/app' },
             { text: 'Tools', link: '/api/tools' },
-            { text: 'React', link: '/api/react' },
+            { text: 'Integrations', link: '/api/integrations' },
             { text: 'Decompose Zod Schema', link: '/api/decompose-zod-schema' },
             { text: 'MCPB', link: '/api/mcpb' },
           ]

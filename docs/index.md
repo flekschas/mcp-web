@@ -15,8 +15,8 @@ hero:
       link: /api-reference
 
 features:
-  - title: AI Controllable Frontend App
-    details: Expose UI state and actions as MCP tools without backend changes to enable AI agents to control your app through type-safe schemas.
+  - title: AI Controllable Frontend Apps
+    details: Expose state, actions, and GUIs as MCP tools and apps without backend changes to enable AI agents to control your app.
     icon:
       light: /assets/images/ai-to-frontend-light.svg
       dark: /assets/images/ai-to-frontend-dark.svg

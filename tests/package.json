@@ -12,6 +12,9 @@
     "@modelcontextprotocol/sdk": "catalog:",
     "zod": "catalog:"
   },
+  "devDependencies": {
+    "@types/react": "catalog:"
+  },
   "scripts": {
     "test": "bun test"
   }

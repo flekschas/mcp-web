@@ -1,6 +1,4 @@
-# MCP-B Bundle API
-
-## Other
+# MCP-Web MCPB Bundle API
 
 ### McpBundleOptions
 

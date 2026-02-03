@@ -7,6 +7,7 @@ import type {
   QueryFailureMessage,
   QueryMessage,
   QueryProgressMessage,
+  ResourceMetadata,
   ToolMetadata
 } from '@mcp-web/types';
 import type * as WS from 'ws';
@@ -39,6 +40,26 @@ export interface RegisterToolMessage {
   };
 }
 
+export interface RegisterResourceMessage {
+  type: 'register-resource';
+  resource: ResourceMetadata;
+}
+
+export interface ResourceReadMessage {
+  type: 'resource-read';
+  requestId: string;
+  uri: string;
+}
+
+export interface ResourceResponseMessage {
+  type: 'resource-response';
+  requestId: string;
+  content?: string;
+  blob?: string;
+  mimeType: string;
+  error?: string;
+}
+
 export interface ActivityMessage {
   type: 'activity';
   timestamp: number;
@@ -61,8 +82,10 @@ export interface ToolResponseMessage {
 export type FrontendMessage =
   | AuthenticateMessage
   | RegisterToolMessage
+  | RegisterResourceMessage
   | ActivityMessage
   | ToolResponseMessage
+  | ResourceResponseMessage
   | QueryMessage
   | QueryCompleteClientMessage
   | QueryProgressMessage
@@ -71,6 +94,7 @@ export type FrontendMessage =
 export type BridgeMessage =
   | AuthenticatedMessage
   | ToolCallMessage
+  | ResourceReadMessage
   | QueryAcceptedMessage
   | QueryProgressMessage
   | QueryCompleteBridgeMessage
@@ -134,4 +158,5 @@ export interface SessionData {
   connectedAt: number;
   lastActivity: number;
   tools: Map<string, ToolDefinition>;
+  resources: Map<string, ResourceMetadata>;
 }

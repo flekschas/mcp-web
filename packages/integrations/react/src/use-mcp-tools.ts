@@ -5,7 +5,7 @@ import { useContext, useEffect, useRef } from 'react';
 import { MCPWebContext } from './mcp-web-context';
 
 /**
- * A tool that can be registered with useTools.
+ * A tool that can be registered with useMCPTools.
  * Can be a CreatedTool, CreatedStateTools, or a raw ToolDefinition.
  */
 export type RegisterableTool =
@@ -15,7 +15,7 @@ export type RegisterableTool =
   | ToolDefinition;
 
 /**
- * Hook for registering pre-created tools with automatic cleanup on unmount.
+ * Hook for registering MCP tools with automatic cleanup on unmount.
  *
  * This is the recommended way to register tools in React applications.
  * Tools are registered when the component mounts and automatically
@@ -42,11 +42,11 @@ export type RegisterableTool =
  * });
  *
  * // App.tsx
- * import { useTools } from '@mcp-web/react';
+ * import { useMCPTools } from '@mcp-web/react';
  * import { timeTool, todoTools } from './tools';
  *
  * function App() {
- *   useTools(timeTool, todoTools);
+ *   useMCPTools(timeTool, todoTools);
  *   return <div>...</div>;
  * }
  * ```
@@ -55,7 +55,7 @@ export type RegisterableTool =
  * ```tsx
  * function AdminPanel() {
  *   // These tools only exist while AdminPanel is mounted
- *   useTools(adminTools);
+ *   useMCPTools(adminTools);
  *   return <div>Admin controls</div>;
  * }
  *
@@ -74,24 +74,24 @@ export type RegisterableTool =
  * const allTools = [todoTools, projectTools, settingsTools];
  *
  * function App() {
- *   useTools(allTools);
- *   // or: useTools(...allTools);
+ *   useMCPTools(allTools);
+ *   // or: useMCPTools(...allTools);
  *   return <div>...</div>;
  * }
  * ```
  *
  * @param tools - Tools to register (variadic or array)
  */
-export function useTools(
+export function useMCPTools(
   ...tools: (RegisterableTool | RegisterableTool[])[]
 ): void;
 
-export function useTools(
+export function useMCPTools(
   mcpWeb: MCPWeb,
   ...tools: (RegisterableTool | RegisterableTool[])[]
 ): void;
 
-export function useTools(
+export function useMCPTools(
   firstArg: MCPWeb | RegisterableTool | RegisterableTool[],
   ...rest: (RegisterableTool | RegisterableTool[])[]
 ): void {
@@ -120,7 +120,7 @@ export function useTools(
 
   if (!mcpWeb) {
     throw new Error(
-      'useTools requires either mcpWeb as first argument or MCPWebProvider in component tree'
+      'useMCPTools requires either mcpWeb as first argument or MCPWebProvider in component tree'
     );
   }
 

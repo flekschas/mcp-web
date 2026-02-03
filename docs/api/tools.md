@@ -1,6 +1,4 @@
-# MCP-Tools API
-
-## Other
+# MCP-Web Tools API
 
 ### `BaseTool<TInput, TOutput>`
 

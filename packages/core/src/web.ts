@@ -1,17 +1,26 @@
-import type { BridgeMessage, RegisterToolMessage } from '@mcp-web/bridge';
+import type { BridgeMessage, RegisterResourceMessage, RegisterToolMessage } from '@mcp-web/bridge';
 import type { DecomposedSchema, SplitPlan } from '@mcp-web/decompose-zod-schema';
 import { decomposeSchema } from '@mcp-web/decompose-zod-schema';
 import type {
+  AppDefinition,
+  CreatedApp,
   MCPWebConfig,
   MCPWebConfigOutput,
+  ProcessedAppDefinition,
   ProcessedContextItem,
   ProcessedToolDefinition,
   Query,
+  ResourceDefinition,
   ToolDefinition,
 } from '@mcp-web/types';
 import {
+  AppDefinitionSchema,
+  getDefaultAppResourceUri,
+  getDefaultAppUrl,
+  isCreatedApp,
   McpWebConfigSchema,
   QueryMessageSchema,
+  ResourceDefinitionSchema,
   ToolDefinitionSchema,
 } from '@mcp-web/types';
 import { ZodObject, type z } from 'zod';
@@ -69,6 +78,8 @@ export class MCPWeb {
   #sessionId: string;
   #authToken: string;
   #tools = new Map<string, ProcessedToolDefinition>();
+  #resources = new Map<string, ResourceDefinition>();
+  #apps = new Map<string, ProcessedAppDefinition>();
   #connected = false;
   #isConnecting = false;
   #config: MCPWebConfigOutput;
@@ -158,6 +169,28 @@ export class MCPWeb {
    */
   get tools() {
     return this.#tools;
+  }
+
+  /**
+   * Map of all registered resources.
+   *
+   * Provides access to the internal resource registry. Each resource is keyed by its URI.
+   *
+   * @returns Map of resource URIs to resource definitions
+   */
+  get resources() {
+    return this.#resources;
+  }
+
+  /**
+   * Map of all registered MCP Apps.
+   *
+   * Provides access to the internal app registry. Each app is keyed by its name.
+   *
+   * @returns Map of app names to processed app definitions
+   */
+  get apps() {
+    return this.#apps;
   }
 
   /**
@@ -389,10 +422,15 @@ export class MCPWeb {
         this.#connected = true;
 
         this.registerAllTools();
+        this.registerAllResources();
         break;
 
       case 'tool-call':
         this.handleToolCall(message);
+        break;
+
+      case 'resource-read':
+        this.handleResourceRead(message);
         break;
 
       case 'query_accepted':
@@ -490,6 +528,81 @@ export class MCPWeb {
     } satisfies RegisterToolMessage;
 
     this.#ws.send(JSON.stringify(message));
+  }
+
+  private registerAllResources() {
+    this.resources.forEach((resource) => {
+      this.registerResource(resource);
+    });
+  }
+
+  private registerResource(resource: ResourceDefinition) {
+    if (!this.#ws || this.#ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    const message = {
+      type: 'register-resource',
+      resource: {
+        uri: resource.uri,
+        name: resource.name,
+        description: resource.description,
+        mimeType: resource.mimeType ?? 'text/html',
+      }
+    } satisfies RegisterResourceMessage;
+
+    this.#ws.send(JSON.stringify(message));
+  }
+
+  private async handleResourceRead(message: BridgeMessage & { type: 'resource-read' }) {
+    const { requestId, uri } = message;
+
+    try {
+      const resource = this.resources.get(uri);
+      if (!resource) {
+        this.sendResourceResponse(requestId, {
+          error: `Resource '${uri}' not found`,
+          mimeType: 'text/plain',
+        });
+        return;
+      }
+
+      const content = await resource.handler();
+      const mimeType = resource.mimeType ?? 'text/html';
+
+      if (content instanceof Uint8Array) {
+        const base64 = btoa(String.fromCharCode(...content));
+        this.sendResourceResponse(requestId, { blob: base64, mimeType });
+      } else {
+        this.sendResourceResponse(requestId, { content, mimeType });
+      }
+    } catch (error) {
+      if (globalThis.process?.env?.NODE_ENV !== 'test') {
+        console.debug(`Resource read error for ${uri}:`, error);
+      }
+      this.sendResourceResponse(requestId, {
+        error: `Resource read failed: ${error instanceof Error ? error.message : String(error)}`,
+        mimeType: 'text/plain',
+      });
+    }
+  }
+
+  private sendResourceResponse(
+    requestId: string,
+    result: { content?: string; blob?: string; mimeType: string; error?: string }
+  ) {
+    if (!this.#ws || this.#ws.readyState !== WebSocket.OPEN) {
+      console.error('Cannot send resource response: WebSocket not connected');
+      return;
+    }
+
+    const response = {
+      type: 'resource-response',
+      requestId,
+      ...result,
+    };
+
+    this.#ws.send(JSON.stringify(response));
   }
 
   private scheduleReconnect() {
@@ -699,6 +812,231 @@ export class MCPWeb {
    */
   removeTool(name: string) {
     this.tools.delete(name);
+  }
+
+  /**
+   * Registers a resource that AI agents can read.
+   *
+   * Resources are content that AI agents can request, such as HTML for MCP Apps.
+   * The handler function is called when the AI requests the resource content.
+   *
+   * @param resource - Resource configuration including URI, name, description, and handler
+   * @returns The registered resource definition
+   * @throws {Error} If resource definition is invalid
+   *
+   * @example Basic Resource
+   * ```typescript
+   * mcp.addResource({
+   *   uri: 'ui://my-app/statistics.html',
+   *   name: 'Statistics View',
+   *   description: 'Statistics visualization for the app',
+   *   mimeType: 'text/html',
+   *   handler: async () => {
+   *     const response = await fetch('/mcp-web-apps/statistics.html');
+   *     return response.text();
+   *   },
+   * });
+   * ```
+   *
+   * @example Resource from URL
+   * ```typescript
+   * mcp.addResource({
+   *   uri: 'ui://my-app/chart.html',
+   *   name: 'Chart Component',
+   *   handler: () => fetch('/components/chart.html').then(r => r.text()),
+   * });
+   * ```
+   */
+  addResource(resource: ResourceDefinition): ResourceDefinition {
+    const validationResult = ResourceDefinitionSchema.safeParse(resource);
+    if (!validationResult.success) {
+      throw new Error(`Invalid resource definition: ${validationResult.error.message}`);
+    }
+
+    this.#resources.set(resource.uri, resource);
+
+    // Register immediately if connected
+    if (this.#connected) {
+      this.registerResource(resource);
+    }
+
+    return resource;
+  }
+
+  /**
+   * Removes a registered resource.
+   *
+   * After removal, AI agents will no longer be able to read this resource.
+   *
+   * @param uri - URI of the resource to remove
+   *
+   * @example
+   * ```typescript
+   * mcp.removeResource('ui://my-app/statistics.html');
+   * ```
+   */
+  removeResource(uri: string) {
+    this.#resources.delete(uri);
+  }
+
+  /**
+   * Registers an MCP App that AI agents can invoke to show visual UI.
+   *
+   * An MCP App combines a tool (that AI calls to get props) with a resource (the HTML UI).
+   * When AI calls the tool, the handler returns props. The tool response includes
+   * `_meta.ui.resourceUri` which tells the host to fetch and render the app HTML.
+   *
+   * @param app - App configuration including name, description, handler, and optional URL
+   * @returns The registered app definition
+   * @throws {Error} If app definition is invalid
+   *
+   * @example Basic App
+   * ```typescript
+   * mcp.addApp({
+   *   name: 'show_statistics',
+   *   description: 'Display statistics visualization',
+   *   handler: () => ({
+   *     completionRate: 0.75,
+   *     totalTasks: 100,
+   *     completedTasks: 75,
+   *   }),
+   * });
+   * ```
+   *
+   * @example With Input Schema
+   * ```typescript
+   * mcp.addApp({
+   *   name: 'show_chart',
+   *   description: 'Display a chart with the given data',
+   *   inputSchema: z.object({
+   *     chartType: z.enum(['bar', 'line', 'pie']).describe('Type of chart'),
+   *     title: z.string().describe('Chart title'),
+   *   }),
+   *   handler: ({ chartType, title }) => ({
+   *     chartType,
+   *     title,
+   *     data: getChartData(),
+   *   }),
+   * });
+   * ```
+   *
+   * @example With Custom URL
+   * ```typescript
+   * mcp.addApp({
+   *   name: 'show_dashboard',
+   *   description: 'Display the main dashboard',
+   *   handler: () => getDashboardData(),
+   *   url: '/custom/path/dashboard.html',
+   * });
+   * ```
+   *
+   * @example With Pre-Created App
+   * ```typescript
+   * import { createApp } from '@mcp-web/app';
+   *
+   * const statisticsApp = createApp({
+   *   name: 'show_statistics',
+   *   description: 'Display statistics',
+   *   handler: () => ({ rate: 0.75 }),
+   * });
+   *
+   * mcp.addApp(statisticsApp);
+   * ```
+   */
+  addApp(app: AppDefinition | CreatedApp): AppDefinition {
+    // Handle CreatedApp
+    if (isCreatedApp(app)) {
+      return this.addApp(app.definition);
+    }
+
+    const validationResult = AppDefinitionSchema.safeParse(app);
+    if (!validationResult.success) {
+      throw new Error(`Invalid app definition: ${validationResult.error.message}`);
+    }
+
+    // Process the app with resolved defaults
+    const resolvedUrl = app.url ?? getDefaultAppUrl(app.name);
+    const resolvedResourceUri = app.resourceUri ?? getDefaultAppResourceUri(app.name);
+
+    const processedApp: ProcessedAppDefinition = {
+      ...app,
+      resolvedUrl,
+      resolvedResourceUri,
+    };
+
+    this.#apps.set(app.name, processedApp);
+
+    // Create and register the tool that wraps the handler
+    const toolHandler = async (input?: unknown) => {
+      // Call the app's handler to get props
+      const props = await processedApp.handler(input);
+
+      // Return props with _meta.ui for MCP Apps protocol
+      return {
+        ...props,
+        _meta: {
+          ui: {
+            resourceUri: resolvedResourceUri,
+          },
+        },
+      };
+    };
+
+    // Use the JSON Schema overload - schemas will be converted internally
+    this.addTool({
+      name: app.name,
+      description: app.description,
+      handler: toolHandler,
+      inputSchema: app.inputSchema
+        ? (toJSONSchema(app.inputSchema) as { type: string; [key: string]: unknown })
+        : undefined,
+      outputSchema: app.propsSchema
+        ? (toJSONSchema(app.propsSchema) as { type: string; [key: string]: unknown })
+        : undefined,
+    });
+
+    // Create and register the resource that serves the app HTML
+    this.addResource({
+      uri: resolvedResourceUri,
+      name: `${app.name} UI`,
+      description: `HTML UI for ${app.name}`,
+      mimeType: 'text/html',
+      handler: async () => {
+        // Fetch the HTML from the URL
+        const response = await fetch(resolvedUrl);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch app HTML from ${resolvedUrl}: ${response.status}`);
+        }
+        return response.text();
+      },
+    });
+
+    return app;
+  }
+
+  /**
+   * Removes a registered MCP App.
+   *
+   * After removal, AI agents will no longer be able to invoke this app.
+   * This also removes the associated tool and resource.
+   *
+   * @param name - Name of the app to remove
+   *
+   * @example
+   * ```typescript
+   * mcp.removeApp('show_statistics');
+   * ```
+   */
+  removeApp(name: string) {
+    const app = this.#apps.get(name);
+    if (app) {
+      // Remove the tool
+      this.removeTool(name);
+      // Remove the resource
+      this.removeResource(app.resolvedResourceUri);
+      // Remove from apps map
+      this.#apps.delete(name);
+    }
   }
 
   /**

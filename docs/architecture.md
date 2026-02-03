@@ -340,21 +340,21 @@ For implementation details, code examples, and usage patterns, see the
 
   #mcp-web-architecture {
     width: 100%;
-    background-image: url(https://storage.googleapis.com/flekschas/mcp-web/mcp-web-architecture-light.svg)
+    background-image: url(https://storage.googleapis.com/mcp-web/mcp-web-architecture-light.svg)
   }
   #mcp-web-architecture div { padding-top: 20% }
 
   :root.dark #mcp-web-architecture {
-    background-image: url(https://storage.googleapis.com/flekschas/mcp-web/mcp-web-architecture-dark.svg)
+    background-image: url(https://storage.googleapis.com/mcp-web/mcp-web-architecture-dark.svg)
   }
 
   #classic-architecture {
     width: 100%;
-    background-image: url(https://storage.googleapis.com/flekschas/mcp-web/classic-architecture-light.svg)
+    background-image: url(https://storage.googleapis.com/mcp-web/classic-architecture-light.svg)
   }
   #classic-architecture div { padding-top: 20% }
 
   :root.dark #classic-architecture {
-    background-image: url(https://storage.googleapis.com/flekschas/mcp-web/classic-architecture-dark.svg)
+    background-image: url(https://storage.googleapis.com/mcp-web/classic-architecture-dark.svg)
   }
 </style>

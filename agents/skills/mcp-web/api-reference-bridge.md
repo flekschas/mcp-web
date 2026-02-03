@@ -1,6 +1,4 @@
-# MCP-Bridge API
-
-## Other
+# MCP-Web Bridge API
 
 ### MCPWebBridge
 
@@ -114,6 +112,68 @@ tool: {
     inputSchema?: z.core.JSONSchema.JSONSchema;
     outputSchema?: z.core.JSONSchema.JSONSchema;
   }
+```
+
+### RegisterResourceMessage
+
+*Interface* — `packages/bridge/src/types.ts`
+
+**Properties:**
+
+```ts
+type: 'register-resource'
+```
+
+```ts
+resource: ResourceMetadata
+```
+
+### ResourceReadMessage
+
+*Interface* — `packages/bridge/src/types.ts`
+
+**Properties:**
+
+```ts
+type: 'resource-read'
+```
+
+```ts
+requestId: string
+```
+
+```ts
+uri: string
+```
+
+### ResourceResponseMessage
+
+*Interface* — `packages/bridge/src/types.ts`
+
+**Properties:**
+
+```ts
+type: 'resource-response'
+```
+
+```ts
+requestId: string
+```
+
+```ts
+content?: string
+```
+
+```ts
+blob?: string
+```
+
+```ts
+mimeType: string
+```
+
+```ts
+error?: string
 ```
 
 ### ActivityMessage
@@ -342,6 +402,10 @@ lastActivity: number
 tools: Map<string, ToolDefinition>
 ```
 
+```ts
+resources: Map<string, ResourceMetadata>
+```
+
 ### FrontendMessage
 
 *Type* — `packages/bridge/src/types.ts`
@@ -349,8 +413,10 @@ tools: Map<string, ToolDefinition>
 ```ts
 | AuthenticateMessage
   | RegisterToolMessage
+  | RegisterResourceMessage
   | ActivityMessage
   | ToolResponseMessage
+  | ResourceResponseMessage
   | QueryMessage
   | QueryCompleteClientMessage
   | QueryProgressMessage
@@ -364,6 +430,7 @@ tools: Map<string, ToolDefinition>
 ```ts
 | AuthenticatedMessage
   | ToolCallMessage
+  | ResourceReadMessage
   | QueryAcceptedMessage
   | QueryProgressMessage
   | QueryCompleteBridgeMessage

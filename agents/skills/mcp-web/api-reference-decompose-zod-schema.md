@@ -1,6 +1,4 @@
-# Decompose Zod Schema API
-
-## Other
+# MCP-Web Decompose Zod Schema API
 
 ### PlanBuilder
 
