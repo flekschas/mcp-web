@@ -9,13 +9,22 @@ pre-push:
       run: |
         echo "Checking if API reference docs are up to date..."
         pnpm build:api-refs
-        if ! git diff --quiet agents/skills/mcp-web/api-reference*.md; then
+
+        # Find all api*.md files in skill folders
+        API_FILES=$(find agents/skills/*/api*.md -type f 2>/dev/null || true)
+
+        if [ -z "$API_FILES" ]; then
+          echo "No API reference docs found to check."
+          exit 0
+        fi
+
+        if ! git diff --quiet $API_FILES; then
           echo ""
           echo "ERROR: API reference docs are out of date!"
-          echo "The following files have uncommitted changes after docs:generate:"
-          git diff --name-only agents/skills/mcp-web/api-reference*.md
+          echo "The following files have uncommitted changes after build:api-refs:"
+          git diff --name-only $API_FILES
           echo ""
-          echo "Please commit the updated api-reference*.md files."
+          echo "Please commit the updated API reference files."
           exit 1
         fi
         echo "API reference docs are up to date."
