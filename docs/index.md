@@ -18,20 +18,20 @@ features:
   - title: AI Controllable Frontend Apps
     details: Expose state, actions, and GUIs as MCP tools and apps without backend changes to enable AI agents to control your app.
     icon:
-      light: /assets/images/ai-to-frontend-light.svg
-      dark: /assets/images/ai-to-frontend-dark.svg
+      light: https://storage.googleapis.com/mcp-web/ai-to-frontend-light.svg
+      dark: https://storage.googleapis.com/mcp-web/ai-to-frontend-dark.svg
 
   - title: Frontend-Triggered AI Queries
     details: Query AI agents from your frontend using the same tools it exposes, enabling bidirectional integration from a single interface.
     icon:
-      light: /assets/images/frontend-to-ai-light.svg
-      dark: /assets/images/frontend-to-ai-dark.svg
+      light: https://storage.googleapis.com/mcp-web/frontend-to-ai-light.svg
+      dark: https://storage.googleapis.com/mcp-web/frontend-to-ai-dark.svg
 
   - title: Human-AI Parity
     details: Ensure both humans and AI interact through the same state interface to preserve user agency while enabling automation.
     icon:
-      light: /assets/images/human-ai-parity-light.svg
-      dark: /assets/images/human-ai-parity-dark.svg
+      light: https://storage.googleapis.com/mcp-web/human-ai-parity-light.svg
+      dark: https://storage.googleapis.com/mcp-web/human-ai-parity-dark.svg
 
   - title: Auto-Generate Efficient Tools
     details: Generate targeted CRUD tools from Zod schemas for token-efficient operations.
