@@ -4,8 +4,8 @@
  */
 
 import { serveDir } from 'https://deno.land/std@0.224.0/http/file_server.ts';
-import { MCPWebBridge, TimerScheduler } from 'npm:@mcp-web/bridge@^0.1.0';
-import type { MCPWebConfig } from 'npm:@mcp-web/types@^0.1.0';
+import { MCPWebBridge, TimerScheduler } from '@mcp-web/bridge';
+import type { MCPWebConfig } from '@mcp-web/types';
 
 export interface DemoServerConfig {
   /** MCP bridge configuration */

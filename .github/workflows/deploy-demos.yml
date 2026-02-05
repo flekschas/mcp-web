@@ -39,16 +39,26 @@ jobs:
       - name: Build packages
         run: pnpm build
 
-      - name: Build demo
+      - name: Build demo frontend
         run: |
           cd demos/${{ matrix.demo }}
           pnpm build
 
-      - name: Upload build artifact
+      - name: Upload frontend artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.demo }}-dist
           path: demos/${{ matrix.demo }}/dist
+          retention-days: 1
+
+      - name: Upload packages artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.demo }}-packages
+          path: |
+            packages/bridge/dist
+            packages/types/dist
+            packages/client/dist
           retention-days: 1
 
   deploy-higlass:
@@ -65,11 +75,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download build artifact
+      - name: Download frontend artifact
         uses: actions/download-artifact@v4
         with:
           name: higlass-dist
           path: demos/deploy/higlass/static
+
+      - name: Download packages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: higlass-packages
+          path: packages
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
@@ -80,8 +96,13 @@ jobs:
         uses: denoland/deployctl@v1
         with:
           project: mcp-web-higlass
-          entrypoint: higlass/main.ts
-          root: demos/deploy
+          entrypoint: demos/deploy/higlass/main.ts
+          root: .
+          include: |
+            demos/deploy/higlass
+            demos/deploy/lib
+            packages/bridge/dist
+            packages/types/dist
 
   deploy-todo:
     needs: build
@@ -97,11 +118,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download build artifact
+      - name: Download frontend artifact
         uses: actions/download-artifact@v4
         with:
           name: todo-dist
           path: demos/deploy/todo/static
+
+      - name: Download packages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: todo-packages
+          path: packages
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
@@ -112,8 +139,13 @@ jobs:
         uses: denoland/deployctl@v1
         with:
           project: mcp-web-todo
-          entrypoint: todo/main.ts
-          root: demos/deploy
+          entrypoint: demos/deploy/todo/main.ts
+          root: .
+          include: |
+            demos/deploy/todo
+            demos/deploy/lib
+            packages/bridge/dist
+            packages/types/dist
 
   deploy-checkers:
     needs: build
@@ -129,11 +161,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download build artifact
+      - name: Download frontend artifact
         uses: actions/download-artifact@v4
         with:
           name: checkers-dist
           path: demos/deploy/checkers/static
+
+      - name: Download packages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: checkers-packages
+          path: packages
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
@@ -144,8 +182,13 @@ jobs:
         uses: denoland/deployctl@v1
         with:
           project: mcp-web-checkers
-          entrypoint: checkers/main.ts
-          root: demos/deploy
+          entrypoint: demos/deploy/checkers/main.ts
+          root: .
+          include: |
+            demos/deploy/checkers
+            demos/deploy/lib
+            packages/bridge/dist
+            packages/types/dist
 
   deploy-checkers-agent:
     needs: build
@@ -162,6 +205,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Download packages artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: checkers-packages
+          path: packages
+
       - name: Setup Deno
         uses: denoland/setup-deno@v2
         with:
@@ -171,5 +220,12 @@ jobs:
         uses: denoland/deployctl@v1
         with:
           project: mcp-web-checkers-agent
-          entrypoint: checkers/serve-agent.ts
-          root: demos/deploy
+          entrypoint: demos/deploy/checkers/serve-agent.ts
+          root: .
+          include: |
+            demos/deploy/checkers
+            demos/deploy/lib
+            demos/checkers/agent.ts
+            packages/bridge/dist
+            packages/types/dist
+            packages/client/dist

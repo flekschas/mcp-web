@@ -7,9 +7,9 @@
     "dev:agent": "deno run --watch --allow-net --allow-env --allow-read serve-agent.ts"
   },
   "imports": {
-    "@mcp-web/types": "npm:@mcp-web/types@^0.1.0",
-    "@mcp-web/bridge": "npm:@mcp-web/bridge@^0.1.0",
-    "@mcp-web/client": "npm:@mcp-web/client@^0.1.0",
+    "@mcp-web/types": "../../../packages/types/dist/index.js",
+    "@mcp-web/bridge": "../../../packages/bridge/dist/index.js",
+    "@mcp-web/client": "../../../packages/client/dist/index.js",
     "@ai-sdk/anthropic": "npm:@ai-sdk/anthropic@^2.0.0",
     "@ai-sdk/cerebras": "npm:@ai-sdk/cerebras@^1.0.0",
     "@ai-sdk/google": "npm:@ai-sdk/google@^2.0.0",

@@ -5,8 +5,8 @@
     "dev": "deno run --watch --allow-net --allow-env --allow-read main.ts"
   },
   "imports": {
-    "@mcp-web/types": "npm:@mcp-web/types@^0.1.0",
-    "@mcp-web/bridge": "npm:@mcp-web/bridge@^0.1.0"
+    "@mcp-web/types": "../../../packages/types/dist/index.js",
+    "@mcp-web/bridge": "../../../packages/bridge/dist/index.js"
   },
   "deploy": {
     "runtime": {
