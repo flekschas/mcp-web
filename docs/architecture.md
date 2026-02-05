@@ -77,19 +77,30 @@ connected to your frontend browser sessions. This is accomplished via three
 packages: Web, Bridge, Client. These three packages communicate as follows:
 
 ```
-Frontend  ↔  MCPWeb()  ↔  MCPWebBridge()  ↔  MCPWebClient()  ↔  AI App/Agent
-    ╰─ Runs ─╯    ╰─ WS / SSE ─╯     ╰─ HTTP ─╯        ╰─ STDIO ─╯
+Frontend  ↔  MCPWeb()  ↔  MCPWebBridge()  ↔  AI App/Agent
+    ╰─ Runs ─╯    ╰─ WS / SSE ─╯     ╰─ HTTP (Remote MCP) or STDIO ─╯
 ```
 
 - Frontend app: runs `MCPWeb`
 - `MCPWeb()`: registers and executes frontend tools
 - `MCPWebBridge()`: exposes tools and forwards calls as an MCP server
-- `MCPWebClient()`: issues requests to the MCP server
-- [Optional] AI agent: handles frontend-triggered queries
+- AI agent: connects via Remote MCP (HTTP) or via `MCPWebClient()` (STDIO)
+
+### Connection Options
+
+AI apps can connect to the bridge in two ways:
+
+1. **Remote MCP (Recommended)**: Direct HTTP connection to the bridge server.
+   The AI app connects via URL with a token query parameter for session routing.
+   This is the simplest setup with no intermediate process required.
+
+2. **Stdio via MCPWebClient**: Uses `@mcp-web/client` as a stdio wrapper that
+   the AI app spawns as a subprocess. This approach is primarily useful when
+   building agent servers that handle [frontend-triggered queries](./frontend-triggered-queries.md).
 
 One can say that with MCP-Web, the frontend becomes the MCP server by executing
 the tool calls. This inversion of control might seem odd at first but it makes
-sense when you th
+sense when you think about it.
 
 MCP-Web's bridge server is just a thin layer that exposes the registered tools
 and forwards tool calls and responses between the frontend and client.

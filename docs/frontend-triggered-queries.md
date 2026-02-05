@@ -12,6 +12,44 @@ Claude Desktop) and the web app itself?
 To support this, MCP-Web offers the ability to trigger queries using a
 lightweight routing approach to an AI agent web app.
 
+## Relationship to MCP Sampling
+
+MCP-Web's frontend-triggered queries serve a similar purpose to
+[MCP Sampling](https://modelcontextprotocol.io/specification/2025-03-26/client/sampling)
+— both allow server-side code to request LLM completions. However, there are key
+differences:
+
+### How They Compare
+
+| Aspect | MCP-Web Queries | MCP Sampling |
+|--------|-----------------|--------------|
+| **Direction** | Frontend → Agent Server → LLM | MCP Server → MCP Client (e.g., Claude Desktop) → LLM |
+| **Human-in-the-loop** | ❌ No approval required | ✅ User must approve each request |
+| **API Key** | Required on agent server | Not needed (uses client's LLM access) |
+| **Architecture** | Requires separate agent server | Direct server→client request |
+
+### When to Use Each
+
+**Use MCP-Web Queries when:**
+- You need automated, uninterrupted AI interactions (games, real-time features)
+- User approval for each AI call would disrupt the experience
+- Example: The [Checkers demo](./demos/checkers) where the AI opponent needs
+  to make moves without user approval for each turn
+
+**Use MCP Sampling when:**
+- Human oversight is desirable or required for trust & safety
+- You want to avoid managing LLM API keys on your server
+- The user expects to review AI actions before they execute
+- Example: An AI assistant that drafts emails—users may want to review
+  before sending
+
+::: tip Coming Soon
+MCP-Web will add support for MCP Sampling, giving you the choice between
+automated queries (current approach) and human-in-the-loop sampling
+(MCP standard). This will enable scenarios where user approval adds value
+rather than friction.
+:::
+
 ## MCP-Web Queries vs. Custom Protocol + Agent
 
 MCP-Web's frontend-triggered queries ultimately serve the same purpose as

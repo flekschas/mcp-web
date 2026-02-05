@@ -125,9 +125,36 @@ The bridge runs two servers in parallel on:
 ### 6. Connecting AI App to MCP Server
 
 To connect an MCP-compatible AI app/agent, like Claude Desktop, you need to
-run the MCP client with a valid auth token.
+add the bridge server configuration.
 
-You can retrieve the config directly from the `MCPWeb` instance:
+#### Option 1: Remote MCP (Recommended)
+
+The simplest approach uses Remote MCP (Streamable HTTP) to connect directly via URL:
+
+```typescript
+console.log(JSON.stringify(mcp.remoteMcpConfig, null, 2));
+```
+
+This config looks like:
+
+```json
+{
+  "mcpServers": {
+    "my-app": {
+      "url": "https://localhost:3001?token=your-auth-token-here"
+    }
+  }
+}
+```
+
+::: tip
+The token in the URL is used for session routing (matching Claude Desktop to your browser session), not for authentication. Your app's existing auth handles security.
+:::
+```
+
+#### Option 2: Stdio Transport
+
+Alternatively, you can use the `@mcp-web/client` stdio wrapper:
 
 ```typescript
 console.log(JSON.stringify(mcp.mcpConfig, null, 2));
@@ -142,13 +169,16 @@ This config looks like:
       "command": "npx",
       "args": ["@mcp-web/client"],
       "env": {
-        "MCP_SERVER_URL": "http://localhost:3002",
+        "MCP_SERVER_URL": "http://localhost:3001",
         "AUTH_TOKEN": "your-auth-token-here"
       }
     }
   }
 }
 ```
+
+Both options provide the same functionality. Remote MCP is recommended for its
+simpler configuration.
 
 Add this config to your MCP-compatible AI app.
 

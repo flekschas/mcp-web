@@ -1,6 +1,6 @@
 # Interactive Apps
 
-[MCP Apps](https://modelcontextprotocol.io/specification/2025-03-26/client/apps) is
+[MCP Apps](https://blog.modelcontextprotocol.io/posts/2026-01-26-mcp-apps/) is
 an extension to [MCP](https://modelcontextprotocol.io) that lets servers provide
 visual UI components rendered inline in AI apps, like Claude Desktop. When
 AI calls a tool that returns UI metadata, the host renders that component as an
@@ -10,10 +10,10 @@ MCP-Web provides first-class support for building MCP Apps. You define an app
 with a handler that returns props, and when AI invokes the tool, those props are
 passed to your component via `postMessage`.
 
-::: important React Support Only
-For now, we only support React components but over time we'll add support for
-other frameworks. The work needed to support other frameworks is to create a
-template for bundling a component of your app as an MCP App.
+::: tip React Support Only
+For now, only React components are supported but over time we'll add support for
+other frameworks. The work needed to support other frameworks primarily involves
+creating templates for bundling components of your app as standaline MCP apps.
 :::
 
 <div id="app-flow" class="img"><div /></div>
