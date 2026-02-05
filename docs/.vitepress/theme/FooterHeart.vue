@@ -11,10 +11,12 @@ let parentLink = null;
 
 const onMouseEnter = () => {
   morphTween?.play();
+  heartRef.value.classList.add('enlarge');
 };
 
 const onMouseLeave = () => {
   morphTween?.reverse();
+  heartRef.value.classList.remove('enlarge');
 };
 
 onMounted(() => {
@@ -67,6 +69,10 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+svg {
+  transition: transform 0.4s ease-in-out;
+}
+
 .footer-heart {
   display: inline-block;
   width: 1em;
@@ -80,5 +86,9 @@ onBeforeUnmount(() => {
 
 .heart-path-target {
   visibility: hidden;
+}
+
+.enlarge {
+  transform: scale(1.25);
 }
 </style>
