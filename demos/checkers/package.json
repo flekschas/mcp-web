@@ -24,8 +24,8 @@
     "@hono/node-server": "^1.19.6",
     "@mcp-web/bridge": "workspace:*",
     "@mcp-web/client": "workspace:*",
-    "@mcp-web/types": "workspace:*",
     "@mcp-web/core": "workspace:*",
+    "@mcp-web/types": "workspace:*",
     "ai": "^5.0.99",
     "dotenv": "^17.2.3",
     "hono": "^4.10.6",
@@ -33,6 +33,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@ai-sdk/provider": "^3.0.7",
     "@eslint/js": "^9.39.1",
     "@sveltejs/vite-plugin-svelte": "^6.2.1",
     "@tailwindcss/vite": "catalog:",

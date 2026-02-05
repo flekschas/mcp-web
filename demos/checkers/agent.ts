@@ -17,6 +17,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { MCPWebClient } from '@mcp-web/client';
 import { type Query, QuerySchema, type Tool } from '@mcp-web/types';
 import { generateObject, generateText, type JSONSchema7, jsonSchema, stepCountIs } from 'ai';
+import type { LanguageModelV2 } from '@ai-sdk/provider';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
@@ -65,70 +66,83 @@ function getAvailableProviders(config: AgentConfig): Provider[] {
 }
 
 /**
- * Select and initialize the model based on configuration
+ * Select and initialize the model based on configuration.
+ * Returns a lazy getter that initializes on first use.
  */
-function initializeModel(config: AgentConfig) {
-  const availableProviders = getAvailableProviders(config);
+function createLazyModel(config: AgentConfig): () => LanguageModelV2 {
+  let cachedModel: LanguageModelV2 | null = null;
 
-  if (availableProviders.length === 0) {
-    throw new Error(
-      'No AI provider API keys found. Please set at least one: anthropicApiKey, openaiApiKey, googleApiKey, or cerebrasApiKey'
-    );
-  }
+  return () => {
+    if (cachedModel) return cachedModel;
 
-  // Determine provider: use modelProvider config, or first available
-  const requestedProvider = config.modelProvider?.toLowerCase() as Provider | undefined;
-  const provider =
-    requestedProvider && availableProviders.includes(requestedProvider)
-      ? requestedProvider
-      : availableProviders[0];
+    const availableProviders = getAvailableProviders(config);
 
-  // Determine model name: use modelName config, or provider default
-  const modelName = config.modelName || PROVIDER_DEFAULTS[provider];
+    if (availableProviders.length === 0) {
+      throw new Error(
+        'No AI provider API keys found. Please set at least one of these environment variables: ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY, or CEREBRAS_API_KEY'
+      );
+    }
 
-  console.log(`🤖 Using AI provider: ${provider}`);
-  console.log(`📦 Model: ${modelName}`);
-  if (availableProviders.length > 1) {
-    console.log(`   Available providers: ${availableProviders.join(', ')}`);
-    console.log(`   Set modelProvider config to switch (e.g., modelProvider: 'anthropic')`);
-  }
+    // Determine provider: use modelProvider config, or first available
+    const requestedProvider = config.modelProvider?.toLowerCase() as Provider | undefined;
+    const provider =
+      requestedProvider && availableProviders.includes(requestedProvider)
+        ? requestedProvider
+        : availableProviders[0];
 
-  // Initialize the selected provider
-  switch (provider) {
-    case 'anthropic':
-      return createAnthropic({
-        apiKey: config.anthropicApiKey,
-        headers: {
-          'anthropic-beta': 'structured-outputs-2025-11-13',
-        },
-      })(modelName);
-    case 'google':
-      return createGoogleGenerativeAI({
-        apiKey: config.googleApiKey,
-      })(modelName);
-    case 'openai':
-      return createOpenAI({
-        apiKey: config.openaiApiKey,
-      })(modelName);
-    case 'cerebras':
-      return createCerebras({
-        apiKey: config.cerebrasApiKey,
-        fetch: (async (url: string | URL | Request, init?: RequestInit) => {
-          if (init?.body && typeof init.body === 'string') {
-            const body = JSON.parse(init.body);
-            // Add strict: true to json_schema response_format
-            if (body.response_format?.type === 'json_schema' && body.response_format.json_schema) {
-              body.response_format.json_schema.strict = true;
+    // Determine model name: use modelName config, or provider default
+    const modelName = config.modelName || PROVIDER_DEFAULTS[provider];
+
+    console.log(`🤖 Using AI provider: ${provider}`);
+    console.log(`📦 Model: ${modelName}`);
+    if (availableProviders.length > 1) {
+      console.log(`   Available providers: ${availableProviders.join(', ')}`);
+      console.log(`   Set MODEL_PROVIDER env var to switch (e.g., MODEL_PROVIDER=anthropic)`);
+    }
+
+    // Initialize the selected provider
+    switch (provider) {
+      case 'anthropic':
+        cachedModel = createAnthropic({
+          apiKey: config.anthropicApiKey,
+          headers: {
+            'anthropic-beta': 'structured-outputs-2025-11-13',
+          },
+        })(modelName);
+        break;
+      case 'google':
+        cachedModel = createGoogleGenerativeAI({
+          apiKey: config.googleApiKey,
+        })(modelName);
+        break;
+      case 'openai':
+        cachedModel = createOpenAI({
+          apiKey: config.openaiApiKey,
+        })(modelName);
+        break;
+      case 'cerebras':
+        cachedModel = createCerebras({
+          apiKey: config.cerebrasApiKey,
+          fetch: (async (url: string | URL | Request, init?: RequestInit) => {
+            if (init?.body && typeof init.body === 'string') {
+              const body = JSON.parse(init.body);
+              // Add strict: true to json_schema response_format
+              if (body.response_format?.type === 'json_schema' && body.response_format.json_schema) {
+                body.response_format.json_schema.strict = true;
+              }
+              return fetch(url, {
+                ...init,
+                body: JSON.stringify(body),
+              });
             }
-            return fetch(url, {
-              ...init,
-              body: JSON.stringify(body),
-            });
-          }
-          return fetch(url, init);
-        }) as typeof fetch,
-      })(modelName);
-  }
+            return fetch(url, init);
+          }) as typeof fetch,
+        })(modelName);
+        break;
+    }
+
+    return cachedModel!;
+  };
 }
 
 function mcpToAiSdkTools(
@@ -211,7 +225,7 @@ async function generateStructuredAnswer<T extends Record<string, unknown>>({
   query: StructuredQuery;
   mcpClient: ReturnType<typeof MCPWebClient.prototype.contextualize>;
   tools: Tool[];
-  model: ReturnType<typeof initializeModel>;
+  model: LanguageModelV2;
   maxSteps?: number;
 }): Promise<{ object: T; contextMessages: unknown[] }> {
   if (!query.responseTool) {
@@ -317,7 +331,7 @@ async function generateTextAnswer({
   query: UnstructuredQuery;
   mcpClient: ReturnType<typeof MCPWebClient.prototype.contextualize>;
   tools: Tool[];
-  model: ReturnType<typeof initializeModel>;
+  model: LanguageModelV2;
   maxSteps?: number;
 }): Promise<string> {
   const aiSdkTools = mcpToAiSdkTools(tools, mcpClient);
@@ -360,7 +374,8 @@ export function createApp(config: AgentConfig) {
     serverUrl: config.bridgeUrl,
   });
 
-  const model = initializeModel(config);
+  // Lazy model initialization - only creates the model on first query
+  const getModel = createLazyModel(config);
 
   // Initialize Hono app
   const app = new Hono();
@@ -415,7 +430,7 @@ export function createApp(config: AgentConfig) {
           query,
           mcpClient: queryClient,
           tools,
-          model,
+          model: getModel(),
         });
         await queryClient.callTool(query.responseTool.name, object);
       } else {
@@ -423,7 +438,7 @@ export function createApp(config: AgentConfig) {
           query,
           mcpClient: queryClient,
           tools,
-          model,
+          model: getModel(),
         });
         await queryClient.complete(answer);
       }
