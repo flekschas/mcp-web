@@ -62,9 +62,11 @@ import type {
   BridgeHandlers,
   HttpRequest,
   HttpResponse,
+  SSEResponse,
+  SSEWriter,
   WebSocketConnection,
 } from './runtime/types.js';
-import { jsonResponse, } from './runtime/types.js';
+import { jsonResponse, sseResponse } from './runtime/types.js';
 
 const SessionNotSpecifiedErrorDetails =
   'Multiple sessions available. See `available_sessions` or call the `list_sessions` tool to discover available sessions and specify the session using `_meta.sessionId`.';
@@ -211,6 +213,25 @@ interface McpResponse {
   };
 }
 
+/**
+ * MCP protocol session for Remote MCP (Streamable HTTP) connections.
+ * Tracks Claude Desktop connections and enables server-initiated notifications.
+ */
+interface McpSession {
+  /** Unique session identifier (returned in Mcp-Session-Id header) */
+  id: string;
+  /** Auth token associated with this MCP session */
+  authToken?: string;
+  /** When the session was created */
+  createdAt: number;
+  /** Last activity timestamp for idle timeout */
+  lastActivity: number;
+  /** SSE writer for pushing notifications (if GET stream is open) */
+  sseWriter?: SSEWriter;
+  /** Cleanup function to call when SSE stream closes */
+  sseCleanup?: () => void;
+}
+
 // ============================================
 // Helper Functions
 // ============================================
@@ -283,6 +304,11 @@ export class MCPWebBridge {
   // Message handlers for resource responses (keyed by requestId)
   #resourceResponseHandlers = new Map<string, (data: string) => void>();
 
+  // MCP protocol sessions (Remote MCP / Streamable HTTP)
+  #mcpSessions = new Map<string, McpSession>();
+  #mcpSessionTimeoutIntervalId?: string;
+  static readonly MCP_SESSION_IDLE_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour
+
   /**
    * Creates a new MCPWebBridge instance.
    *
@@ -305,6 +331,9 @@ export class MCPWebBridge {
     if (this.#config.sessionMaxDurationMs) {
       this.#startSessionTimeoutChecker();
     }
+
+    // Start MCP session idle timeout checker
+    this.#startMcpSessionTimeoutChecker();
   }
 
   /**
@@ -350,6 +379,12 @@ export class MCPWebBridge {
       this.#sessionTimeoutIntervalId = undefined;
     }
 
+    // Stop MCP session timeout checker
+    if (this.#mcpSessionTimeoutIntervalId) {
+      this.#scheduler.cancelInterval(this.#mcpSessionTimeoutIntervalId);
+      this.#mcpSessionTimeoutIntervalId = undefined;
+    }
+
     // Close all WebSocket connections
     for (const session of this.#sessions.values()) {
       if (session.ws.readyState === 'OPEN') {
@@ -357,6 +392,14 @@ export class MCPWebBridge {
       }
     }
     this.#sessions.clear();
+
+    // Clean up MCP sessions (close SSE streams)
+    for (const mcpSession of this.#mcpSessions.values()) {
+      if (mcpSession.sseCleanup) {
+        mcpSession.sseCleanup();
+      }
+    }
+    this.#mcpSessions.clear();
 
     // Clear queries and tracking maps
     this.#queries.clear();
@@ -533,6 +576,9 @@ export class MCPWebBridge {
 
     console.log('registering tool for session', sessionId, message);
     session.tools.set(message.tool.name, message.tool);
+
+    // Notify connected MCP clients (Claude Desktop) about tool changes
+    this.#notifyToolsChanged(session.authToken);
   }
 
   #handleResourceRegistration(
@@ -693,9 +739,31 @@ export class MCPWebBridge {
   // HTTP Request Handling
   // ============================================
 
-  async #handleHttpRequest(req: HttpRequest): Promise<HttpResponse> {
+  async #handleHttpRequest(req: HttpRequest): Promise<HttpResponse | SSEResponse> {
+    const startTime = Date.now();
+
+    // Debug logging helper
+    const debug = (message: string, data?: unknown) => {
+      if (this.#config.debug) {
+        if (data !== undefined) {
+          console.log(`[MCP Debug] ${message}`, data);
+        } else {
+          console.log(`[MCP Debug] ${message}`);
+        }
+      }
+    };
+
+    debug(`→ ${req.method} ${req.url}`);
+    debug(`  Headers:`, {
+      accept: req.headers.get('accept'),
+      contentType: req.headers.get('content-type'),
+      authorization: req.headers.get('authorization') ? '[PRESENT]' : '[ABSENT]',
+      mcpSessionId: req.headers.get('mcp-session-id'),
+    });
+
     // Handle CORS preflight
     if (req.method === 'OPTIONS') {
+      debug(`← 200 (CORS preflight)`);
       return jsonResponse(200, '');
     }
 
@@ -724,11 +792,39 @@ export class MCPWebBridge {
       return this.#handleQueryCancelEndpoint(queryCancelMatch[1], req);
     }
 
-    // Handle MCP JSON-RPC requests
-    if (req.method === 'POST') {
-      return this.#handleMCPRequest(req);
+    // Handle MCP session deletion (client closing session)
+    if (req.method === 'DELETE') {
+      const mcpSessionId = req.headers.get('mcp-session-id');
+      if (mcpSessionId) {
+        debug(`  Processing DELETE for session ${mcpSessionId}`);
+        const response = this.#handleMcpSessionDelete(mcpSessionId);
+        debug(`← ${response.status} (session delete) [${Date.now() - startTime}ms]`);
+        return response;
+      }
+      debug(`← 400 (missing Mcp-Session-Id) [${Date.now() - startTime}ms]`);
+      return jsonResponse(400, { error: 'Mcp-Session-Id header required' });
     }
 
+    // Handle GET requests for SSE stream (Remote MCP server-initiated messages)
+    if (req.method === 'GET') {
+      const acceptsSSE = req.headers.get('accept')?.includes('text/event-stream');
+      if (acceptsSSE) {
+        debug(`  Opening SSE stream`);
+        return this.#handleSSEStream(req);
+      }
+      debug(`← 405 (GET without Accept: text/event-stream) [${Date.now() - startTime}ms]`);
+      return jsonResponse(405, { error: 'Method Not Allowed' });
+    }
+
+    // Handle MCP JSON-RPC requests
+    if (req.method === 'POST') {
+      debug(`  Processing MCP request`);
+      const response = await this.#handleMCPRequest(req);
+      debug(`← ${response.status} [${Date.now() - startTime}ms]`);
+      return response;
+    }
+
+    debug(`← 404 (not found) [${Date.now() - startTime}ms]`);
     return jsonResponse(404, { error: 'Not Found' });
   }
 
@@ -885,9 +981,62 @@ export class MCPWebBridge {
       const body = await req.text();
       const mcpRequest: McpRequest = JSON.parse(body);
 
+      // Debug logging
+      if (this.#config.debug) {
+        console.log(`[MCP Debug]   Method: ${mcpRequest.method}, ID: ${mcpRequest.id}`);
+        if (mcpRequest.params && Object.keys(mcpRequest.params).length > 0) {
+          console.log(`[MCP Debug]   Params:`, JSON.stringify(mcpRequest.params).substring(0, 200));
+        }
+      }
+
+      // Extract auth token from header OR URL query param (for Remote MCP compatibility)
       const authHeader = req.headers.get('authorization');
-      const authToken = authHeader?.replace('Bearer ', '');
+      const url = new URL(req.url, 'http://localhost');
+      const authToken = authHeader?.replace('Bearer ', '') ?? url.searchParams.get('token') ?? undefined;
+      const mcpSessionId = req.headers.get('mcp-session-id');
       const queryId = mcpRequest.params?._meta?.queryId;
+
+      // Handle initialize separately - it creates an MCP session
+      if (mcpRequest.method === 'initialize') {
+        if (!authToken) {
+          if (this.#config.debug) {
+            console.log(`[MCP Debug]   Error: Missing authentication token`);
+          }
+          return this.#mcpErrorResponse(
+            mcpRequest.id,
+            -32600,
+            MissingAuthenticationErrorCode
+          );
+        }
+        const { result, sessionId } = this.#handleInitialize(authToken);
+        if (this.#config.debug) {
+          console.log(`[MCP Debug]   Created MCP session: ${sessionId}`);
+        }
+        return this.#mcpSuccessResponseWithHeaders(mcpRequest.id, result, {
+          'Mcp-Session-Id': sessionId,
+        });
+      }
+
+      // Handle initialized notification (no response needed per spec, but we accept it)
+      if (mcpRequest.method === 'notifications/initialized') {
+        // Update MCP session activity
+        if (mcpSessionId) {
+          const mcpSession = this.#mcpSessions.get(mcpSessionId);
+          if (mcpSession) {
+            mcpSession.lastActivity = Date.now();
+          }
+        }
+        return jsonResponse(202, '');
+      }
+
+      // For all other requests, validate MCP session if provided
+      if (mcpSessionId) {
+        const mcpSession = this.#mcpSessions.get(mcpSessionId);
+        if (!mcpSession) {
+          return jsonResponse(404, { error: 'MCP session not found' });
+        }
+        mcpSession.lastActivity = Date.now();
+      }
 
       const sessions = new Map<string, SessionData>();
 
@@ -924,14 +1073,12 @@ export class MCPWebBridge {
 
       let result: unknown;
       switch (mcpRequest.method) {
-        case 'initialize':
-          result = await this.#handleInitialize();
-          break;
         case 'tools/list':
           result = await this.#handleToolsList(sessions, mcpRequest.params);
           break;
         case 'tools/call':
           result = await this.#handleToolCall(sessions, mcpRequest.params);
+          result = this.#wrapToolCallResult(result);
           break;
         case 'resources/list':
           result = await this.#handleResourcesList(sessions, mcpRequest.params);
@@ -978,6 +1125,26 @@ export class MCPWebBridge {
     return jsonResponse(200, response);
   }
 
+  #mcpSuccessResponseWithHeaders(
+    id: string | number,
+    result: unknown,
+    headers: Record<string, string>
+  ): HttpResponse {
+    const response: McpResponse = {
+      jsonrpc: '2.0',
+      id,
+      result,
+    };
+    return {
+      status: 200,
+      headers: {
+        'content-type': 'application/json',
+        ...headers,
+      },
+      body: JSON.stringify(response),
+    };
+  }
+
   #mcpErrorResponse(
     id: string | number,
     code: number,
@@ -990,6 +1157,76 @@ export class MCPWebBridge {
       error: { code, message, data },
     };
     return jsonResponse(200, response);
+  }
+
+  /**
+   * Wraps a tool call result in the MCP CallToolResult format.
+   * This ensures compatibility with both Remote MCP (direct HTTP) and STDIO clients.
+   */
+  #wrapToolCallResult(result: unknown): {
+    content: Array<{ type: string; text?: string; data?: string; mimeType?: string }>;
+    isError?: boolean;
+  } {
+    // Check if this is an error response
+    if (result && typeof result === 'object' && 'error' in result) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify(result, null, 2),
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    // Handle different result types
+    if (typeof result === 'string') {
+      // Check if it's a data URL (image)
+      if (result.startsWith('data:image/')) {
+        const mimeType = result.split(';')[0].split(':')[1];
+        // Extract base64 data after the comma
+        const base64Data = result.split(',')[1];
+        return {
+          content: [
+            {
+              type: 'image',
+              data: base64Data,
+              mimeType,
+            },
+          ],
+        };
+      }
+      return {
+        content: [
+          {
+            type: 'text',
+            text: result,
+          },
+        ],
+      };
+    }
+
+    if (result !== null && result !== undefined) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result),
+          },
+        ],
+      };
+    }
+
+    // null or undefined result
+    return {
+      content: [
+        {
+          type: 'text',
+          text: '',
+        },
+      ],
+    };
   }
 
   // ============================================
@@ -1008,11 +1245,25 @@ export class MCPWebBridge {
     }
   }
 
-  async #handleInitialize(): Promise<unknown> {
-    return {
+  /**
+   * Handles MCP initialize request and creates a new MCP session.
+   * Returns the initialize result along with a session ID for the Mcp-Session-Id header.
+   */
+  #handleInitialize(authToken: string): { result: unknown; sessionId: string } {
+    // Create a new MCP session
+    const sessionId = crypto.randomUUID();
+    const mcpSession: McpSession = {
+      id: sessionId,
+      authToken,
+      createdAt: Date.now(),
+      lastActivity: Date.now(),
+    };
+    this.#mcpSessions.set(sessionId, mcpSession);
+
+    const result = {
       protocolVersion: '2024-11-05',
       capabilities: {
-        tools: {},
+        tools: { listChanged: true },
         resources: {},
         prompts: {},
       },
@@ -1023,6 +1274,8 @@ export class MCPWebBridge {
         ...(this.#config.icon && { icon: this.#config.icon }),
       },
     };
+
+    return { result, sessionId };
   }
 
   #getSessionAndSessionId(
@@ -1550,6 +1803,9 @@ export class MCPWebBridge {
           this.#tokenSessionIds.delete(session.authToken);
         }
       }
+
+      // Notify connected MCP clients about tool changes (tools removed)
+      this.#notifyToolsChanged(session.authToken);
     }
     this.#sessions.delete(sessionId);
   }
@@ -1572,5 +1828,139 @@ export class MCPWebBridge {
         }
       }
     }, 60000);
+  }
+
+  // ============================================
+  // Remote MCP (Streamable HTTP) Support
+  // ============================================
+
+  /**
+   * Starts periodic checker to clean up idle MCP sessions.
+   * Sessions are removed after MCP_SESSION_IDLE_TIMEOUT_MS of inactivity.
+   */
+  #startMcpSessionTimeoutChecker(): void {
+    // Check every minute
+    this.#mcpSessionTimeoutIntervalId = this.#scheduler.scheduleInterval(() => {
+      const now = Date.now();
+      for (const [sessionId, mcpSession] of this.#mcpSessions) {
+        const idleTime = now - mcpSession.lastActivity;
+        if (idleTime > MCPWebBridge.MCP_SESSION_IDLE_TIMEOUT_MS) {
+          // Clean up SSE stream if open
+          if (mcpSession.sseCleanup) {
+            mcpSession.sseCleanup();
+          }
+          this.#mcpSessions.delete(sessionId);
+          console.log(`MCP session ${sessionId} expired after ${idleTime}ms of inactivity`);
+        }
+      }
+    }, 60000);
+  }
+
+  /**
+   * Notifies all connected MCP clients (Claude Desktop) about tool changes.
+   * Sends `notifications/tools/list_changed` via SSE to clients with matching auth token.
+   */
+  #notifyToolsChanged(authToken: string): void {
+    for (const mcpSession of this.#mcpSessions.values()) {
+      // Only notify sessions with matching auth token
+      if (mcpSession.authToken === authToken && mcpSession.sseWriter) {
+        const notification = {
+          jsonrpc: '2.0',
+          method: 'notifications/tools/list_changed',
+        };
+        mcpSession.sseWriter(JSON.stringify(notification));
+      }
+    }
+  }
+
+  /**
+   * Handles GET requests for SSE stream (Remote MCP server-initiated messages).
+   * Claude Desktop opens this stream to receive notifications like tools/list_changed.
+   */
+  #handleSSEStream(req: HttpRequest): SSEResponse {
+    const mcpSessionId = req.headers.get('mcp-session-id');
+
+    if (this.#config.debug) {
+      console.log(`[MCP Debug]   SSE stream request, session: ${mcpSessionId || '[NONE]'}`);
+    }
+
+    if (!mcpSessionId) {
+      if (this.#config.debug) {
+        console.log(`[MCP Debug]   SSE Error: Missing Mcp-Session-Id header`);
+      }
+      // Return a regular response indicating error - we need Mcp-Session-Id
+      return sseResponse((writer, _onClose) => {
+        writer(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            error: {
+              code: -32600,
+              message: 'Mcp-Session-Id header required for SSE stream',
+            },
+          })
+        );
+      });
+    }
+
+    const mcpSession = this.#mcpSessions.get(mcpSessionId);
+    if (!mcpSession) {
+      if (this.#config.debug) {
+        console.log(`[MCP Debug]   SSE Error: MCP session not found`);
+      }
+      return sseResponse((writer, _onClose) => {
+        writer(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            error: {
+              code: -32600,
+              message: 'MCP session not found',
+            },
+          })
+        );
+      });
+    }
+
+    if (this.#config.debug) {
+      console.log(`[MCP Debug]   SSE stream opened successfully`);
+    }
+
+    return sseResponse((writer, onClose) => {
+      // Store the writer so we can push notifications later
+      mcpSession.sseWriter = writer;
+      mcpSession.lastActivity = Date.now();
+
+      // Set up cleanup for when client disconnects
+      const cleanup = () => {
+        if (this.#config.debug) {
+          console.log(`[MCP Debug]   SSE stream closed for session ${mcpSessionId}`);
+        }
+        mcpSession.sseWriter = undefined;
+        mcpSession.sseCleanup = undefined;
+      };
+      mcpSession.sseCleanup = cleanup;
+
+      // Register the onClose callback
+      // Note: The adapter will call onClose when the client disconnects
+      // We store our cleanup function so we can also call it manually
+    });
+  }
+
+  /**
+   * Handles MCP session deletion (client explicitly closing session).
+   */
+  #handleMcpSessionDelete(sessionId: string): HttpResponse {
+    const mcpSession = this.#mcpSessions.get(sessionId);
+
+    if (!mcpSession) {
+      return jsonResponse(404, { error: 'MCP session not found' });
+    }
+
+    // Clean up SSE stream if open
+    if (mcpSession.sseCleanup) {
+      mcpSession.sseCleanup();
+    }
+
+    this.#mcpSessions.delete(sessionId);
+    return jsonResponse(200, { success: true });
   }
 }

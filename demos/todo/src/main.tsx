@@ -1,10 +1,10 @@
 import { MCPWebProvider } from '@mcp-web/react';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { MCP_WEB_CONFIG } from '../mcp-web.config.ts';
+import config from '../mcp-web.config.ts';
 import App from './App.tsx';
 import './index.css';
-import { clearDemoData, initializeSeedData } from './seed-data';
+import { clearDemoData, initializeSeedData } from '../seed-data';
 import type { View } from './types';
 
 // Migrate old view format to new discriminated union format
@@ -60,7 +60,7 @@ if (root) {
   createRoot(root).render(
     <StrictMode>
       {/* Auto-connects to and disconnects from the MCP-Web bridge */}
-      <MCPWebProvider config={MCP_WEB_CONFIG}>
+      <MCPWebProvider config={config}>
         <App />
       </MCPWebProvider>
     </StrictMode>

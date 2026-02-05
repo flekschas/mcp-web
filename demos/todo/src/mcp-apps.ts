@@ -14,7 +14,7 @@ const store = getDefaultStore();
 export const statisticsApp = createApp({
   name: 'statistics',
   description:
-    'Display visual statistics about the todo list including completion rates, todos by project, and recently completed items. Use this when the user wants to see an overview or summary of their todos.',
+    'Show a dashboard of plots and charts of the todo statistics including completion rates, todos by project, and recently completed items. Use this when the user wants to explore and visualize the statistics.',
   component: Statistics,
   propsSchema: StatisticsPropsSchema,
   handler: () => store.get(statisticsAtom),

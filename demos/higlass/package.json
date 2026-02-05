@@ -4,17 +4,21 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"pnpm run dev:app\" \"pnpm run dev:bridge\"",
+    "dev:app": "vite",
+    "dev:bridge": "tsx watch bridge.ts",
+    "bridge": "tsx bridge.ts",
     "build": "tsc -b && vite build",
     "lint": "biome format --write src && biome check src",
-    "preview": "vite preview",
-    "bridge": "tsx bridge.ts"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@mcp-web/bridge": "workspace:*",
     "@mcp-web/core": "workspace:*",
     "@mcp-web/tools": "workspace:*",
+    "@mcp-web/types": "workspace:*",
     "@tailwindcss/vite": "catalog:",
+    "dotenv": "^17.2.3",
     "higlass": "^2.0.1",
     "jotai": "^2.12.5",
     "jotai-effect": "^2.0.5",
@@ -29,6 +33,8 @@
     "@types/react": "^18.3.17",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.6.0",
+    "concurrently": "catalog:",
+    "tsx": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:"
   }

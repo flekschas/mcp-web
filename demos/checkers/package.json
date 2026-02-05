@@ -8,6 +8,7 @@
     "dev:app": "vite",
     "dev:agent": "tsx watch serve-agent.ts",
     "dev:bridge": "tsx watch bridge.ts",
+    "bridge": "tsx bridge.ts",
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",

@@ -205,13 +205,16 @@ export class MCPWeb {
   }
 
   /**
-   * Configuration object for the AI host app (e.g., Claude Desktop).
+   * Configuration object for the AI host app (e.g., Claude Desktop) using stdio transport.
    *
    * Use this to configure the MCP client in your AI host application.
    * It contains the connection details and authentication credentials needed
-   * for the AI agent to connect to the bridge server.
+   * for the AI agent to connect to the bridge server via the `@mcp-web/client` stdio wrapper.
    *
-   * @returns MCP client configuration object
+   * For a simpler configuration, consider using `remoteMcpConfig` instead, which
+   * uses Remote MCP (Streamable HTTP) and doesn't require an intermediate process.
+   *
+   * @returns MCP client configuration object for stdio transport
    *
    * @example
    * ```typescript
@@ -221,6 +224,35 @@ export class MCPWeb {
    */
   get mcpConfig() {
     return this.#mcpConfig;
+  }
+
+  /**
+   * Configuration object for the AI host app (e.g., Claude Desktop) using Remote MCP.
+   *
+   * This is the recommended configuration method. It uses Remote MCP (Streamable HTTP)
+   * to connect directly to the bridge server via URL, without needing an intermediate
+   * stdio process like `@mcp-web/client`.
+   *
+   * @returns MCP client configuration object for Remote MCP (URL-based)
+   *
+   * @example
+   * ```typescript
+   * console.log('Add this to your Claude Desktop config:');
+   * console.log(JSON.stringify(mcp.remoteMcpConfig, null, 2));
+   * // Output:
+   * // {
+   * //   "my-app": {
+   * //     "url": "https://localhost:3001?token=your-auth-token"
+   * //   }
+   * // }
+   * ```
+   */
+  get remoteMcpConfig() {
+    return {
+      [this.#config.name]: {
+        url: `${this.#getHttpProtocol()}//${this.#config.bridgeUrl}?token=${this.#authToken}`,
+      },
+    };
   }
 
 

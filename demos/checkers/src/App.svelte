@@ -4,13 +4,14 @@
   import { mcpWeb } from './mcp.js';
   import { state as gameState } from './state.svelte.js';
   import H1 from './components/H1.svelte';
-  import { MCP_WEB_CONFIG } from '../mcp-web.config.js';
+  import config from '../mcp-web.config.js';
 
   let connectionStatus = $state('connecting');
   let mcpConnection = $state(false);
   let showConfigModal = $state(false);
   let copyConfigSuccess = $state(false);
   let copySweetnessSuccess = $state(false);
+  let activeConfigTab = $state<'remote' | 'stdio'>('remote');
 
   onMount(async () => {
     try {
@@ -29,6 +30,10 @@
 
   const gameOver = $derived(gameState.gameState.gameStatus !== 'playing');
 
+  const remoteConfig = $derived({ mcpServers: mcpWeb.remoteMcpConfig });
+  const stdioConfig = $derived({ mcpServers: mcpWeb.mcpConfig });
+  const currentConfig = $derived(activeConfigTab === 'remote' ? remoteConfig : stdioConfig);
+
   function toggleConfigModal() {
     showConfigModal = !showConfigModal;
     copyConfigSuccess = false;
@@ -37,11 +42,7 @@
 
   async function copyConfigToClipboard() {
     try {
-      const configJson = JSON.stringify(
-        { mcpServers: mcpWeb.mcpConfig },
-        null,
-        2
-      );
+      const configJson = JSON.stringify(currentConfig, null, 2);
       await navigator.clipboard.writeText(configJson);
       copyConfigSuccess = true;
       setTimeout(() => {
@@ -135,8 +136,8 @@ async function copySweetnessToClipboard() {
             <div class="mb-4 bg-red-900 border border-red-700 p-4 rounded">
               <h3 class="font-bold text-red-200 mb-2">⚠️ Not Connected</h3>
               <p class="text-red-300 text-sm">
-                Make sure the MCP-Web bridge is running on {MCP_WEB_CONFIG.bridgeUrl} and the agent
-                is running on {MCP_WEB_CONFIG.agentUrl}.
+                Make sure the MCP-Web bridge is running on {config.bridgeUrl} and the agent
+                is running on {config.agentUrl}.
               </p>
               <p class="text-red-300 text-sm mt-2">
                 You can play locally, but AI queries will not work.
@@ -156,7 +157,35 @@ async function copySweetnessToClipboard() {
 
           <div class="space-y-4">
             <p class="opacity-70">
-              To interact this game via an AI host app like Claude Desktop, use the following configuration:
+              To interact with this game via an AI host app like Claude Desktop, add one of the following configurations:
+            </p>
+
+            <!-- Tabs -->
+            <div class="flex border-b border-[#C99DA3]/20">
+              <button
+                onclick={() => activeConfigTab = 'remote'}
+                class="px-4 py-2 text-sm font-medium transition-colors cursor-pointer {activeConfigTab === 'remote' ? 'border-b-2 border-[#C99DA3] text-[#C99DA3]' : 'text-white/60 hover:text-white'}"
+              >
+                Remote MCP
+                <span class="ml-2 px-1.5 py-0.5 text-xs bg-[#C99DA3]/20 text-[#C99DA3] rounded">
+                  Recommended
+                </span>
+              </button>
+              <button
+                onclick={() => activeConfigTab = 'stdio'}
+                class="px-4 py-2 text-sm font-medium transition-colors cursor-pointer {activeConfigTab === 'stdio' ? 'border-b-2 border-[#C99DA3] text-[#C99DA3]' : 'text-white/60 hover:text-white'}"
+              >
+                Stdio
+              </button>
+            </div>
+
+            <!-- Tab content description -->
+            <p class="text-sm opacity-60">
+              {#if activeConfigTab === 'remote'}
+                Direct URL connection. Simpler configuration, no intermediate process needed.
+              {:else}
+                Uses @mcp-web/client as a stdio wrapper. Alternative method with the same functionality.
+              {/if}
             </p>
 
             <div class="border border-[#C99DA3]/20 rounded p-4 relative">
@@ -166,7 +195,7 @@ async function copySweetnessToClipboard() {
               >
                 {copyConfigSuccess ? '✓ Copied!' : 'Copy'}
               </button>
-              <pre class="text-sm text-gray-300 overflow-x-auto pr-20"><code>{JSON.stringify({ mcpServers: mcpWeb.mcpConfig }, null, 2)}</code></pre>
+              <pre class="text-sm text-gray-300 overflow-x-auto pr-20"><code>{JSON.stringify(currentConfig, null, 2)}</code></pre>
             </div>
 
             <p class="opacity-70">

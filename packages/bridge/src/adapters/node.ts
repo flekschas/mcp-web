@@ -18,13 +18,33 @@
  * ```
  */
 
-import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import {
+  createServer as createHttpServer,
+  type IncomingMessage,
+  type Server,
+  type ServerResponse,
+} from 'node:http';
+import { createServer as createHttpsServer } from 'node:https';
 import { WebSocket, WebSocketServer } from 'ws';
 import type { MCPWebConfig } from '@mcp-web/types';
 import { MCPWebBridge } from '../core.js';
 import { TimerScheduler } from '../runtime/scheduler.js';
 import type { HttpRequest, WebSocketConnection } from '../runtime/types.js';
-import { readyStateToString } from '../runtime/types.js';
+import { readyStateToString, isSSEResponse } from '../runtime/types.js';
+
+/**
+ * Configuration for the Node.js bridge adapter.
+ */
+/**
+ * SSL/TLS configuration for secure connections.
+ */
+export interface MCPWebBridgeNodeSSLConfig {
+  /** Private key in PEM format (string content, not file path) */
+  key: string | Buffer;
+
+  /** Certificate in PEM format (string content, not file path) */
+  cert: string | Buffer;
+}
 
 /**
  * Configuration for the Node.js bridge adapter.
@@ -35,6 +55,26 @@ export interface MCPWebBridgeNodeConfig extends Omit<MCPWebConfig, 'bridgeUrl'> 
 
   /** Host to bind to (default: '0.0.0.0') */
   host?: string;
+
+  /**
+   * SSL/TLS configuration for HTTPS/WSS support.
+   * When provided, the bridge will use secure connections.
+   *
+   * @example
+   * ```typescript
+   * import { readFileSync } from 'node:fs';
+   *
+   * const bridge = new MCPWebBridgeNode({
+   *   name: 'My App',
+   *   port: 3001,
+   *   ssl: {
+   *     key: readFileSync('./localhost-key.pem'),
+   *     cert: readFileSync('./localhost.pem'),
+   *   },
+   * });
+   * ```
+   */
+  ssl?: MCPWebBridgeNodeSSLConfig;
 }
 
 /**
@@ -107,20 +147,22 @@ export class MCPWebBridgeNode {
   #wss: WebSocketServer;
   #port: number;
   #host: string;
+  #isSecure: boolean;
   #readyPromise: Promise<void>;
   #isReady = false;
 
   constructor(config: MCPWebBridgeNodeConfig) {
     this.#port = config.port ?? 3001;
     this.#host = config.host ?? '0.0.0.0';
+    this.#isSecure = !!config.ssl;
 
     // Create the core with a timer-based scheduler
     const scheduler = new TimerScheduler();
     this.#core = new MCPWebBridge(config, scheduler);
     const handlers = this.#core.getHandlers();
 
-    // Create HTTP server
-    this.#server = createServer((req: IncomingMessage, res: ServerResponse) => {
+    // Request handler (shared between HTTP and HTTPS)
+    const requestHandler = (req: IncomingMessage, res: ServerResponse) => {
       // Collect body
       let body = '';
       req.on('data', (chunk) => {
@@ -129,11 +171,62 @@ export class MCPWebBridgeNode {
       req.on('end', () => {
         const wrappedReq = wrapRequest(req, body);
         handlers.onHttpRequest(wrappedReq).then((response) => {
-          res.writeHead(response.status, response.headers);
-          res.end(response.body);
+          // Check if this is an SSE response
+          if (isSSEResponse(response)) {
+            // Set headers for SSE
+            res.writeHead(response.status, response.headers);
+
+            // Create writer function that sends SSE-formatted data
+            const writer = (data: string): void => {
+              res.write(`data: ${data}\n\n`);
+            };
+
+            // Track if connection is still open
+            let isOpen = true;
+
+            // Handle client disconnect
+            req.on('close', () => {
+              isOpen = false;
+            });
+
+            // Set up the SSE stream
+            response.setup(writer, () => {
+              if (isOpen) {
+                res.end();
+              }
+            });
+
+            // Keep connection alive with periodic comments
+            const keepAlive = setInterval(() => {
+              if (isOpen) {
+                res.write(': keepalive\n\n');
+              } else {
+                clearInterval(keepAlive);
+              }
+            }, 30000);
+
+            // Clean up on close
+            res.on('close', () => {
+              clearInterval(keepAlive);
+            });
+          } else {
+            // Regular HTTP response
+            res.writeHead(response.status, response.headers);
+            res.end(response.body);
+          }
         });
       });
-    });
+    };
+
+    // Create HTTP or HTTPS server based on SSL config
+    if (config.ssl) {
+      this.#server = createHttpsServer(
+        { key: config.ssl.key, cert: config.ssl.cert },
+        requestHandler,
+      );
+    } else {
+      this.#server = createHttpServer(requestHandler);
+    }
 
     // Create WebSocket server without its own port (noServer mode)
     this.#wss = new WebSocketServer({ noServer: true });
@@ -194,9 +287,11 @@ export class MCPWebBridgeNode {
       this.#server.listen(this.#port, this.#host, () => {
         this.#isReady = true;
         const displayHost = this.#host === '0.0.0.0' ? 'localhost' : this.#host;
+        const wsProtocol = this.#isSecure ? 'wss' : 'ws';
+        const httpProtocol = this.#isSecure ? 'https' : 'http';
         console.log(`🌉 MCP Web Bridge listening on ${displayHost}:${this.#port}`);
-        console.log(`   WebSocket: ws://${displayHost}:${this.#port}`);
-        console.log(`   HTTP/MCP:  http://${displayHost}:${this.#port}`);
+        console.log(`   WebSocket: ${wsProtocol}://${displayHost}:${this.#port}`);
+        console.log(`   HTTP/MCP:  ${httpProtocol}://${displayHost}:${this.#port}`);
         resolve();
       });
     });
@@ -244,6 +339,13 @@ export class MCPWebBridgeNode {
    */
   get port(): number {
     return this.#port;
+  }
+
+  /**
+   * Whether the server is using SSL/TLS (HTTPS/WSS).
+   */
+  get isSecure(): boolean {
+    return this.#isSecure;
   }
 
   /**

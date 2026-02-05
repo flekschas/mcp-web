@@ -53,6 +53,7 @@ import type { MCPWebConfig } from '@mcp-web/types';
 import { MCPWebBridge } from '../core.js';
 import { TimerScheduler } from '../runtime/scheduler.js';
 import type { HttpRequest, WebSocketConnection } from '../runtime/types.js';
+import { isSSEResponse } from '../runtime/types.js';
 
 /**
  * Configuration for the Bun bridge adapter.
@@ -226,6 +227,38 @@ export class MCPWebBridgeBun {
         // Handle regular HTTP requests
         const wrappedReq = wrapBunRequest(req);
         const httpResponse = await handlers.onHttpRequest(wrappedReq);
+
+        // Check if this is an SSE response
+        if (isSSEResponse(httpResponse)) {
+          // Create a ReadableStream for SSE
+          const stream = new ReadableStream({
+            start(controller) {
+              // Create writer function that sends SSE-formatted data
+              const writer = (data: string): void => {
+                controller.enqueue(new TextEncoder().encode(`data: ${data}\n\n`));
+              };
+
+              // Set up the SSE stream
+              httpResponse.setup(writer, () => {
+                controller.close();
+              });
+
+              // Keep connection alive with periodic comments
+              const keepAlive = setInterval(() => {
+                try {
+                  controller.enqueue(new TextEncoder().encode(': keepalive\n\n'));
+                } catch {
+                  clearInterval(keepAlive);
+                }
+              }, 30000);
+            },
+          });
+
+          return new Response(stream, {
+            status: httpResponse.status,
+            headers: httpResponse.headers,
+          });
+        }
 
         return new Response(httpResponse.body, {
           status: httpResponse.status,

@@ -1,12 +1,17 @@
 import { useAtom, useSetAtom } from 'jotai';
-import { useRef } from 'react';
-import { getCurrentAuthToken, getMCPConfig } from '../mcp/mcp.ts';
+import { useRef, useState } from 'react';
+import { mcp } from '../mcp/mcp.ts';
+import { getCurrentAuthToken } from '../mcp/mcp.ts';
 import { helpModalDismissedAtom, helpModalOpenAtom } from './states.ts';
+
+type ConfigTab = 'remote' | 'stdio';
 
 export function Help() {
   const [isOpen, setIsOpen] = useAtom(helpModalOpenAtom);
   const setDismissed = useSetAtom(helpModalDismissedAtom);
   const modalRef = useRef<HTMLDivElement>(null);
+  const [activeTab, setActiveTab] = useState<ConfigTab>('remote');
+  const [copySuccess, setCopySuccess] = useState(false);
 
   if (!isOpen) return null;
 
@@ -21,8 +26,21 @@ export function Help() {
     }
   };
 
-  const mcpConfig = JSON.stringify(getMCPConfig(), null, 2);
+  const remoteConfig = { mcpServers: mcp.remoteMcpConfig };
+  const stdioConfig = { mcpServers: mcp.mcpConfig };
+  const currentConfig = activeTab === 'remote' ? remoteConfig : stdioConfig;
+  const mcpConfigStr = JSON.stringify(currentConfig, null, 2);
   const authToken = getCurrentAuthToken();
+
+  const copyConfigToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(mcpConfigStr);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error);
+    }
+  };
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: will fix it later
@@ -70,25 +88,62 @@ export function Help() {
                     1. Add MCP Server Configuration
                   </h3>
                   <p className="text-zinc-700 mb-3">
-                    Add this configuration to your Claude Desktop config (
+                    Add one of the following configurations to your Claude Desktop config (
                     <code>
                       ~/Library/Application
                       Support/Claude/claude_desktop_config.json
                     </code>
                     ) under <code>mcpServers</code>:
                   </p>
+
+                  {/* Tabs */}
+                  <div className="flex border-b border-zinc-200 mb-3">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('remote')}
+                      className={`px-4 py-2 text-sm font-medium transition-colors cursor-pointer ${
+                        activeTab === 'remote'
+                          ? 'border-b-2 border-blue-600 text-blue-600'
+                          : 'text-zinc-500 hover:text-zinc-700'
+                      }`}
+                    >
+                      Remote MCP
+                      <span className="ml-2 px-1.5 py-0.5 text-xs bg-blue-100 text-blue-600 rounded">
+                        Recommended
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('stdio')}
+                      className={`px-4 py-2 text-sm font-medium transition-colors cursor-pointer ${
+                        activeTab === 'stdio'
+                          ? 'border-b-2 border-blue-600 text-blue-600'
+                          : 'text-zinc-500 hover:text-zinc-700'
+                      }`}
+                    >
+                      Stdio
+                    </button>
+                  </div>
+
+                  {/* Tab description */}
+                  <p className="text-xs text-zinc-500 mb-3">
+                    {activeTab === 'remote'
+                      ? 'Direct URL connection. Simpler configuration, no intermediate process needed.'
+                      : 'Uses @mcp-web/client as a stdio wrapper. Alternative method with the same functionality.'}
+                  </p>
+
                   <div className="bg-zinc-100 rounded-lg p-4 overflow-x-auto">
                     <pre className="text-xs text-zinc-800 whitespace-pre-wrap">
-                      {mcpConfig}
+                      {mcpConfigStr}
                     </pre>
                   </div>
                   <div className="mt-3 flex gap-2">
                     <button
                       type="button"
-                      onClick={() => navigator.clipboard.writeText(mcpConfig)}
+                      onClick={copyConfigToClipboard}
                       className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
                     >
-                      📋 Copy Configuration
+                      {copySuccess ? '✓ Copied!' : '📋 Copy Configuration'}
                     </button>
                   </div>
                   <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">

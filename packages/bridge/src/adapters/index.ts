@@ -13,7 +13,7 @@
 
 // Node.js adapter (production ready)
 export { Bridge, MCPWebBridgeNode } from './node.js';
-export type { MCPWebBridgeNodeConfig } from './node.js';
+export type { MCPWebBridgeNodeConfig, MCPWebBridgeNodeSSLConfig } from './node.js';
 
 // Deno adapter
 export { MCPWebBridgeDeno } from './deno.js';

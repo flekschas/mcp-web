@@ -41,6 +41,8 @@ export const McpWebConfigSchema = z.object({
   maxInFlightQueriesPerToken: z.number().int().positive().optional().describe('Maximum concurrent in-flight queries per token.'),
   /** Maximum session duration in milliseconds. Sessions older than this are automatically closed. */
   sessionMaxDurationMs: z.number().int().positive().optional().describe('Maximum session duration in milliseconds.'),
+  /** Enable debug logging for MCP requests and responses. */
+  debug: z.boolean().optional().default(false).describe('Enable debug logging for MCP requests and responses.'),
 });
 
 /**

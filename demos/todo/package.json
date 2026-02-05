@@ -22,6 +22,7 @@
     "@mcp-web/core": "workspace:*",
     "@mcp-web/react": "workspace:*",
     "@mcp-web/types": "workspace:*",
+    "dotenv": "^17.2.3",
     "@observablehq/plot": "^0.6.17",
     "@tailwindcss/vite": "catalog:",
     "jotai": "catalog:",
@@ -39,6 +40,7 @@
     "concurrently": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",
-    "vite": "catalog:"
+    "vite": "catalog:",
+    "vite-plugin-mkcert": "catalog:"
   }
 }

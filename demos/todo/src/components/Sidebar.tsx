@@ -9,7 +9,7 @@ import { ProjectForm } from './ProjectForm';
 import { ProjectItem } from './ProjectItem';
 
 export function Sidebar() {
-  const { mcpWeb, isConnected } = useMCPWeb();
+  const { isConnected } = useMCPWeb();
   const [view, setView] = useAtom(viewAtom);
   const [projects, setProjects] = useAtom(projectsAtom);
   const inboxCount = useAtomValue(inboxCountAtom);
@@ -19,7 +19,6 @@ export function Sidebar() {
   const [newProjectTitle, setNewProjectTitle] = useState('');
   const [newProjectPattern, setNewProjectPattern] = useState('pattern-dots');
   const [showConfigModal, setShowConfigModal] = useState(false);
-  const [copyConfigSuccess, setCopyConfigSuccess] = useState(false);
 
   const connectionStatus = isConnected ? 'connected' : 'disconnected';
 
@@ -57,24 +56,6 @@ export function Sidebar() {
 
   const toggleConfigModal = () => {
     setShowConfigModal(!showConfigModal);
-    setCopyConfigSuccess(false);
-  };
-
-  const copyConfigToClipboard = async () => {
-    try {
-      const configJson = JSON.stringify(
-        { mcpServers: mcpWeb.mcpConfig },
-        null,
-        2
-      );
-      await navigator.clipboard.writeText(configJson);
-      setCopyConfigSuccess(true);
-      setTimeout(() => {
-        setCopyConfigSuccess(false);
-      }, 2000);
-    } catch (error) {
-      console.error('Failed to copy to clipboard:', error);
-    }
   };
 
   return (
@@ -180,8 +161,6 @@ export function Sidebar() {
           isOpen={showConfigModal}
           onClose={toggleConfigModal}
           mcpConnection={isConnected}
-          copyConfigToClipboard={copyConfigToClipboard}
-          copyConfigSuccess={copyConfigSuccess}
         />
       </div>
       <div className="flex flex-col gap-2">

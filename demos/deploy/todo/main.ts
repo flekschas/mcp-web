@@ -1,10 +1,7 @@
 import { createDemoServer } from '../lib/create-demo-server.ts';
+import config from './mcp-web.config.ts';
 
 createDemoServer({
-  bridge: {
-    name: 'MCP-Web Todo Demo',
-    description:
-      'Manage a todo list - add, complete, delete, and organize tasks',
-  },
+  bridge: config,
   staticDir: './static',
 });

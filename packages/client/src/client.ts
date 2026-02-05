@@ -151,7 +151,18 @@ export class MCPWebClient {
         ...(_meta && { _meta })
       });
 
-      // Handle different response formats
+      // Check if response is already in CallToolResult format (from bridge)
+      // This happens when the bridge wraps results for Remote MCP compatibility
+      if (
+        response &&
+        typeof response === 'object' &&
+        'content' in response &&
+        Array.isArray((response as { content: unknown }).content)
+      ) {
+        return response as CallToolResult;
+      }
+
+      // Handle different response formats (legacy/unwrapped responses)
       // Check if this is an error response from bridge
       if (response && typeof response === 'object' && 'error' in response) {
         return {

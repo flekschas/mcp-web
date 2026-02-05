@@ -43,7 +43,7 @@ export {
   QueryNotFoundErrorCode,
   UnknownMethodErrorCode,
 } from '@mcp-web/types';
-export type { MCPWebBridgeBunConfig, MCPWebBridgeDenoConfig, MCPWebBridgeNodeConfig, MCPWebBridgePartyConfig } from './adapters/index.js';
+export type { MCPWebBridgeBunConfig, MCPWebBridgeDenoConfig, MCPWebBridgeNodeConfig, MCPWebBridgeNodeSSLConfig, MCPWebBridgePartyConfig } from './adapters/index.js';
 // Adapters
 // Deno adapter
 // Bun adapter

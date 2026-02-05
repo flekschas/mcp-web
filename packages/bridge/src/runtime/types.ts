@@ -56,8 +56,36 @@ export interface HttpResponse {
   /** Response headers */
   headers: Record<string, string>;
 
-  /** Response body */
+  /** Response body (for non-streaming responses) */
   body: string;
+}
+
+/**
+ * Callback type for sending SSE events.
+ * @param data - The data to send (will be prefixed with "data: " and suffixed with "\n\n")
+ */
+export type SSEWriter = (data: string) => void;
+
+/**
+ * SSE stream response for server-initiated messages.
+ * Adapters handle the actual streaming; core provides the setup callback.
+ */
+export interface SSEResponse {
+  /** HTTP status code (always 200 for SSE) */
+  status: 200;
+
+  /** Response headers (Content-Type: text/event-stream, etc.) */
+  headers: Record<string, string>;
+
+  /** Marks this as an SSE response for adapter detection */
+  isSSE: true;
+
+  /**
+   * Called by the adapter to set up the SSE stream.
+   * @param writer - Function to send SSE data to the client
+   * @param onClose - Called when the client disconnects
+   */
+  setup(writer: SSEWriter, onClose: () => void): void;
 }
 
 /**
@@ -91,9 +119,9 @@ export interface BridgeHandlers {
   /**
    * Called for HTTP requests (MCP JSON-RPC, query endpoints, etc.)
    * @param req - The wrapped HTTP request
-   * @returns The response to send
+   * @returns The response to send (can be SSE for streaming)
    */
-  onHttpRequest(req: HttpRequest): Promise<HttpResponse>;
+  onHttpRequest(req: HttpRequest): Promise<HttpResponse | SSEResponse>;
 }
 
 /**
@@ -133,9 +161,41 @@ export function createHttpResponse(
 export function jsonResponse(status: number, data: unknown): HttpResponse {
   return createHttpResponse(status, data, {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Mcp-Session-Id',
+    'Access-Control-Expose-Headers': 'Mcp-Session-Id',
   });
+}
+
+/**
+ * Type guard to check if a response is an SSE response
+ */
+export function isSSEResponse(
+  response: HttpResponse | SSEResponse
+): response is SSEResponse {
+  return 'isSSE' in response && response.isSSE === true;
+}
+
+/**
+ * Helper to create an SSE response
+ */
+export function sseResponse(
+  setup: (writer: SSEWriter, onClose: () => void) => void
+): SSEResponse {
+  return {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, Mcp-Session-Id',
+      'Access-Control-Expose-Headers': 'Mcp-Session-Id',
+    },
+    isSSE: true,
+    setup,
+  };
 }
 
 /**
