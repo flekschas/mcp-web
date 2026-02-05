@@ -1,14 +1,19 @@
-# Interactive Apps
+# Visual Tools
 
-[MCP Apps](https://blog.modelcontextprotocol.io/posts/2026-01-26-mcp-apps/) is
+Visual tools are MCP tools that return visual UI components rendered inline in
+AI apps like Claude Desktop. While regular tools return data for AI to process
+and reason about, visual tools return interfaces meant for the human user —
+charts, dashboards, and data visualizations that help users understand their
+data at a glance.
+
+This is powered by [MCP Apps](https://blog.modelcontextprotocol.io/posts/2026-01-26-mcp-apps/),
 an extension to [MCP](https://modelcontextprotocol.io) that lets servers provide
-visual UI components rendered inline in AI apps, like Claude Desktop. When
-AI calls a tool that returns UI metadata, the host renders that component as an
-iframe, allowing rich interactive displays alongside text responses.
+UI components. When AI calls a visual tool, the host renders your component as
+an iframe alongside the text response.
 
-MCP-Web provides first-class support for building MCP Apps. You define an app
-with a handler that returns props, and when AI invokes the tool, those props are
-passed to your component via `postMessage`.
+MCP-Web provides first-class support for building visual tools. You define a
+tool with a handler that returns props, and when AI invokes the tool, those
+props are passed to your component via `postMessage`.
 
 ::: tip React Support Only
 For now, only React components are supported but over time we'll add support for
@@ -18,33 +23,31 @@ creating templates for bundling components of your app as standaline MCP apps.
 
 <div id="app-flow" class="img"><div /></div>
 
-## When to Use MCP Apps
+## When to Use Visual Tools
 
-MCP Apps are ideal when you want to expose visual user interface to users of an
-AI app. To some degree, MCP apps are like tool calls but the return value is
-meant for human user to consume in the AI app rather than information for
-the AI agent. Common use cases include:
+Visual tools are ideal when you want to show something to the user of an AI app.
+Common use cases include:
 
 - **Data visualizations and dashboards**: Charts, graphs, stats
 - **Interactive user interfaces**: Continuous control elements
 - **Structured displays**: Tables, cards, timelines
 
 ::: tip
-MCP Apps render in iframes and receive props from your handler. They don't have
-direct access to your MCPWeb instance, but can make HTTP requests or communicate
-with your backend like any web component.
+Visual tools render in iframes and receive props from your handler. They don't
+have direct access to your MCPWeb instance, but can make HTTP requests or
+communicate with your backend like any web component.
 :::
 
 ## Quick Start
 
-In the MCP-Web context, think of an MCP App as just a wrapper around a
-component of your frontend app that you already have. To expose this component
-via an MCP tool we just need to define its interface and bundle it as a
-single self-contained HTML file.
+In the MCP-Web context, think of a visual tool as a wrapper around a component
+of your frontend app that you already have. To expose this component via an MCP
+tool we just need to define its interface and bundle it as a single
+self-contained HTML file.
 
 ::: note Complete Example: Todo Demo
 For a complete example, see the [todo Demo](/demos/todo), which includes a full
-MCP Apps implementation for a statistics dashboard.
+visual tool implementation for a statistics dashboard.
 :::
 
 ### 1. Create Your Component
@@ -87,9 +90,9 @@ fairly self-contained. The bigger it's state/props dependencies the more
 involved it is to exposed it as a standalone app.
 :::
 
-### 2. Create an MCP App
+### 2. Create a Visual Tool
 
-Define an MCP app by wrapping your component with `createApp()`:
+Define a visual tool by wrapping your component with `createApp()`:
 
 ```typescript
 // src/mcp-apps.ts
@@ -118,16 +121,16 @@ export const statsApp = createApp({
 });
 ```
 
-::: note MCP App = Tool + Resource
-Internally, `createApp()` create a tool and an accompanying resource. AI will
+::: note Visual Tool = Tool + Resource
+Internally, `createApp()` creates a tool and an accompanying resource. AI will
 call the tool as usual and then see it comes with a UI. AI will then request
 the UI resource and render it.
 :::
 
-### 3. Expose the MCP App
+### 3. Expose the Visual Tool
 
-Next, you need to register the app with MCP-Web. In React, use the `useMCPApps`
-hook:
+Next, you need to register the visual tool with MCP-Web. In React, use the
+`useMCPApps` hook:
 
 ```tsx
 // App.tsx
@@ -148,10 +151,10 @@ import { statsApp } from './mcp-apps';
 mcp.addApp(statsApp);
 ```
 
-### 4. Bundle the MCP App
+### 4. Bundle the Visual Tool
 
-Finally, you must create a single-file self-contained HTML file for your app
-component with all JS/CSS inlined.  To streamline the process MCP-Web offers a
+Finally, you must create a single-file self-contained HTML file for your
+component with all JS/CSS inlined. To streamline the process MCP-Web offers a
 predefined config for [Vite](https://vite.dev/): `defineMCPAppsConfig()`
 
 ```typescript
@@ -165,11 +168,11 @@ export default defineMCPAppsConfig({
 ```
 
 The `defineMCPAppsConfig` function creates a complete Vite configuration that:
-- Auto-discovers app definitions in `src/mcp-apps.ts` or `src/mcp/apps.ts`
+- Auto-discovers visual tool definitions in `src/mcp-apps.ts` or `src/mcp/apps.ts`
 - Generates entry files for each `createApp()` call
 - Bundles each as a self-contained HTML file
 - Inlines all JavaScript, CSS, and assets
-- Includes the MCP App runtime for receiving props
+- Includes the runtime for receiving props
 
 Add build scripts to your `package.json`:
 
@@ -201,7 +204,7 @@ in the chat.
 
 ## How It Works
 
-When AI calls an MCP App tool:
+When AI calls a visual tool:
 
 1. **Tool execution**: Your handler runs and returns props
 2. **Response with UI metadata**: The tool response includes `_meta.ui.resourceUri`
@@ -283,7 +286,7 @@ by AI. Use it to catch bugs early, not to communicate with AI.
 
 ### Design for Iframe Constraints
 
-MCP Apps render in iframes with limited space. Design accordingly:
+Visual tools render in iframes with limited space. Design accordingly:
 
 - Use relative units and responsive layouts
 - Avoid fixed widths that might overflow
@@ -292,7 +295,7 @@ MCP Apps render in iframes with limited space. Design accordingly:
 
 ### Include Styles Inline
 
-Since apps are self-contained HTML files, styles must be bundled. Use:
+Since visual tools are self-contained HTML files, styles must be bundled. Use:
 
 - CSS-in-JS (inline styles, styled-components, emotion)
 - CSS modules (bundled by Vite)
@@ -314,15 +317,15 @@ This rebuilds automatically when you edit your components or app definitions.
 
 ### Preview Without AI
 
-You can test your app component directly by opening the built HTML file in a
-browser and simulating props:
+You can test your visual tool component directly by opening the built HTML file
+in a browser and simulating props:
 
 ```javascript
 // In browser console
 window.postMessage({ props: { total: 10, completed: 7, completionRate: 0.7 } }, '*');
 ```
 
-### Multiple Apps
+### Multiple Visual Tools
 
 Each `createApp()` call in your config file becomes a separate HTML file. The
 file name is derived from the `name` field (converted to kebab-case):

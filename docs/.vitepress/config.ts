@@ -53,7 +53,7 @@ export default defineConfig({
           items: [
             { text: 'Get Started', link: '/get-started' },
             { text: 'Frontend Queries', link: '/frontend-triggered-queries' },
-            { text: 'Interactive Apps', link: '/interactive-apps' },
+            { text: 'Visual Tools', link: '/visual-tools' },
             { text: 'Structuring Your App', link: '/structuring-your-app' },
             { text: 'Integrations', link: '/integrations' },
             { text: 'Expanded State Tools', link: '/expanded-state-tools' },
