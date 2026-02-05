@@ -1,16 +1,7 @@
 {
   "name": "mcp-web-higlass",
   "tasks": {
-    "start": "deno run --allow-net --allow-env --allow-read main.ts",
-    "dev": "deno run --watch --allow-net --allow-env --allow-read main.ts"
-  },
-  "imports": {
-    "@mcp-web/types": "../../../packages/types/dist/index.js",
-    "@mcp-web/bridge": "../../../packages/bridge/dist/index.js"
-  },
-  "deploy": {
-    "runtime": {
-      "entrypoint": "main.ts"
-    }
+    "start": "deno run --allow-net --allow-env --allow-read server.bundle.js",
+    "dev": "deno run --watch --allow-net --allow-env --allow-read server.bundle.js"
   }
 }

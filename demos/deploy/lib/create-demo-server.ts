@@ -84,7 +84,8 @@ function wrapRequest(req: Request) {
 }
 
 export function createDemoServer(config: DemoServerConfig) {
-  const port = config.port ?? Number(Deno.env.get('PORT')) ?? 8000;
+  const envPort = Deno.env.get('PORT');
+  const port = config.port ?? (envPort ? Number(envPort) : 8000);
   const hostname = '0.0.0.0';
 
   // Create the bridge core with timer-based scheduler

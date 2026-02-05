@@ -24,16 +24,20 @@ demos/deploy/
 ├── lib/
 │   └── create-demo-server.ts    # Shared server template
 ├── higlass/
-│   ├── main.ts                  # Entry point
+│   ├── main.ts                  # Entry point (source)
+│   ├── server.bundle.js         # Bundled server (gitignored)
 │   ├── deno.json                # Deno config
 │   └── static/                  # Built frontend (gitignored)
 ├── todo/
 │   ├── main.ts
+│   ├── server.bundle.js
 │   ├── deno.json
 │   └── static/
 ├── checkers/
-│   ├── main.ts                  # Bridge entry point
-│   ├── serve-agent.ts           # AI agent entry point (imports from demos/checkers/agent.ts)
+│   ├── main.ts                  # Bridge entry point (source)
+│   ├── serve-agent.ts           # AI agent entry point (source)
+│   ├── server.bundle.js         # Bundled bridge (gitignored)
+│   ├── agent.bundle.js          # Bundled agent (gitignored)
 │   ├── deno.json
 │   └── static/
 └── README.md                    # This file
@@ -42,6 +46,46 @@ demos/deploy/
 **Note:** The checkers agent logic lives in `demos/checkers/agent.ts` and is shared
 between local development (Node.js) and deployment (Deno). The `serve-agent.ts` files
 in each environment are thin wrappers that handle runtime-specific concerns.
+
+## Pre-Bundling for Deno Deploy Classic
+
+Deno Deploy Classic doesn't bundle code at deployment time—it runs imports directly.
+Since our `@mcp-web/*` packages aren't published to npm, we pre-bundle the server
+code with esbuild before deploying.
+
+### How It Works
+
+1. **Source files** (`main.ts`, `serve-agent.ts`) import from `@mcp-web/bridge`, etc.
+2. **Bundle script** (`scripts/bundle-servers.ts`) uses esbuild to create self-contained bundles
+3. **Bundle outputs** (`server.bundle.js`, `agent.bundle.js`) have all dependencies inlined
+4. **Deno Deploy** runs the bundles directly with no runtime import resolution needed
+
+### Building Bundles Locally
+
+```bash
+# From repo root
+pnpm install
+pnpm build           # Build all packages first
+pnpm bundle:servers  # Create .bundle.js files
+```
+
+This creates:
+- `demos/deploy/higlass/server.bundle.js`
+- `demos/deploy/todo/server.bundle.js`
+- `demos/deploy/checkers/server.bundle.js`
+- `demos/deploy/checkers/agent.bundle.js`
+
+### Testing Bundles with Deno
+
+```bash
+# Test a bundled server locally
+cd demos/deploy/todo
+deno task start   # Runs server.bundle.js
+
+cd demos/deploy/checkers
+deno task start   # Runs server.bundle.js
+deno task agent   # Runs agent.bundle.js
+```
 
 ## Local Development
 
@@ -61,10 +105,8 @@ pnpm bridge       # Starts bridge server (separate terminal)
 ```
 
 > **Why not use `demos/deploy/` locally?**
-> The deploy configurations import `@mcp-web/bridge` from npm, but these packages
-> aren't published yet. The GitHub Actions workflow builds the packages first,
-> then deploys via `deployctl` which bundles everything. Running `deno task dev`
-> locally would fail because the npm packages don't exist.
+> The deploy configurations use bundled files that need to be built first.
+> For active development, the main demo directories with hot-reload are easier.
 
 ## Deployment to Deno Deploy Classic
 
@@ -139,9 +181,12 @@ Actions → Deploy Demos → Run workflow → Select demo (higlass/todo/checkers
 The GitHub Actions workflow:
 1. Installs dependencies (`pnpm install`)
 2. Builds all packages (`pnpm build`)
-3. Builds each demo frontend with production config
-4. Copies built frontend to `demos/deploy/<demo>/static/`
-5. Deploys to Deno Deploy Classic via `deployctl`
+3. Builds each demo frontend (`pnpm build` in demo directory)
+4. Bundles servers with esbuild (`pnpm bundle:servers`)
+5. Uploads artifacts (frontend dist + server bundles)
+6. Deploy jobs download artifacts and deploy via `deployctl`
+
+The bundled `.js` files are self-contained—no npm imports to resolve at runtime.
 
 ## Monitoring
 
@@ -192,6 +237,7 @@ Check browser console for WebSocket connection errors:
 1. Ensure all packages are built first: `pnpm build`
 2. Check for TypeScript errors: `pnpm typecheck`
 3. Verify demo builds locally: `cd demos/<demo> && pnpm build`
+4. Verify bundles build: `pnpm bundle:servers`
 
 ### Deployment failures
 
@@ -199,6 +245,18 @@ Check browser console for WebSocket connection errors:
 2. Verify Deno Deploy project names match workflow
 3. Ensure GitHub repository is linked in Deno Deploy
 4. Check deployment permissions (id-token: write)
+
+### Bundle issues
+
+If bundles fail to build:
+1. Check that all packages are built: `pnpm build`
+2. Look for import errors in `scripts/bundle-servers.ts`
+3. Run `pnpm bundle:servers` locally to see detailed errors
+
+If bundles fail at runtime on Deno:
+1. Check for Node.js-specific APIs that aren't available in Deno
+2. Verify the bundle includes all necessary dependencies
+3. Test locally with `deno run --allow-all demos/deploy/<demo>/server.bundle.js`
 
 ## Rollback
 

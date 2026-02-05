@@ -1,26 +1,9 @@
 {
   "name": "mcp-web-checkers",
   "tasks": {
-    "start": "deno run --allow-net --allow-env --allow-read main.ts",
-    "dev": "deno run --watch --allow-net --allow-env --allow-read main.ts",
-    "start:agent": "deno run --allow-net --allow-env --allow-read serve-agent.ts",
-    "dev:agent": "deno run --watch --allow-net --allow-env --allow-read serve-agent.ts"
-  },
-  "imports": {
-    "@mcp-web/types": "../../../packages/types/dist/index.js",
-    "@mcp-web/bridge": "../../../packages/bridge/dist/index.js",
-    "@mcp-web/client": "../../../packages/client/dist/index.js",
-    "@ai-sdk/anthropic": "npm:@ai-sdk/anthropic@^2.0.0",
-    "@ai-sdk/cerebras": "npm:@ai-sdk/cerebras@^1.0.0",
-    "@ai-sdk/google": "npm:@ai-sdk/google@^2.0.0",
-    "@ai-sdk/openai": "npm:@ai-sdk/openai@^2.0.0",
-    "ai": "npm:ai@^5.0.0",
-    "hono": "npm:hono@^4.10.0",
-    "hono/cors": "npm:hono@^4.10.0/cors"
-  },
-  "deploy": {
-    "runtime": {
-      "entrypoint": "main.ts"
-    }
+    "start": "deno run --allow-net --allow-env --allow-read server.bundle.js",
+    "dev": "deno run --watch --allow-net --allow-env --allow-read server.bundle.js",
+    "start:agent": "deno run --allow-net --allow-env --allow-read agent.bundle.js",
+    "dev:agent": "deno run --watch --allow-net --allow-env --allow-read agent.bundle.js"
   }
 }

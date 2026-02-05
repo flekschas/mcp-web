@@ -44,6 +44,9 @@ jobs:
           cd demos/${{ matrix.demo }}
           pnpm build
 
+      - name: Bundle servers
+        run: pnpm bundle:servers
+
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v4
         with:
@@ -51,14 +54,11 @@ jobs:
           path: demos/${{ matrix.demo }}/dist
           retention-days: 1
 
-      - name: Upload packages artifact
+      - name: Upload server bundle artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.demo }}-packages
-          path: |
-            packages/bridge/dist
-            packages/types/dist
-            packages/client/dist
+          name: ${{ matrix.demo }}-bundles
+          path: demos/deploy/${{ matrix.demo }}/*.bundle.js
           retention-days: 1
 
   deploy-higlass:
@@ -81,11 +81,11 @@ jobs:
           name: higlass-dist
           path: demos/deploy/higlass/static
 
-      - name: Download packages artifact
+      - name: Download server bundle
         uses: actions/download-artifact@v4
         with:
-          name: higlass-packages
-          path: packages
+          name: higlass-bundles
+          path: demos/deploy/higlass
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
@@ -96,13 +96,11 @@ jobs:
         uses: denoland/deployctl@v1
         with:
           project: mcp-web-higlass
-          entrypoint: demos/deploy/higlass/main.ts
+          entrypoint: demos/deploy/higlass/server.bundle.js
           root: .
           include: |
-            demos/deploy/higlass
-            demos/deploy/lib
-            packages/bridge/dist
-            packages/types/dist
+            demos/deploy/higlass/server.bundle.js
+            demos/deploy/higlass/static
 
   deploy-todo:
     needs: build
@@ -124,11 +122,11 @@ jobs:
           name: todo-dist
           path: demos/deploy/todo/static
 
-      - name: Download packages artifact
+      - name: Download server bundle
         uses: actions/download-artifact@v4
         with:
-          name: todo-packages
-          path: packages
+          name: todo-bundles
+          path: demos/deploy/todo
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
@@ -139,13 +137,11 @@ jobs:
         uses: denoland/deployctl@v1
         with:
           project: mcp-web-todo
-          entrypoint: demos/deploy/todo/main.ts
+          entrypoint: demos/deploy/todo/server.bundle.js
           root: .
           include: |
-            demos/deploy/todo
-            demos/deploy/lib
-            packages/bridge/dist
-            packages/types/dist
+            demos/deploy/todo/server.bundle.js
+            demos/deploy/todo/static
 
   deploy-checkers:
     needs: build
@@ -167,11 +163,11 @@ jobs:
           name: checkers-dist
           path: demos/deploy/checkers/static
 
-      - name: Download packages artifact
+      - name: Download server bundle
         uses: actions/download-artifact@v4
         with:
-          name: checkers-packages
-          path: packages
+          name: checkers-bundles
+          path: demos/deploy/checkers
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
@@ -182,13 +178,11 @@ jobs:
         uses: denoland/deployctl@v1
         with:
           project: mcp-web-checkers
-          entrypoint: demos/deploy/checkers/main.ts
+          entrypoint: demos/deploy/checkers/server.bundle.js
           root: .
           include: |
-            demos/deploy/checkers
-            demos/deploy/lib
-            packages/bridge/dist
-            packages/types/dist
+            demos/deploy/checkers/server.bundle.js
+            demos/deploy/checkers/static
 
   deploy-checkers-agent:
     needs: build
@@ -205,11 +199,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Download packages artifact
+      - name: Download server bundle
         uses: actions/download-artifact@v4
         with:
-          name: checkers-packages
-          path: packages
+          name: checkers-bundles
+          path: demos/deploy/checkers
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
@@ -220,12 +214,7 @@ jobs:
         uses: denoland/deployctl@v1
         with:
           project: mcp-web-checkers-agent
-          entrypoint: demos/deploy/checkers/serve-agent.ts
+          entrypoint: demos/deploy/checkers/agent.bundle.js
           root: .
           include: |
-            demos/deploy/checkers
-            demos/deploy/lib
-            demos/checkers/agent.ts
-            packages/bridge/dist
-            packages/types/dist
-            packages/client/dist
+            demos/deploy/checkers/agent.bundle.js

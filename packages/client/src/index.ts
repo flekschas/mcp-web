@@ -8,8 +8,16 @@ export type { Query } from '@mcp-web/types';
 export { MCPWebClient } from './client.js';
 export type * from './types.js';
 
-// Only run as CLI if this is the main module
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Only run as CLI if this is the main module in Node.js
+// Guard against running in Deno or when bundled
+// @ts-expect-error - Deno global exists in Deno runtime
+const isDeno = typeof Deno !== 'undefined';
+const isNodeCLI = !isDeno &&
+  typeof process !== 'undefined' &&
+  process.argv &&
+  import.meta.url === `file://${process.argv[1]}`;
+
+if (isNodeCLI) {
   // Handle graceful shutdown
   process.on('SIGINT', () => {
     console.error('Shutting down MCP Bridge Client...');
