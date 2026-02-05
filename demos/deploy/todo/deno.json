@@ -7,5 +7,10 @@
   "imports": {
     "@mcp-web/types": "npm:@mcp-web/types@^0.1.0",
     "@mcp-web/bridge": "npm:@mcp-web/bridge@^0.1.0"
+  },
+  "deploy": {
+    "runtime": {
+      "entrypoint": "main.ts"
+    }
   }
 }

@@ -17,5 +17,10 @@
     "ai": "npm:ai@^5.0.0",
     "hono": "npm:hono@^4.10.0",
     "hono/cors": "npm:hono@^4.10.0/cors"
+  },
+  "deploy": {
+    "runtime": {
+      "entrypoint": "main.ts"
+    }
   }
 }
