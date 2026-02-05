@@ -3,10 +3,15 @@
  * Build script for MCP-Web demos
  *
  * This script builds all demos and copies the output to the deploy directories.
+ * It's primarily used by GitHub Actions for deployment to Deno Deploy Classic.
  *
  * Usage:
  *   pnpm build:demos        # Build all demos for deployment
  *   tsx scripts/build-demos.ts
+ *
+ * Note: For local development, use the demos/<demo> directories directly:
+ *   cd demos/todo && pnpm dev
+ *   cd demos/checkers && pnpm dev
  */
 
 import { execSync } from 'node:child_process';
@@ -54,7 +59,7 @@ function run(command: string, cwd?: string): void {
 }
 
 async function main() {
-  console.log('Building MCP-Web demos for production...');
+  console.log('Building MCP-Web demos for deployment...');
   console.log(`Root directory: ${ROOT_DIR}\n`);
 
   // Ensure deploy directories exist
@@ -105,9 +110,8 @@ async function main() {
   }
 
   console.log('');
-  console.log('Next steps:');
-  console.log('  1. Test locally: cd demos/deploy/<demo> && deno task dev');
-  console.log('  2. Deploy to Deno Deploy via GitHub Actions');
+  console.log('These builds are used by GitHub Actions for deployment.');
+  console.log('See .github/workflows/deploy-demos.yml for the deployment workflow.');
 }
 
 main().catch((error) => {

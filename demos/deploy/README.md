@@ -1,7 +1,10 @@
 # MCP-Web Demos Deployment
 
 This directory contains deployment configurations for deploying the MCP-Web
-demos (HiGlass, Todo, Checkers) to Deno Deploy.
+demos (HiGlass, Todo, Checkers) to Deno Deploy Classic.
+
+> **Note:** This directory is used by GitHub Actions for deployment only.
+> For local development, use the `demos/<demo>` directories with Node.js/pnpm.
 
 ## Architecture
 
@@ -42,49 +45,34 @@ in each environment are thin wrappers that handle runtime-specific concerns.
 
 ## Local Development
 
-### Prerequisites
+For local development, use the Node.js setup in the main demo directories:
 
-- [Deno](https://deno.land/) 2.x or later
-- pnpm (for building frontends)
+```bash
+# Install dependencies (from repo root)
+pnpm install
 
-### Testing Locally
+# Run a demo locally
+cd demos/todo
+pnpm dev          # Starts frontend dev server
 
-1. **Build all demos:**
-   ```bash
-   ./scripts/build-demos.sh
-   ```
+cd demos/checkers
+pnpm dev          # Starts frontend dev server
+pnpm bridge       # Starts bridge server (separate terminal)
+```
 
-2. **Run a demo locally:**
-   ```bash
-   # HiGlass
-   cd demos/deploy/higlass
-   deno task dev
+> **Why not use `demos/deploy/` locally?**
+> The deploy configurations import `@mcp-web/bridge` from npm, but these packages
+> aren't published yet. The GitHub Actions workflow builds the packages first,
+> then deploys via `deployctl` which bundles everything. Running `deno task dev`
+> locally would fail because the npm packages don't exist.
 
-   # Todo
-   cd demos/deploy/todo
-   deno task dev
-
-   # Checkers (bridge)
-   cd demos/deploy/checkers
-   deno task dev
-   
-   # Checkers (agent - in separate terminal)
-   cd demos/deploy/checkers
-   ANTHROPIC_API_KEY=sk-xxx deno task dev:agent
-   ```
-
-3. **Open in browser:**
-   - Frontend: `http://localhost:8000`
-   - Health check: `http://localhost:8000/health`
-   - MCP config: `http://localhost:8000/config`
-
-## Deployment to Deno Deploy
+## Deployment to Deno Deploy Classic
 
 ### One-Time Setup
 
-1. **Create Deno Deploy projects:**
+1. **Create Deno Deploy Classic projects:**
    - Go to [dash.deno.com](https://dash.deno.com)
-   - Create 4 projects:
+   - Create 4 projects (click "Just link the repo, I'll set up GitHub Actions myself"):
      - `mcp-web-higlass`
      - `mcp-web-todo`
      - `mcp-web-checkers`
@@ -93,7 +81,7 @@ in each environment are thin wrappers that handle runtime-specific concerns.
 2. **Link GitHub repository:**
    - In each project, go to Settings → GitHub
    - Connect your repository
-   - Set up automatic deployments
+   - Select "GitHub Actions" as the deployment method
 
 3. **Configure custom domains:**
    - In each project, go to Settings → Domains
@@ -105,10 +93,10 @@ in each environment are thin wrappers that handle runtime-specific concerns.
 
 4. **Configure DNS (at your DNS provider):**
    ```
-   CNAME higlass.demos        <deno-deploy-domain>
-   CNAME todo.demos           <deno-deploy-domain>
-   CNAME checkers.demos       <deno-deploy-domain>
-   CNAME checkers-agent.demos <deno-deploy-domain>
+   CNAME higlass.demos        mcp-web-higlass.deno.dev
+   CNAME todo.demos           mcp-web-todo.deno.dev
+   CNAME checkers.demos       mcp-web-checkers.deno.dev
+   CNAME checkers-agent.demos mcp-web-checkers-agent.deno.dev
    ```
 
 5. **Set environment variables (Checkers Agent only):**
@@ -149,11 +137,11 @@ Actions → Deploy Demos → Run workflow → Select demo (higlass/todo/checkers
 ### Build Process
 
 The GitHub Actions workflow:
-1. Installs dependencies
-2. Builds all packages
+1. Installs dependencies (`pnpm install`)
+2. Builds all packages (`pnpm build`)
 3. Builds each demo frontend with production config
-4. Uploads build artifacts
-5. Deploys to Deno Deploy
+4. Copies built frontend to `demos/deploy/<demo>/static/`
+5. Deploys to Deno Deploy Classic via `deployctl`
 
 ## Monitoring
 
