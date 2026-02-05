@@ -80,8 +80,8 @@ jobs:
         uses: denoland/deployctl@v1
         with:
           project: mcp-web-higlass
-          entrypoint: main.ts
-          root: demos/deploy/higlass
+          entrypoint: higlass/main.ts
+          root: demos/deploy
 
   deploy-todo:
     needs: build
@@ -112,8 +112,8 @@ jobs:
         uses: denoland/deployctl@v1
         with:
           project: mcp-web-todo
-          entrypoint: main.ts
-          root: demos/deploy/todo
+          entrypoint: todo/main.ts
+          root: demos/deploy
 
   deploy-checkers:
     needs: build
@@ -144,8 +144,8 @@ jobs:
         uses: denoland/deployctl@v1
         with:
           project: mcp-web-checkers
-          entrypoint: main.ts
-          root: demos/deploy/checkers
+          entrypoint: checkers/main.ts
+          root: demos/deploy
 
   deploy-checkers-agent:
     needs: build
@@ -171,5 +171,5 @@ jobs:
         uses: denoland/deployctl@v1
         with:
           project: mcp-web-checkers-agent
-          entrypoint: serve-agent.ts
-          root: demos/deploy/checkers
+          entrypoint: checkers/serve-agent.ts
+          root: demos/deploy
