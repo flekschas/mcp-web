@@ -10,6 +10,12 @@ MCPWebBridge manages WebSocket connections from frontends, routes tool calls,
 handles queries, and exposes an HTTP API for MCP clients. It is runtime-agnostic
 and delegates I/O operations to adapters.
 
+**Properties:**
+
+```ts
+MCP_SESSION_IDLE_TIMEOUT_MS: any
+```
+
 **Accessors:**
 
 ```ts

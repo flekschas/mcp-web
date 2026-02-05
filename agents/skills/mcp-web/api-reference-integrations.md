@@ -103,6 +103,9 @@ Internal hook for managing MCPWeb connection lifecycle.
 Connects on mount and disconnects on unmount.
 Returns reactive connection state for triggering re-renders.
 
+Handles React StrictMode's double-mount behavior by using a ref to track
+whether we should actually disconnect on cleanup.
+
 ```ts
 useConnectedMCPWeb(mcpInstance: MCPWeb): MCPWebContextValue
 ```

@@ -1,16 +1,5 @@
 # MCP-Web Client API
 
-::: tip When to Use This Package
-The `@mcp-web/client` package is **optional** for most use cases. AI apps like
-Claude Desktop can connect directly to the bridge server using
-[Remote MCP](../get-started.md#_6-connecting-ai-app-to-mcp-server) (recommended).
-
-This package is primarily useful when:
-- Building custom agent servers that handle [frontend-triggered queries](../frontend-triggered-queries.md)
-- You need programmatic access to MCP tools from Node.js code
-- Your AI host app only supports stdio transport
-:::
-
 ### MCPWebClient
 
 *Class* — `packages/client/src/client.ts`

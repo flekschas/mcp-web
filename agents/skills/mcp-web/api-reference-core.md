@@ -115,11 +115,24 @@ Returns the validated and processed configuration with all defaults applied.
 get mcpConfig(): any
 ```
 
-Configuration object for the AI host app (e.g., Claude Desktop).
+Configuration object for the AI host app (e.g., Claude Desktop) using stdio transport.
 
 Use this to configure the MCP client in your AI host application.
 It contains the connection details and authentication credentials needed
-for the AI agent to connect to the bridge server.
+for the AI agent to connect to the bridge server via the `@mcp-web/client` stdio wrapper.
+
+For a simpler configuration, consider using `remoteMcpConfig` instead, which
+uses Remote MCP (Streamable HTTP) and doesn't require an intermediate process.
+
+```ts
+get remoteMcpConfig(): any
+```
+
+Configuration object for the AI host app (e.g., Claude Desktop) using Remote MCP.
+
+This is the recommended configuration method. It uses Remote MCP (Streamable HTTP)
+to connect directly to the bridge server via URL, without needing an intermediate
+stdio process like `@mcp-web/client`.
 
 ```ts
 get connected(): boolean
