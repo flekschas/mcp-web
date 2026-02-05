@@ -50,13 +50,14 @@
   /* Background */
   --vp-c-bg: oklch(0.9699 0.0013 106.42);
   --vp-c-bg-soft: oklch(0.95 0.0013 106.42);
-  --vp-c-bg-alt: oklch(0.94 0.0013 106.42);
+  --vp-c-bg-alt: oklch(0.90 0.0013 106.42);
 
   /* Text */
   --vp-c-text-1: oklch(0.3056 0.0654 288.09);
   --vp-c-text-2: oklch(0.45 0.0654 288.09 / 0.75);
   --vp-c-text-3: oklch(0.55 0.0654 288.09 / 0.6);
   --vp-c-text-4: oklch(0.9699 0.0013 106.42 / 0.4);
+  --vp-c-text-0: oklch(0.9699 0.0013 106.42 / 0);
 
   /* Brand colors */
   --vp-c-brand-1: oklch(0.64 0.22 340);
@@ -95,17 +96,25 @@
   --vp-c-danger-soft: var(--vp-c-red-soft);
 
   /* Sidebar */
-  --vp-sidebar-bg-color: var(--vp-c-bg);
+  --vp-sidebar-bg-color: transparent;
 
   /* Input */
   --vp-input-border-color: oklch(0.85 0.0013 106.42);
   --vp-input-switch-bg-color: var(--vp-c-bg);
 
   /** Code **/
+  --vp-code-block-bg: var(--vp-c-bg-alt);
   --vp-code-line-highlight-color: oklch(0.9 0.0013 106.42);
 
   --vp-button-brand-bg: var(--vp-c-brand-1);
   --vp-button-alt-hover-bg: oklch(0.84 0.0013 106.42);
+
+  /* Gutter */
+  --vp-c-gutter: var(--vp-c-bg-alt);
+  --vp-c-divider: var(--vp-c-bg-alt);
+
+  /** Other **/
+  --vp-backdrop-bg-color: oklch(0.2 0.0013 106.42 / 0.33);
 }
 
 /**
@@ -122,6 +131,7 @@
   --vp-c-text-2: oklch(0.9699 0.0013 106.42 / 0.75);
   --vp-c-text-3: oklch(0.9699 0.0013 106.42 / 0.6);
   --vp-c-text-4: oklch(0.9699 0.0013 106.42 / 0.4);
+  --vp-c-text-0: oklch(0.9699 0.0013 106.42 / 0);
 
   /* Brand colors */
   --vp-c-brand-1: oklch(0.7583 0.2 340);
@@ -161,8 +171,6 @@
 
   /* Gutter */
   --vp-c-gutter: var(--vp-c-bg-alt);
-
-  /* Other */
   --vp-c-divider: var(--vp-c-bg-alt);
 
   /* Input */
@@ -171,7 +179,9 @@
   /** Code **/
   --vp-code-line-highlight-color: oklch(0.42 0.0654 288.09);
 
+  /** Other **/
   --vp-button-alt-hover-bg: oklch(0.45 0.0654 288.09);
+  --vp-backdrop-bg-color: oklch(0.1056 0.0654 288.09 / 0.66)
 }
 
 /**
@@ -256,6 +266,14 @@
   .VPNavBar.VPNavBar.has-sidebar .divider {
     padding-left: 0;
   }
+  .VPLocalNav.VPLocalNav.has-sidebar {
+    margin-left: var(--vp-sidebar-width);
+    padding-left: 0;
+  }
+}
+
+.VPSwitch.VPSwitchAppearance .check .icon {
+  background-color: transparent;
 }
 
 .VPSwitch.VPSwitchAppearance .check {
@@ -316,20 +334,24 @@
 .VPFooter.VPFooter a {
   opacity: 0.33;
   color: var(--vp-c-text-1);
-  text-decoration-color: oklch(0.9699 0.0013 106.42 / 0);
+  text-decoration-color: var(--vp-c-text-0);
   text-underline-offset: 4px;
   text-decoration-thickness: 1px;
   transition: all 0.25s ease-in-out;
-}
-
-.dark .VPFooter.VPFooter a {
-  text-decoration-color: oklch(0.9699 0.0013 106.42 / 0);
 }
 
 .VPFooter.VPFooter a:hover {
   opacity: 1;
   text-decoration-color: var(--vp-c-text-4);
   text-underline-offset: 2px;
+}
+
+.VPFlyout.VPFlyout:hover .text {
+  color: var(--vp-c-brand-1);
+}
+
+.VPBackdrop.VPBackdrop {
+  backdrop-filter: blur(4px);
 }
 
 /**
@@ -357,6 +379,34 @@
   --vp-c-divider: transparent;
   --vp-c-gutter: transparent;
 }
+
+:root.is-home .VPFlyout:hover .text {
+  color: var(--vp-c-text-1);
+}
+
+:root.is-home .VPSwitch {
+  border: 1px solid var(--vp-c-text-1);
+  background-color: var(--vp-input-switch-bg-color);
+}
+
+:root.is-home .VPSwitch.VPSwitchAppearance .check {
+  background-color: var(--vp-c-text-1);
+  box-shadow: 0 0 0 1px var(--vp-c-text-1);
+}
+
+:root.is-home .VPSwitch:hover.VPSwitchAppearance .check {
+  box-shadow: 0 0 0 1px var(--vp-c-text-1);
+  background-color: var(--vp-c-text-1);
+}
+
+:root.is-home .VPSwitch.VPSwitchAppearance .sun,
+:root.is-home .VPSwitch.VPSwitchAppearance .moon {
+  color: var(--vp-c-bg-soft);
+}
+
+/**
+ * Global Styles
+ * -------------------------------------------------------------------------- */
 
 #footer-heart-mount {
   display: inline-block;
