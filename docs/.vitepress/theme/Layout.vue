@@ -20,6 +20,62 @@ const svgWidth = ref(600);
 const svgHeight = ref(120);
 const fontSize = ref(72);
 
+// Ref to NoiseBackground for canvas copying
+const noiseRef = ref(null);
+
+// Overlay canvases for header and sidebar
+let headerCanvas = null;
+let subHeaderCanvas = null;
+let sidebarCanvas = null;
+let headerCtx = null;
+let subHeaderCtx = null;
+let sidebarCtx = null;
+let dpr = 1;
+
+// Copy noise background to overlay canvases (called on each render frame)
+const copyToOverlays = () => {
+  const source = noiseRef.value?.canvas;
+  if (!source) return;
+
+  // Copy to header canvas
+  if (headerCanvas && headerCtx) {
+    const h = headerCanvas.height;
+    const w = headerCanvas.width;
+    // Copy from top of source canvas
+    headerCtx.drawImage(
+      source,
+      0, 0, source.width, h,  // source: top portion
+      0, 0, w, h              // dest: full header canvas
+    );
+  }
+
+  // Copy to sub-header canvas
+  if (subHeaderCanvas && subHeaderCtx) {
+    const h = subHeaderCanvas.height;
+    const w = subHeaderCanvas.width;
+    // Copy from top of source canvas
+    subHeaderCtx.drawImage(
+      source,
+      0, 0, source.width, h,  // source: top portion
+      0, 0, w, h              // dest: full header canvas
+    );
+  }
+
+  // Copy to sidebar canvas (if it exists and sidebar is visible)
+  if (sidebarCanvas && sidebarCtx) {
+    const rect = sidebarCanvas.getBoundingClientRect();
+    const h = sidebarCanvas.height;
+    const w = sidebarCanvas.width;
+    // Source Y is based on sidebar's position relative to viewport
+    const sourceY = rect.top * dpr;
+    sidebarCtx.drawImage(
+      source,
+      0, Math.max(0, sourceY), w, h,  // source: sidebar region
+      0, 0, w, h                      // dest: full sidebar canvas
+    );
+  }
+};
+
 // Color theme
 const isDarkMode = ref(false);
 const checkDarkMode = () => {
@@ -47,31 +103,87 @@ onMounted(() => {
   updateSize();
   window.addEventListener('resize', updateSize);
 
-  // Clip content as it scrolls under the transparent header
-  const vpContent = document.getElementById('VPContent');
-  let headerHeight = parseInt(
-    getComputedStyle(document.documentElement).getPropertyValue('--vp-nav-height') || '64'
-  );
+  // Set up overlay canvases for header and sidebar noise backgrounds
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-  if (vpContent) {
-    vpContent.style.willChange = 'clip-path';
+  // Create and insert header overlay canvas
+  const vpNav = document.querySelector('.VPNav');
+  if (vpNav) {
+    headerCanvas = document.createElement('canvas');
+    headerCanvas.className = 'noise-overlay';
+    headerCanvas.style.cssText = `
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      width: 100%;
+      height: 100%;
+    `;
+    vpNav.insertBefore(headerCanvas, vpNav.firstChild);
+    headerCtx = headerCanvas.getContext('2d');
   }
 
-  const updateClip = () => {
-    if (!vpContent) return;
-    vpContent.style.clipPath = `inset(${window.scrollY + headerHeight}px 0 0 0)`;
+  // Create and insert sub-header overlay canvas
+
+  // Create and insert sub-header overlay canvas
+  const vpSubHeader = document.querySelector('.VPLocalNav');
+  if (vpSubHeader) {
+    subHeaderCanvas = document.createElement('canvas');
+    subHeaderCanvas.className = 'noise-overlay';
+    subHeaderCanvas.style.cssText = `
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      width: 100%;
+      height: 100%;
+    `;
+    vpSubHeader.insertBefore(subHeaderCanvas, vpSubHeader.firstChild);
+    subHeaderCtx = subHeaderCanvas.getContext('2d');
+  }
+
+  // Create and insert sidebar overlay canvas
+  const vpSidebar = document.querySelector('.VPSidebar');
+  if (vpSidebar) {
+    sidebarCanvas = document.createElement('canvas');
+    sidebarCanvas.className = 'noise-overlay';
+    sidebarCanvas.style.cssText = `
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      width: 100%;
+      height: 100%;
+    `;
+    vpSidebar.insertBefore(sidebarCanvas, vpSidebar.firstChild);
+    sidebarCtx = sidebarCanvas.getContext('2d');
+  }
+
+  // Update overlay canvas sizes
+  const updateOverlaySizes = () => {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    if (headerCanvas && vpNav) {
+      const rect = vpNav.getBoundingClientRect();
+      headerCanvas.width = rect.width * dpr;
+      headerCanvas.height = rect.height * dpr;
+    }
+
+    if (subHeaderCanvas && vpSubHeader) {
+      const rect = vpSubHeader.getBoundingClientRect();
+      subHeaderCanvas.width = rect.width * dpr;
+      subHeaderCanvas.height = rect.height * dpr;
+    }
+
+    if (sidebarCanvas && vpSidebar) {
+      const rect = vpSidebar.getBoundingClientRect();
+      sidebarCanvas.width = rect.width * dpr;
+      sidebarCanvas.height = rect.height * dpr;
+    }
   };
 
-  // Recache header height on resize (it can change on mobile)
-  const onResize = () => {
-    headerHeight = parseInt(
-      getComputedStyle(document.documentElement).getPropertyValue('--vp-nav-height') || '64'
-    );
-  };
-
-  window.addEventListener('scroll', updateClip, { passive: true });
-  window.addEventListener('resize', onResize);
-  updateClip();
+  updateOverlaySizes();
+  window.addEventListener('resize', updateOverlaySizes);
 
   const classObserver = new window.MutationObserver((mutations) => {
     mutations.forEach((mu) => {
@@ -99,9 +211,12 @@ onMounted(() => {
 
   return () => {
     window.removeEventListener('resize', updateSize);
-    window.removeEventListener('resize', onResize);
-    window.removeEventListener('scroll', updateClip);
+    window.removeEventListener('resize', updateOverlaySizes);
     classObserver.disconnect();
+    // Clean up overlay canvases
+    if (headerCanvas) headerCanvas.remove();
+    if (subHeaderCanvas) subHeaderCanvas.remove();
+    if (sidebarCanvas) sidebarCanvas.remove();
   }
 });
 
@@ -129,23 +244,21 @@ const darkColorsOther = [
   'hsl(250, 35%, 20%)', // bg-alt2
 ];
 
-console.log('isHomePage', isHomePage.value)
-
 const lightColors = computed(() => isHomePage.value ? lightColorsHomepage : lightColorsOther);
 const darkColors = computed(() => isHomePage.value ? darkColorsHomepage : darkColorsOther);
 const colors = computed(() => isDarkMode.value ? darkColors.value : lightColors.value);
-
-console.log('colors', colors.value === darkColorsOther)
 </script>
 
 <template>
-  <!-- Full-page noise background (only on home page) - WebGL for performance -->
+  <!-- Full-page noise background - WebGL for performance -->
   <NoiseBackground
+    ref="noiseRef"
     :colors="colors"
     :animation-speed="isHomePage ? 0.00005 : 0.000025"
     :noise-frequency="isHomePage ? 0.0005 : 0.0005"
     :grain="isHomePage ? 0.075 : 0.05"
     :vignette="isHomePage ? 0.4 : isDarkMode ? 0.2 : 0.075"
+    :on-render="copyToOverlays"
   />
 
   <DefaultTheme.Layout>
@@ -211,6 +324,22 @@ console.log('colors', colors.value === darkColorsOther)
 }
 
 :deep(.VPHomeFeatures) {
+  background: transparent !important;
+}
+
+:deep(.VPSidebar) {
+  background: transparent !important;
+}
+
+:deep(.VPNavBar:not(.home.top) .content-body) {
+  background: transparent !important;
+}
+
+:deep(.VPNavBar:not(.home)) {
+  background: transparent !important;
+}
+
+:deep(.VPLocalNav) {
   background: transparent !important;
 }
 </style>

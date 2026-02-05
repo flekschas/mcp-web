@@ -54,10 +54,10 @@
 
   /* Text */
   --vp-c-text-1: oklch(0.3056 0.0654 288.09);
-  --vp-c-text-2: oklch(0.45 0.0654 288.09 / 0.75);
-  --vp-c-text-3: oklch(0.55 0.0654 288.09 / 0.6);
-  --vp-c-text-4: oklch(0.9699 0.0013 106.42 / 0.4);
-  --vp-c-text-0: oklch(0.9699 0.0013 106.42 / 0);
+  --vp-c-text-2: oklch(0.3056 0.0654 288.09 / 0.75);
+  --vp-c-text-3: oklch(0.3056 0.0654 288.09 / 0.6);
+  --vp-c-text-4: oklch(0.3056 0.0013 106.42 / 0.4);
+  --vp-c-text-0: oklch(0.3056 0.0013 106.42 / 0);
 
   /* Brand colors */
   --vp-c-brand-1: oklch(0.64 0.22 340);
@@ -100,7 +100,7 @@
 
   /* Input */
   --vp-input-border-color: oklch(0.85 0.0013 106.42);
-  --vp-input-switch-bg-color: var(--vp-c-bg);
+  --vp-input-switch-bg-color: transparent;
 
   /** Code **/
   --vp-code-block-bg: var(--vp-c-bg-alt);
@@ -272,6 +272,10 @@
   }
 }
 
+.VPSwitch.VPSwitchAppearance {
+  border-color: var(--vp-c-text-1);
+}
+
 .VPSwitch.VPSwitchAppearance .check .icon {
   background-color: transparent;
 }
@@ -281,8 +285,8 @@
   left: 0;
   width: 20px;
   height: 20px;
-  background-color: var(--vp-input-border-color);
-  box-shadow: 0 0 0 1px var(--vp-input-border-color);
+  background-color: var(--vp-c-text-1);
+  box-shadow: 0 0 0 1px var(--vp-c-text-1);
   /* biome-ignore lint/complexity/noImportantStyles:to override vitepress default transition */
   transition: all 0.2s ease-in-out !important;
 }
@@ -297,10 +301,12 @@
   height: 20px;
 }
 
-.VPSwitch.VPSwitchAppearance .sun, .VPSwitch.VPSwitchAppearance .moon {
+.VPSwitch.VPSwitchAppearance .sun,
+.VPSwitch.VPSwitchAppearance .moon,
+.dark .VPSwitch.VPSwitchAppearance .moon {
   top: 4px;
   left: 4px;
-  color: var(--vp-c-text-1);
+  color: var(--vp-c-bg);
 }
 
 .VPHero.VPHero .name {
@@ -352,6 +358,14 @@
 
 .VPBackdrop.VPBackdrop {
   backdrop-filter: blur(4px);
+}
+
+.VPSocialLink.VPSocialLink {
+  color: var(--vp-c-text-1);
+}
+
+.VPSocialLink.VPSocialLink:hover {
+  color: var(--vp-c-brand-1);
 }
 
 /**

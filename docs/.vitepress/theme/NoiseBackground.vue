@@ -7,6 +7,7 @@ interface Props {
   noiseFrequency?: number;
   animationSpeed?: number;
   colors?: string[];
+  onRender?: () => void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -19,6 +20,7 @@ const props = withDefaults(defineProps<Props>(), {
     'hsl(60, 5%, 95%)',
     'hsl(60, 4%, 93%)',
   ],
+  onRender: undefined,
 });
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
@@ -288,7 +290,12 @@ const render = (time: number) => {
   gl.uniform1f(uVignetteLocation!, props.vignette);
   
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-  
+
+  // Notify listeners that a frame was rendered (for canvas copying)
+  if (props.onRender) {
+    props.onRender();
+  }
+
   if (props.animationSpeed > 0) {
     animationFrameId = requestAnimationFrame(render);
   }
@@ -298,10 +305,10 @@ const initGL = () => {
   const canvas = canvasRef.value;
   if (!canvas) return false;
   
-  gl = canvas.getContext('webgl', { 
-    alpha: false, 
+  gl = canvas.getContext('webgl', {
+    alpha: false,
     antialias: false,
-    preserveDrawingBuffer: false,
+    preserveDrawingBuffer: true,  // Required for canvas copying via drawImage
   });
   
   if (!gl) {
@@ -351,6 +358,9 @@ watch(() => props.colors, () => {
     render(startTime);
   }
 }, { deep: true });
+
+// Expose canvas for external copying
+defineExpose({ canvas: canvasRef });
 
 onMounted(() => {
   if (!initGL()) return;
