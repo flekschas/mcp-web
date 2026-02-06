@@ -1,4 +1,4 @@
-name: docs-review
+name: Review docs and API references
 
 on:
   push:

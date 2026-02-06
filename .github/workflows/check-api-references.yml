@@ -1,4 +1,4 @@
-name: docs-check
+name: Check API references
 
 on:
   pull_request:
