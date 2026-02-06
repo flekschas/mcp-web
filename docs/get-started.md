@@ -125,11 +125,12 @@ The bridge runs two servers in parallel on:
 ### 6. Connecting AI App to MCP Server
 
 To connect an MCP-compatible AI app/agent, like Claude Desktop, you need to
-add the bridge server configuration.
+add the bridge server. You have two options to connect: remote or local. Both
+provide the same functionality but remote MCP is simpler.
 
 #### Option 1: Remote MCP (Recommended)
 
-The simplest approach uses Remote MCP (Streamable HTTP) to connect directly via URL:
+The simplest approach is to Remote MCP and connect directly via URL:
 
 ```typescript
 console.log(JSON.stringify(mcp.remoteMcpConfig, null, 2));
@@ -147,14 +148,18 @@ This config looks like:
 }
 ```
 
-::: tip
-The token in the URL is used for session routing (matching Claude Desktop to your browser session), not for authentication. Your app's existing auth handles security.
+In Claude Desktop, you can do this via `Settings > Connectors > Add Custom Connector`.
+
+::: tip Token !== Auth
+The token in the URL is used for session routing: matching MCP requests to your
+browser session. It's not meant for authentication. Your app must handle auth
+as usual.
 :::
-```
 
-#### Option 2: Stdio Transport
+#### Option 2: Local MCP
 
-Alternatively, you can use the `@mcp-web/client` stdio wrapper:
+Alternatively, you can use the `@mcp-web/client` to install the MCP server
+locally:
 
 ```typescript
 console.log(JSON.stringify(mcp.mcpConfig, null, 2));
@@ -177,9 +182,6 @@ This config looks like:
 }
 ```
 
-Both options provide the same functionality. Remote MCP is recommended for its
-simpler configuration.
-
 Add this config to your MCP-compatible AI app.
 
 ::: tip
@@ -196,7 +198,7 @@ Check that everything is running:
 - [x] Bridge server
 - [x] Configured and restarted AI app
 
-Now you can ask your AI app to "add a todo to my-app".
+Finally, now you can ask your AI app to "add a todo to my-app".
 
 <style scoped>
   .img {
