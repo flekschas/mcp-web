@@ -16,8 +16,8 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
 import { MCPWebClient } from '@mcp-web/client';
 import { type Query, QuerySchema, type Tool } from '@mcp-web/types';
-import { generateObject, generateText, type JSONSchema7, jsonSchema, stepCountIs } from 'ai';
-import type { LanguageModelV2 } from '@ai-sdk/provider';
+import { Output, ToolLoopAgent, tool, ToolSet, type JSONSchema7, jsonSchema, stepCountIs } from 'ai';
+import type { LanguageModelV3 } from '@ai-sdk/provider';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
@@ -69,8 +69,8 @@ function getAvailableProviders(config: AgentConfig): Provider[] {
  * Select and initialize the model based on configuration.
  * Returns a lazy getter that initializes on first use.
  */
-function createLazyModel(config: AgentConfig): () => LanguageModelV2 {
-  let cachedModel: LanguageModelV2 | null = null;
+function createLazyModel(config: AgentConfig): () => LanguageModelV3 {
+  let cachedModel: LanguageModelV3 | null = null;
 
   return () => {
     if (cachedModel) return cachedModel;
@@ -145,22 +145,20 @@ function createLazyModel(config: AgentConfig): () => LanguageModelV2 {
   };
 }
 
-function mcpToAiSdkTools(
+function mcpToAiSdkToolset(
   tools: Tool[],
   mcpClient: ReturnType<typeof MCPWebClient.prototype.contextualize>
-) {
-  return Object.fromEntries(
-    tools.map((toolDef) => [
-      toolDef.name,
-      {
-        description: toolDef.description || '',
-        inputSchema: jsonSchema(toolDef.inputSchema as JSONSchema7),
-        execute: async (args: Record<string, unknown>) => {
-          return await mcpClient.callTool(toolDef.name, args);
-        },
+): ToolSet {
+  return tools.reduce((acc, toolDef) => {
+    acc[toolDef.name] = tool({
+      description: toolDef.description || '',
+      inputSchema: jsonSchema(toolDef.inputSchema as JSONSchema7),
+      execute: async (args: Record<string, unknown>) => {
+        return await mcpClient.callTool(toolDef.name, args);
       },
-    ])
-  );
+    });
+    return acc;
+  }, {} as ToolSet);
 }
 
 const xml = (tag: string, content: string) => `<${tag}>${content}</${tag}>`;
@@ -184,59 +182,21 @@ function queryContextToXmlTemplate(query: Query) {
 
 const trim = (str: string) => str.replace(/\s+/g, ' ');
 
-type UnstructuredQuery = Omit<Query, 'responseTool'>;
-type StructuredQuery = Required<Pick<Query, 'responseTool'>> & UnstructuredQuery;
-
-const isStructuredQuery = (query: Query): query is StructuredQuery => 'responseTool' in query;
-
-/**
- * Generic contextual generate object function using a two-phase approach:
- *
- * PHASE 1: Context Gathering (generateText with tools)
- * - LLM can call any MCP tool EXCEPT the response tool
- * - Uses `activeTools` to limit which tools are available
- * - Gathers information needed to answer the query
- * - Builds up a conversation history with tool results
- *
- * PHASE 2: Structured Output (generateObject with schema only)
- * - Takes the conversation history from Phase 1
- * - LLM generates JSON matching the response tool's input schema
- * - NO tool calling happens in this phase
- * - generateObject does NOT support tools/activeTools/toolChoice
- * - The schema tells the LLM what structure to produce
- *
- * DATA FLOW:
- * 1. User query → Phase 1 → LLM calls tools → context gathered
- * 2. Context + query → Phase 2 → LLM generates structured JSON
- * 3. Structured JSON can be passed to response tool by caller
- *
- * WHY TWO PHASES?
- * - Separates information gathering from decision making
- * - Response tool gets well-formed structured input
- * - Clear separation of concerns: context vs. action
- */
-async function generateStructuredAnswer<T extends Record<string, unknown>>({
+async function generateAnswer<T extends Record<string, unknown>>({
   query,
   mcpClient,
   tools,
   model,
   maxSteps = 5,
 }: {
-  query: StructuredQuery;
+  query: Query;
   mcpClient: ReturnType<typeof MCPWebClient.prototype.contextualize>;
   tools: Tool[];
-  model: LanguageModelV2;
+  model: LanguageModelV3;
   maxSteps?: number;
-}): Promise<{ object: T; contextMessages: unknown[] }> {
-  if (!query.responseTool) {
-    const error = new Error('Response tool is required for structured output generation');
-    mcpClient.fail(error);
-    throw error;
-  }
-
-  const responseToolInputSchema = query.responseTool.inputSchema;
-
-  if (!responseToolInputSchema) {
+}): Promise<{ text: string; object?: T }> {
+  // Validate response tool schema if present
+  if (query.responseTool && !query.responseTool.inputSchema) {
     const error = new Error(
       'Response tool input schema is required for structured output generation'
     );
@@ -244,123 +204,47 @@ async function generateStructuredAnswer<T extends Record<string, unknown>>({
     throw error;
   }
 
-  // Wrap JSON Schema with jsonSchema() for AI SDK
-  const responseToolSchema = jsonSchema(responseToolInputSchema as JSONSchema7);
+  const aiSdkTools = mcpToAiSdkToolset(tools, mcpClient);
 
-  const aiSdkTools = mcpToAiSdkTools(tools, mcpClient);
+  // Remove response tool from available tools if present
+  if (query.responseTool) {
+    delete aiSdkTools[query.responseTool.name];
+  }
 
-  const nonResponseAiSdkTools = { ...aiSdkTools };
-
-  delete nonResponseAiSdkTools[query.responseTool.name];
-
-  // Phase 1: Gather context (use all tools EXCEPT response tool)
-  const contextGathering = await generateText({
+  const agent = new ToolLoopAgent({
     model,
-    system: trim(`
-    You are an information gathering agent who is an expert in Spanish checkers rules, strategy, and gameplay.
-    Your role is to use available tools to collect any information needed to answer the user's query.
+    tools: aiSdkTools,
+    instructions: trim(`
+      You are an AI assistant expert in Spanish checkers rules, strategy, and gameplay.
+      Use the provided information below and available tools to answer the user's query.
 
-    The context below contains:
-    1. Already-executed tool calls and their results
-    2. Ephemeral information relevant to the query
+      The following context contains:
+      1. Already-executed tool calls and their results
+      2. Ephemeral information relevant to the query
 
-    ${queryContextToXmlTemplate(query)}
+      ${queryContextToXmlTemplate(query)}
 
-    INSTRUCTIONS:
-    - Analyze what additional information is required to answer the query
-    - Call relevant tools to gather missing information
-    - Make multiple tool calls if needed to get complete information
-    - Do NOT re-call tools whose results are already provided in the context above
-    - Do NOT answer the user's query - only gather the necessary context
-
-    Your output will be provided to another agent that will generate the final answer.
+      INSTRUCTIONS:
+      - Analyze what additional information is required to answer the query
+      - Call relevant tools to gather missing information
+      - Make multiple tool calls if needed to get complete information
+      - Do NOT re-call tools whose results are already provided in the context above
+      - After gathering necessary information, provide a complete answer to the user's query
     `),
-    prompt: query.prompt,
-    tools: nonResponseAiSdkTools,
+    ...(query.responseTool?.inputSchema && {
+      output: Output.object({
+        schema: jsonSchema(query.responseTool.inputSchema as JSONSchema7),
+      }),
+    }),
     stopWhen: stepCountIs(maxSteps),
   });
 
-  console.log('contextGathering: messages', contextGathering.response.messages);
-
-  // Phase 2: Structured output - LLM generates the final response in the shape of response tool input
-  // If no response tool specified, we can't generate structured output
-
-  // Use generateObject to create structured data conforming to the response tool's input schema
-  // NOTE: generateObject does NOT support tools/activeTools/toolChoice parameters
-  // It only generates JSON matching the schema based on the conversation history
-  const result = await generateObject({
-    model,
-    schema: responseToolSchema,
-    messages: [
-      {
-        role: 'system',
-        content: trim(`
-          You are an AI assistant expert in Spanish checkers rules, strategy, and gameplay.
-          Use the provided information below to answer the user's query.
-
-          The context below contains:
-          1. Already-executed tool calls and their results
-          2. Ephemeral information relevant to the query
-
-          ${queryContextToXmlTemplate(query)}
-        `),
-      },
-      ...contextGathering.response.messages,
-      { role: 'user', content: query.prompt },
-    ],
-    providerOptions: {
-      openai: {
-        jsonSchemaStrict: true,
-      },
-    },
-  });
+  const result = await agent.generate({ prompt: query.prompt });
 
   return {
-    object: result.object as T,
-    contextMessages: contextGathering.response.messages,
+    text: result.text,
+    object: result.output as T | undefined,
   };
-}
-
-async function generateTextAnswer({
-  query,
-  mcpClient,
-  tools,
-  model,
-  maxSteps = 5,
-}: {
-  query: UnstructuredQuery;
-  mcpClient: ReturnType<typeof MCPWebClient.prototype.contextualize>;
-  tools: Tool[];
-  model: LanguageModelV2;
-  maxSteps?: number;
-}): Promise<string> {
-  const aiSdkTools = mcpToAiSdkTools(tools, mcpClient);
-
-  const answer = await generateText({
-    model,
-    system: trim(`
-    You are an AI assistant expert in Spanish checkers rules, strategy, and gameplay.
-    Use available tools to collect any information needed to answer the user's query.
-
-    The context below contains:
-    1. Already-executed tool calls and their results
-    2. Ephemeral information relevant to the query
-
-    ${queryContextToXmlTemplate(query)}
-
-    INSTRUCTIONS:
-    - Analyze what additional information is required to answer the query
-    - Call relevant tools to gather missing information
-    - Make multiple tool calls if needed to get complete information
-    - Do NOT re-call tools whose results are already provided in the context above
-    - After gathering necessary information, provide a complete answer to the user's query
-    `),
-    prompt: query.prompt,
-    tools: aiSdkTools,
-    stopWhen: stepCountIs(maxSteps),
-  });
-
-  return answer.text;
 }
 
 /**
@@ -425,22 +309,17 @@ export function createApp(config: AgentConfig) {
         tools.map((t) => t.name)
       );
 
-      if (isStructuredQuery(query)) {
-        const { object } = await generateStructuredAnswer({
-          query,
-          mcpClient: queryClient,
-          tools,
-          model: getModel(),
-        });
-        await queryClient.callTool(query.responseTool.name, object);
+      const result = await generateAnswer({
+        query,
+        mcpClient: queryClient,
+        tools,
+        model: getModel(),
+      });
+
+      if (query.responseTool && result.object) {
+        await queryClient.callTool(query.responseTool.name, result.object);
       } else {
-        const answer = await generateTextAnswer({
-          query,
-          mcpClient: queryClient,
-          tools,
-          model: getModel(),
-        });
-        await queryClient.complete(answer);
+        await queryClient.complete(result.text);
       }
 
       console.log(`✅ Query ${uuid} completed successfully`);
