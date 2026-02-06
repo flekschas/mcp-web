@@ -9,7 +9,7 @@
     "build:packages": "pnpm --filter './packages/*' build",
     "build:demos": "tsx scripts/build-demos.ts",
     "bundle:servers": "tsx scripts/bundle-servers.ts",
-    "build:docs": "npm run build:api-refs && vitepress build docs",
+    "build:docs": "pnpm -C docs run build",
     "build:api-refs": "tsx scripts/generate-all-api-docs.ts docs/api/ && tsx scripts/generate-all-api-docs.ts agents/skills/mcp-web/ --prefix api-reference-",
     "dev": "pnpm -r dev",
     "clean": "pnpm -r clean",
