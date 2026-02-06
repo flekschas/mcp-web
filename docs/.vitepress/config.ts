@@ -107,7 +107,7 @@ export default defineConfig({
     ],
 
     footer: {
-      message: '<a href="/made-with-love">Made with <span id="footer-heart-mount"></span> by Fritz and Claude</a>',
+      message: '<a id="footer-message" href="/made-with-love">Made with <span id="footer-heart-mount"></span> by Fritz and Claude</a>',
     }
   },
   markdown: {

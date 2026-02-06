@@ -63,13 +63,13 @@
   --vp-c-brand-1: oklch(0.64 0.22 340);
   --vp-c-brand-2: oklch(0.6 0.16 340);
   --vp-c-brand-3: oklch(0.5 0.14 340);
-  --vp-c-brand-soft: oklch(0.6881 0.1813 340 / 0.14);
+  --vp-c-brand-soft: oklch(0.6881 0.1813 340 / 0.33);
 
   /* Secondary color */
   --vp-c-secondary-1: oklch(0.7301 0.1547 67.01);
   --vp-c-secondary-2: oklch(0.65 0.14 67.01);
   --vp-c-secondary-3: oklch(0.6 0.12 67.01);
-  --vp-c-secondary-soft: oklch(0.7301 0.1547 67.01 / 0.14);
+  --vp-c-secondary-soft: oklch(0.7301 0.1547 67.01 / 0.33);
 
   /* Default colors */
   --vp-c-default-1: var(--vp-c-text-2);
@@ -256,6 +256,28 @@
   border-right: 1px solid var(--vp-c-gutter);
 }
 
+.VPHero .name {
+  font-weight: 800;
+  line-height: 40px;
+  font-size: 32px;
+}
+
+.VPHero .text {
+  line-height: 32px;
+  font-size: 24px;
+}
+
+@media (min-width: 640px) {
+  .VPHero .name {
+    line-height: 64px;
+    font-size: 56px;
+  }
+  .VPHero .text {
+    line-height: 52px;
+    font-size: 44px;
+  }
+}
+
 @media (min-width: 960px) {
   .VPNavBar.VPNavBar.has-sidebar div.title {
     padding-right: 0;
@@ -269,6 +291,15 @@
   .VPLocalNav.VPLocalNav.has-sidebar {
     margin-left: var(--vp-sidebar-width);
     padding-left: 0;
+  }
+  .VPHero .name {
+    font-weight: 800;
+    line-height: 72px;
+    font-size: 64px;
+  }
+  .VPHero .text {
+    line-height: 56px;
+    font-size: 48px;
   }
 }
 
@@ -338,17 +369,22 @@
 }
 
 .VPFooter.VPFooter a {
-  opacity: 0.33;
-  color: var(--vp-c-text-1);
+  opacity: 0.75;
+  mix-blend-mode: screen;
+  color: var(--vp-c-secondary-1);
   text-decoration-color: var(--vp-c-text-0);
   text-underline-offset: 4px;
   text-decoration-thickness: 1px;
   transition: all 0.25s ease-in-out;
 }
+.dark .VPFooter.VPFooter a {
+  opacity: 0.33;
+}
 
 .VPFooter.VPFooter a:hover {
   opacity: 1;
-  text-decoration-color: var(--vp-c-text-4);
+  color: var(--vp-c-brand-1);
+  text-decoration-color: var(--vp-c-brand-soft);
   text-underline-offset: 2px;
 }
 

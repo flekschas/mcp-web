@@ -30,6 +30,8 @@ let sidebarCanvas = null;
 let headerCtx = null;
 let subHeaderCtx = null;
 let sidebarCtx = null;
+let footerCanvas = null;
+let footerCtx = null;
 let dpr = 1;
 
 // Copy noise background to overlay canvases (called on each render frame)
@@ -67,11 +69,24 @@ const copyToOverlays = () => {
     const h = sidebarCanvas.height;
     const w = sidebarCanvas.width;
     // Source Y is based on sidebar's position relative to viewport
-    const sourceY = rect.top * dpr;
+    const sourceY = Math.round(rect.top * dpr);
     sidebarCtx.drawImage(
       source,
       0, Math.max(0, sourceY), w, h,  // source: sidebar region
       0, 0, w, h                      // dest: full sidebar canvas
+    );
+  }
+
+  // Copy to footer canvas
+  if (isHomePage.value && footerCanvas && footerCtx) {
+    const rect = footerCanvas.getBoundingClientRect();
+    const h = footerCanvas.height;
+    const w = footerCanvas.width;
+    console.log(rect.left, rect.top)
+    footerCtx.drawImage(
+      source,
+      Math.round(rect.left * dpr), Math.round(rect.top * dpr), w, h,  // source: full source canvas
+      0, 0, w, h              // dest: full footer canvas
     );
   }
 };
@@ -159,6 +174,24 @@ onMounted(() => {
     sidebarCtx = sidebarCanvas.getContext('2d');
   }
 
+  // Create and insert sidebar overlay canvas
+  const vpFooter = document.querySelector('#footer-message').parentElement;
+  vpFooter.style.position = 'relative';
+  if (vpFooter) {
+    footerCanvas = document.createElement('canvas');
+    footerCanvas.className = 'noise-overlay';
+    footerCanvas.style.cssText = `
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      width: 100%;
+      height: 100%;
+    `;
+    vpFooter.insertBefore(footerCanvas, vpFooter.firstChild);
+    footerCtx = footerCanvas.getContext('2d');
+  }
+
   // Update overlay canvas sizes
   const updateOverlaySizes = () => {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -179,6 +212,12 @@ onMounted(() => {
       const rect = vpSidebar.getBoundingClientRect();
       sidebarCanvas.width = rect.width * dpr;
       sidebarCanvas.height = rect.height * dpr;
+    }
+
+    if (isHomePage.value && footerCanvas && vpFooter) {
+      const rect = vpFooter.getBoundingClientRect();
+      footerCanvas.width = rect.width * dpr;
+      footerCanvas.height = rect.height * dpr;
     }
   };
 
@@ -217,6 +256,7 @@ onMounted(() => {
     if (headerCanvas) headerCanvas.remove();
     if (subHeaderCanvas) subHeaderCanvas.remove();
     if (sidebarCanvas) sidebarCanvas.remove();
+    if (footerCanvas) footerCanvas.remove();
   }
 });
 
@@ -281,17 +321,6 @@ const colors = computed(() => isDarkMode.value ? darkColors.value : lightColors.
 </template>
 
 <style scoped>
-/* Hide the default VitePress hero name */
-:deep(.VPHero .name) {
-  font-weight: 800;
-  transform: scale(1.125);
-  transform-origin: left bottom;
-}
-:deep(.VPHero .text) {
-  transform: scale(0.9);
-  transform-origin: left top;
-}
-
 :deep(.VPHero .tagline) {
   color: var(--vp-c-text-1);
   opacity: 0.8;
