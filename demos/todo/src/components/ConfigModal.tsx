@@ -19,7 +19,7 @@ export function ConfigModal({
 }: ConfigModalProps) {
   const { mcpWeb } = useMCPWeb();
   const [activeTab, setActiveTab] = useState<ConfigTab>('remote');
-  const [copySuccess, setCopySuccess] = useState<'name' | 'url' | 'json' | null>(null);
+  const [copySuccess, setCopySuccess] = useState<'name' | 'url' | 'json' | 'example' | null>(null);
 
   if (!isOpen) return null;
 
@@ -28,7 +28,7 @@ export function ConfigModal({
   const serverUrl = remoteConfig[serverName]?.url;
   const stdioConfig = { mcpServers: mcpWeb.mcpConfig };
 
-  const copyToClipboard = async (text: string, type: 'name' | 'url' | 'json') => {
+  const copyToClipboard = async (text: string, type: 'name' | 'url' | 'json' | 'example') => {
     try {
       await navigator.clipboard.writeText(text);
       setCopySuccess(type);
@@ -149,7 +149,7 @@ export function ConfigModal({
                 <div className="space-y-1">
                   <label className="block text-sm font-medium opacity-80">URL</label>
                   <div className="flex gap-2">
-                    <code className="flex-1 bg-(--color-bg) border border-(--color-border) rounded px-3 py-2 text-sm font-mono break-all">
+                    <code className="flex-1 bg-(--color-bg) border border-(--color-border) rounded px-3 py-2 text-sm font-mono overflow-x-auto whitespace-nowrap">
                       {serverUrl}
                     </code>
                     <button
@@ -160,6 +160,21 @@ export function ConfigModal({
                       {copySuccess === 'url' ? '✓ Copied!' : 'Copy'}
                     </button>
                   </div>
+                </div>
+
+                <p className="text-sm opacity-60 pt-2">
+                  Once configured, you can ask Claude to manage your todos. For example:
+                </p>
+
+                <div className="border border-(--color-border) rounded p-4 relative">
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard('remind me to water my mass cane plant every two weeks', 'example')}
+                    className="absolute top-2 right-2 px-2 py-1 bg-(--color-accent-subtle) hover:bg-(--color-accent-subtle-hover) text-sm rounded transition-colors cursor-pointer"
+                  >
+                    {copySuccess === 'example' ? '✓ Copied!' : 'Copy'}
+                  </button>
+                  <code className="text-sm opacity-80 pr-16 block">remind me to water my mass cane plant every two weeks</code>
                 </div>
               </div>
             ) : (

@@ -1,17 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Game from './components/Game.svelte';
+  import ConfigModal from './components/ConfigModal.svelte';
   import { mcpWeb } from './mcp.js';
   import { state as gameState } from './state.svelte.js';
   import H1 from './components/H1.svelte';
-  import config from '../mcp-web.config.js';
 
   let connectionStatus = $state('connecting');
   let mcpConnection = $state(false);
   let showConfigModal = $state(false);
-  let copyConfigSuccess = $state(false);
-  let copySweetnessSuccess = $state(false);
-  let activeConfigTab = $state<'remote' | 'stdio'>('remote');
 
   onMount(async () => {
     try {
@@ -30,40 +27,9 @@
 
   const gameOver = $derived(gameState.gameState.gameStatus !== 'playing');
 
-  const remoteConfig = $derived({ mcpServers: mcpWeb.remoteMcpConfig });
-  const stdioConfig = $derived({ mcpServers: mcpWeb.mcpConfig });
-  const currentConfig = $derived(activeConfigTab === 'remote' ? remoteConfig : stdioConfig);
-
   function toggleConfigModal() {
     showConfigModal = !showConfigModal;
-    copyConfigSuccess = false;
-    copySweetnessSuccess = false;
   }
-
-  async function copyConfigToClipboard() {
-    try {
-      const configJson = JSON.stringify(currentConfig, null, 2);
-      await navigator.clipboard.writeText(configJson);
-      copyConfigSuccess = true;
-      setTimeout(() => {
-        copyConfigSuccess = false;
-      }, 2000);
-    } catch (error) {
-      console.error('Failed to copy to clipboard:', error);
-    }
-  }
-
-async function copySweetnessToClipboard() {
-  try {
-    await navigator.clipboard.writeText("please make a really sweet move for me in my checkers game");
-    copySweetnessSuccess = true;
-    setTimeout(() => {
-      copySweetnessSuccess = false;
-    }, 2000);
-  } catch (error) {
-    console.error('Failed to copy to clipboard:', error);
-  }
-}
 </script>
 
 <main class="w-full min-h-screen">
@@ -113,107 +79,9 @@ async function copySweetnessToClipboard() {
     </footer>
   </div>
 
-  <!-- MCP Configuration Modal -->
-  {#if showConfigModal}
-    <div
-      class="fixed inset-0 bg-[#C99DA3]/20 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-      role="button"
-      tabindex="0"
-      onclick={toggleConfigModal}
-      onkeydown={(e) => e.key === 'Escape' && toggleConfigModal()}
-    >
-      <div
-        class="bg-[#240115] rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="modal-title"
-        tabindex="-1"
-        onclick={(e) => e.stopPropagation()}
-        onkeydown={(e) => e.stopPropagation()}
-      >
-        <div class="p-6">
-          {#if connectionStatus !== 'connecting' && !mcpConnection}
-            <div class="mb-4 bg-red-900 border border-red-700 p-4 rounded">
-              <h3 class="font-bold text-red-200 mb-2">⚠️ Not Connected</h3>
-              <p class="text-red-300 text-sm">
-                Make sure the MCP-Web bridge is running on {config.bridgeUrl} and the agent
-                is running on {config.agentUrl}.
-              </p>
-              <p class="text-red-300 text-sm mt-2">
-                You can play locally, but AI queries will not work.
-              </p>
-            </div>
-          {/if}
-          <div class="flex justify-between items-start mb-4">
-            <h2 id="modal-title" class="text-2xl font-bold text-white">MCP Client Configuration</h2>
-            <button
-              onclick={toggleConfigModal}
-              class="text-yellow-900 hover:text-white transition-colors text-2xl leading-none cursor-pointer"
-              aria-label="Close modal"
-            >
-              ×
-            </button>
-          </div>
-
-          <div class="space-y-4">
-            <p class="opacity-70">
-              To interact with this game via an AI host app like Claude Desktop, add one of the following configurations:
-            </p>
-
-            <!-- Tabs -->
-            <div class="flex border-b border-[#C99DA3]/20">
-              <button
-                onclick={() => activeConfigTab = 'remote'}
-                class="px-4 py-2 text-sm font-medium transition-colors cursor-pointer {activeConfigTab === 'remote' ? 'border-b-2 border-[#C99DA3] text-[#C99DA3]' : 'text-white/60 hover:text-white'}"
-              >
-                Remote MCP
-                <span class="ml-2 px-1.5 py-0.5 text-xs bg-[#C99DA3]/20 text-[#C99DA3] rounded">
-                  Recommended
-                </span>
-              </button>
-              <button
-                onclick={() => activeConfigTab = 'stdio'}
-                class="px-4 py-2 text-sm font-medium transition-colors cursor-pointer {activeConfigTab === 'stdio' ? 'border-b-2 border-[#C99DA3] text-[#C99DA3]' : 'text-white/60 hover:text-white'}"
-              >
-                Stdio
-              </button>
-            </div>
-
-            <!-- Tab content description -->
-            <p class="text-sm opacity-60">
-              {#if activeConfigTab === 'remote'}
-                Direct URL connection. Simpler configuration, no intermediate process needed.
-              {:else}
-                Uses @mcp-web/client as a stdio wrapper. Alternative method with the same functionality.
-              {/if}
-            </p>
-
-            <div class="border border-[#C99DA3]/20 rounded p-4 relative">
-              <button
-                onclick={copyConfigToClipboard}
-                class="absolute top-2 right-2 px-3 py-1 bg-[#C99DA3]/20 hover:bg-[#C99DA3]/30 hover:text-white text-sm rounded transition-colors cursor-pointer"
-              >
-                {copyConfigSuccess ? '✓ Copied!' : 'Copy'}
-              </button>
-              <pre class="text-sm text-gray-300 overflow-x-auto pr-20"><code>{JSON.stringify(currentConfig, null, 2)}</code></pre>
-            </div>
-
-            <p class="opacity-70">
-              Once configured, your AI host app will be able to interact with this checkers game through the MCP protocol. E.g., when it's your turn, you can ask Claude to:
-            </p>
-
-            <div class="border border-[#C99DA3]/20 rounded p-4 relative">
-              <button
-                onclick={copySweetnessToClipboard}
-                class="absolute top-2 right-2 px-3 py-1 bg-[#C99DA3]/20 hover:bg-[#C99DA3]/30 hover:text-white text-sm rounded transition-colors cursor-pointer"
-              >
-                {copySweetnessSuccess ? '✓ Sweet!' : 'Copy'}
-              </button>
-              <pre class="text-sm text-gray-300 overflow-x-auto pr-20"><code>please make a really sweet move for me in my checkers game</code></pre>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  {/if}
+  <ConfigModal
+    isOpen={showConfigModal}
+    onClose={toggleConfigModal}
+    mcpConnection={mcpConnection}
+  />
 </main>
