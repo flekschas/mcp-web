@@ -9,10 +9,3 @@ const config: MCPWebConfig = {
 };
 
 export default config;
-
-// Port constants for serve-agent.ts and vite.config.ts
-export const PORTS = {
-  BRIDGE: 3001,
-  AGENT: 3003,
-  FRONTEND: 3000,
-} as const;

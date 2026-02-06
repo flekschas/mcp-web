@@ -1,24 +1,24 @@
 #!/usr/bin/env tsx
 
 import { MCPWebBridgeNode } from '@mcp-web/bridge';
-import { PORTS } from './mcp-web.config.js';
+import config from './mcp-web.config.js';
 
 console.log('🌉 Starting MCP Bridge for Checkers Demo...');
+
+const bridgeUrl = new URL(config.bridgeUrl?.startsWith("http") ? config.bridgeUrl : `http://${config.bridgeUrl}`);
+const agentUrl = new URL(config.agentUrl?.startsWith("http") ? config.agentUrl : `http://${config.agentUrl}`);
 
 const bridge = new MCPWebBridgeNode({
   name: 'MCP-Web Checkers Game',
   description: 'Interactive checkers game where human plays against AI',
-  port: PORTS.BRIDGE,
-  agentUrl: `http://localhost:${PORTS.AGENT}`,
+  port: Number(bridgeUrl.port || bridgeUrl.protocol === 'https:' ? 443 : 80),
+  agentUrl: agentUrl.toString(),
 });
 
 console.log('✅ Bridge started successfully!');
-console.log(`   Agent URL: http://localhost:${PORTS.AGENT}`);
+console.log(`   Agent URL: ${config.agentUrl}`);
 console.log('');
 console.log('🎮 Checkers demo bridge is ready!');
-console.log('   1. Start the agent: cd ../agent && pnpm start');
-console.log('   2. Start the frontend: cd ../app && pnpm dev');
-console.log(`   3. Open http://localhost:${PORTS.FRONTEND}`);
 
 process.on('SIGINT', () => {
   console.log('\n👋 Shutting down MCP Bridge...');

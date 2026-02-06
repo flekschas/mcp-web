@@ -1,12 +1,9 @@
-import type { MCPWebConfig } from 'npm:@mcp-web/types@^0.1.0';
-
-const agentUrl =
-  Deno.env.get('AGENT_URL') ?? 'checkers-agent.demos.mcp-web.dev';
-
-const config: MCPWebConfig = {
+const config = {
   name: 'MCP-Web Checkers Demo',
   description: 'Play Spanish checkers against an AI opponent',
-  agentUrl,
+  bridgeUrl: 'checkers.demos.mcp-web.dev',
+  agentUrl: 'https://checkers-agent.demos.mcp-web.dev',
+  autoConnect: true,
 };
 
 export default config;

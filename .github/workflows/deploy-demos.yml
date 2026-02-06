@@ -42,6 +42,7 @@ jobs:
       - name: Build demo frontend
         run: |
           cd demos/${{ matrix.demo }}
+          cp ../deploy/${{ matrix.demo }}/mcp-web.config.ts ./mcp-web.config.ts
           pnpm build
 
       - name: Bundle servers

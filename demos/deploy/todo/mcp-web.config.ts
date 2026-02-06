@@ -1,9 +1,8 @@
-import type { MCPWebConfig } from 'npm:@mcp-web/types@^0.1.0';
-
-const config: MCPWebConfig = {
+const config = {
   name: 'MCP-Web Todo Demo',
-  description:
-    'Manage a todo list - add, complete, delete, and organize tasks',
+  description: 'Manage a todo list - add, complete, delete, and organize tasks',
+  bridgeUrl: 'todo.demos.mcp-web.dev',
+  autoConnect: true,
 };
 
 export default config;
