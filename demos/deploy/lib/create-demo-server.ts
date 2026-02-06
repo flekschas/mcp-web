@@ -4,6 +4,7 @@
  */
 
 import { serveDir } from 'https://deno.land/std@0.224.0/http/file_server.ts';
+import { dirname, fromFileUrl, join } from 'https://deno.land/std@0.224.0/path/mod.ts';
 import { MCPWebBridge, TimerScheduler } from '@mcp-web/bridge';
 import type { MCPWebConfig } from '@mcp-web/types';
 
@@ -11,7 +12,7 @@ export interface DemoServerConfig {
   /** MCP bridge configuration */
   bridge: MCPWebConfig;
 
-  /** Path to static files directory */
+  /** Path to static files directory (relative to the entry point) */
   staticDir: string;
 
   /** Optional custom request handler (called before static serving) */
@@ -83,10 +84,15 @@ function wrapRequest(req: Request) {
   };
 }
 
-export function createDemoServer(config: DemoServerConfig) {
+export function createDemoServer(config: DemoServerConfig, importMetaUrl: string) {
   const envPort = Deno.env.get('PORT');
   const port = config.port ?? (envPort ? Number(envPort) : 8000);
   const hostname = '0.0.0.0';
+
+  // Resolve staticDir to an absolute path based on the caller's import.meta.url
+  // This ensures it works correctly on Deno Deploy where cwd may differ
+  const callerDir = dirname(fromFileUrl(importMetaUrl));
+  const absoluteStaticDir = join(callerDir, config.staticDir);
 
   // Create the bridge core with timer-based scheduler
   const scheduler = new TimerScheduler();
@@ -104,7 +110,7 @@ export function createDemoServer(config: DemoServerConfig) {
         console.log(`✅ Server listening on http://${host}:${port}`);
         console.log(`   WebSocket: ws://${host}:${port}`);
         console.log(`   HTTP/MCP:  http://${host}:${port}`);
-        console.log(`   Static files: ${config.staticDir}`);
+        console.log(`   Static files: ${absoluteStaticDir}`);
       },
     },
     async (req: Request): Promise<Response> => {
@@ -142,12 +148,31 @@ export function createDemoServer(config: DemoServerConfig) {
         return response;
       }
 
-      // 2. Handle MCP HTTP endpoints (/mcp/*, /health, /config)
-      if (
-        url.pathname.startsWith('/mcp') ||
-        url.pathname === '/health' ||
-        url.pathname === '/config'
-      ) {
+      // 2. Handle health check endpoint
+      if (url.pathname === '/health') {
+        return new Response(
+          JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }),
+          {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }
+        );
+      }
+
+      // 3. Handle config endpoint (returns public bridge config)
+      if (url.pathname === '/config') {
+        const { name, description, version } = bridge.config;
+        return new Response(
+          JSON.stringify({ name, description, version }),
+          {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }
+        );
+      }
+
+      // 4. Handle MCP HTTP endpoints (/mcp/*)
+      if (url.pathname.startsWith('/mcp')) {
         const wrappedReq = wrapRequest(req);
         const httpResponse = await handlers.onHttpRequest(wrappedReq);
 
@@ -157,16 +182,16 @@ export function createDemoServer(config: DemoServerConfig) {
         });
       }
 
-      // 3. Custom handler (for agent endpoints, etc.)
+      // 5. Custom handler (for agent endpoints, etc.)
       if (config.customHandler) {
         const customResponse = await config.customHandler(req);
         if (customResponse) return customResponse;
       }
 
-      // 4. Serve static files (SPA fallback)
+      // 6. Serve static files (SPA fallback)
       try {
         const response = await serveDir(req, {
-          fsRoot: config.staticDir,
+          fsRoot: absoluteStaticDir,
           showDirListing: false,
           enableCors: true,
         });
@@ -174,7 +199,7 @@ export function createDemoServer(config: DemoServerConfig) {
         // SPA fallback: serve index.html for 404s on non-file paths
         if (response.status === 404 && !url.pathname.includes('.')) {
           return serveDir(new Request(new URL('/index.html', req.url)), {
-            fsRoot: config.staticDir,
+            fsRoot: absoluteStaticDir,
             showDirListing: false,
             enableCors: true,
           });
