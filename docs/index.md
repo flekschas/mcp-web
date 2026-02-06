@@ -4,7 +4,7 @@ layout: home
 
 hero:
   name: "MCP-Web"
-  text: "Expose frontend state and actions as tools"
+  text: "Expose frontend state, actions, and UIs as tools"
   tagline: "Integrate AI through structured function calls"
   actions:
     - theme: brand
@@ -16,7 +16,7 @@ hero:
 
 features:
   - title: AI Controllable Frontend Apps
-    details: Expose state, actions, and GUIs as MCP tools and apps without backend changes to enable AI agents to control your app.
+    details: Expose state, actions, and UIs as MCP tools and apps without backend changes to enable AI agents to control your app.
     icon:
       light: https://storage.googleapis.com/mcp-web/ai-to-frontend-light.svg
       dark: https://storage.googleapis.com/mcp-web/ai-to-frontend-dark.svg
