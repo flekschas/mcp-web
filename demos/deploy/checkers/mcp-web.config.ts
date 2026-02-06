@@ -1,8 +1,8 @@
 const config = {
   name: 'MCP-Web Checkers Demo',
   description: 'Play Spanish checkers against an AI opponent',
-  bridgeUrl: 'checkers.demos.mcp-web.dev',
-  agentUrl: 'https://checkers-agent.demos.mcp-web.dev',
+  bridgeUrl: 'mcp-web-checkers.deno.dev',
+  agentUrl: 'https://mcp-web-checkers-agent.deno.dev',
   autoConnect: true,
 };
 
