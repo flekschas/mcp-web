@@ -3,11 +3,11 @@
 /**
  * AI-powered agent documentation review script.
  *
- * This script uses the Anthropic API to review agent documentation
+ * This script uses OpenRouter with Kimi K2.5 to review agent documentation
  * and suggest updates based on changes to API reference docs.
  *
  * Environment variables:
- *   - ANTHROPIC_API_KEY: Required. Your Anthropic API key.
+ *   - OPENROUTER_API_KEY: Required. Your OpenRouter API key.
  *   - CHANGED_FILES: Optional. Newline-separated list of changed files.
  *
  * Output:
@@ -18,7 +18,7 @@
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 
 // Configuration
 const REPO_ROOT = execSync('git rev-parse --show-toplevel', {
@@ -223,12 +223,15 @@ Important:
 }
 
 async function runReview(): Promise<ReviewResult> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    throw new Error('ANTHROPIC_API_KEY environment variable is required');
+    throw new Error('OPENROUTER_API_KEY environment variable is required');
   }
 
-  const client = new Anthropic({ apiKey });
+  const client = new OpenAI({
+    baseURL: 'https://openrouter.ai/api/v1',
+    apiKey,
+  });
   const changedFiles = getChangedFiles();
 
   console.log('Changed files:', changedFiles);
@@ -240,10 +243,10 @@ async function runReview(): Promise<ReviewResult> {
 
   const prompt = buildPrompt(changedFiles);
 
-  console.log('Sending request to Anthropic API...');
+  console.log('Sending request to OpenRouter API (Kimi K2.5)...');
 
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
+  const response = await client.chat.completions.create({
+    model: 'moonshotai/kimi-k2.5',
     max_tokens: 16000,
     messages: [
       {
@@ -254,15 +257,15 @@ async function runReview(): Promise<ReviewResult> {
   });
 
   // Extract text content
-  const textContent = response.content.find((block) => block.type === 'text');
-  if (!textContent || textContent.type !== 'text') {
+  const textContent = response.choices[0]?.message?.content;
+  if (!textContent) {
     throw new Error('No text response from API');
   }
 
   // Parse JSON from response
-  const jsonMatch = textContent.text.match(/```json\n([\s\S]*?)\n```/);
+  const jsonMatch = textContent.match(/```json\n([\s\S]*?)\n```/);
   if (!jsonMatch) {
-    console.error('Response:', textContent.text);
+    console.error('Response:', textContent);
     throw new Error('Could not parse JSON from response');
   }
 

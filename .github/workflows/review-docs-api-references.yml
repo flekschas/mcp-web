@@ -50,7 +50,7 @@ jobs:
         if: steps.changed.outputs.has_changes == 'true'
         id: review
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           CHANGED_FILES: ${{ steps.changed.outputs.files }}
         run: |
           # Run the review script
