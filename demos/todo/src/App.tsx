@@ -6,7 +6,7 @@ import { Header } from './components/Header';
 import { MainContent } from './components/MainContent';
 import { Sidebar } from './components/Sidebar';
 import { themeAtom } from './states';
-import { projectTools, settingsTools, todoTools } from './tools';
+import { projectTools, settingsTools, todoTools } from './mcp-tools';
 
 function App() {
   const [theme] = useAtom(themeAtom);
