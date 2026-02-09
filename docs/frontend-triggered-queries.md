@@ -1,16 +1,16 @@
 # Frontend-Triggered Queries
 
 By default, [MCP](https://modelcontextprotocol.io) can only be used for
-communicating from an AI app/agent to the tool-offering server. However, when
-building AI-native web apps, one often wants to trigger queries from the web
+communicating from an AI agent to the tool-offering server. However, when
+building AI-native web apps, one often wants to trigger queries from the frontend
 app.
 
 While one could simply build a custom AI agent, wouldn't it be nice to use the
-same MCP tools so that queries can both be triggered from an AI app (like
-Claude Desktop) and the web app itself?
+same MCP tools so that queries can both be triggered from an AI agent (like
+Claude Desktop) and the frontend app itself?
 
 To support this, MCP-Web offers the ability to trigger queries using a
-lightweight routing approach to an AI agent web app.
+lightweight routing approach to an AI agent server.
 
 ## Relationship to MCP Sampling
 
@@ -63,9 +63,9 @@ already exposes MCP tools using MCP-Web and you want frontend-triggered AI
 queries to use those same tools. Or your AI agent already uses a bunch of other
 MCP tools and you want to apply the same tool discovery and calling protocol.
 
-For instance, imagine building an todo app where you want an AI app to be able
+For instance, imagine building a todo app where you want an AI agent to be able
 to add todos from meeting notes in Google Drive while at the same time being
-able to drop meeting notes into the web app to be turned into todos.
+able to drop meeting notes into the frontend app to be turned into todos.
 
 ### ❌ Use a custom protocol when…
 

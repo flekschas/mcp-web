@@ -17,11 +17,27 @@ your-project/
 │   ├── schemas.ts         # Zod schemas describing resources
 │   ├── types.ts           # TypeScript types (derived from schemas)
 │   ├── state.ts           # Declarative reactive state management
-│   ├── mcp.ts             # MCPWeb instantiation + tool registration
-│   ├── queries.ts         # Frontend-triggered queries (optional)
+│   ├── mcp-tools.ts       # MCPWeb instantiation + tool registration
+│   ├── mcp-queries.ts     # [Optional] Frontend-triggered queries (optional)
+│   ├── mcp-apps.ts        # [Optional] MCP apps
 │   └── <app files>        # Your application code
 └── package.json
 ```
+
+While you can obviously organize your source code however you want, this
+file structure helps to things tidy and easily findable. It also re-enforces
+the philosophy behind MCP-Web and makes it straight forward to expose frontend
+state as MCP tools.:
+
+1. Define state schemas
+2. Derive types from those schemas
+3. Create declarative state with those types
+4. Expose the declarative state as tools using the schemas
+
+::: tip
+See our [guide on delcarative reactive state](./declarative-reactive-state.md)
+to learn why this approach is working so well.
+:::
 
 ## Key Files
 
@@ -34,11 +50,10 @@ export const MCP_WEB_CONFIG = {
   name: 'My App',
   description: 'Description of what your app does',
   host: 'localhost',
-  wsPort: 3001,      // Bridge WebSocket port
-  mcpPort: 3002,     // Bridge MCP server port
+  bridgeUrl: 'localhost:3001',
   autoConnect: true,
   // Optional: for frontend-triggered queries
-  agentUrl: 'http://localhost:3003',
+  agentUrl: 'localhost:3003',
 };
 ```
 
@@ -79,7 +94,7 @@ for AI agents to understand your state and how to change it.
 
 ### 3. `src/types.ts`
 
-While not necessariy, it's nice to have a single source of truth for your
+While not necessary, it's nice to have a single source of truth for your
 resources types: your Zod schemas. Hence, it's convenient to derive TypeScript
 types from your Zod schemas whereever possible:
 
@@ -101,51 +116,56 @@ export type CreateTodoInput = z.infer<typeof CreateTodoSchema>;
 Create declarative and reactive state using your framework's state management:
 
 ```typescript
-// Example: Vue with Pinia
-import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+// Example: React with useState/useRef for simple state
+import { useRef, useMemo } from 'react';
 import type { Todo } from './types';
 
-export const useAppStore = defineStore('app', () => {
-  // Declarative "atomic" state (expose to AI)
-  const todos = ref<Todo[]>([]);
+// For app-wide state, create a simple store
+class TodoStore {
+  private todos: Todo[] = [];
+  private listeners = new Set<() => void>();
 
-  // Derived state (keep in frontend only)
-  const activeTodos = computed(() =>
-    todos.value.filter(t => !t.completed)
-  );
+  getTodos() { return this.todos; }
+  
+  setTodos(todos: Todo[]) {
+    this.todos = todos;
+    this.notify();
+  }
 
-  const statistics = computed(() => ({
-    total: todos.value.length,
-    completed: todos.value.filter(t => t.completed).length,
-  }));
+  // Derived state
+  getActiveTodos() {
+    return this.todos.filter(t => !t.completed);
+  }
 
-  return { todos, activeTodos, statistics };
-});
+  getStatistics() {
+    return {
+      total: this.todos.length,
+      completed: this.todos.filter(t => t.completed).length,
+    };
+  }
+
+  subscribe(listener: () => void) {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private notify() {
+    this.listeners.forEach(l => l());
+  }
+}
+
+export const store = new TodoStore();
 ```
 
-```typescript
-// Example: Svelte with runes
-import type { GameState } from './types';
+::: tip
+For more complex state, consider using Jotai, Zustand, or your framework's
+built-in state management. MCP-Web works with any state solution that provides
+get/set access to your data.
+:::
 
-let gameState = $state<GameState>({
-  board: createInitialBoard(),
-  currentTurn: 'red',
-  gameStatus: 'ongoing',
-});
+### 5. `src/mcp-tools.ts`
 
-const validMoves = $derived(calculateValidMoves(gameState));
-
-export const state = {
-  get gameState() { return gameState; },
-  set gameState(value) { gameState = value; },
-  get validMoves() { return validMoves; },
-};
-```
-
-### 5. `src/mcp.ts`
-
-Instantiate MCPWeb and register tools:
+Instantiate `MCPWeb` and register tools:
 
 ```typescript
 import { MCPWeb } from '@mcp-web/core';
@@ -182,12 +202,6 @@ mcp.addTool({
 });
 ```
 
-::: info
-For vanilla React, where the state is bound to the component hierarchy, you
-need to expose tools within your components rather than in a separate file.
-See [our React integration guide](/integrations#react) for details.
-:::
-
 ### 6. `src/queries.ts` (Optional)
 
 For [frontend-triggered AI queries](/frontend-triggered-queries):
@@ -217,36 +231,76 @@ export async function askAIForMove() {
 }
 ```
 
-### 7. `bridge.ts`
+### 7. `src/mcp-apps.ts` (Optional)
+
+If you want to [expose visual user interfaces](./visual-tools.md) as
+[MCP apps](https://blog.modelcontextprotocol.io/posts/2025-11-21-mcp-apps/),
+install `@mcp-web/app`, and 
+
+```typescript
+import { createApp } from '@mcp-web/app';
+import { Statistics, StatisticsPropsSchema } from './components/Statistics';
+import { state } from './state';
+
+const store = getDefaultStore();
+
+export const statisticsApp = createApp({
+  name: 'statistics',
+  description: 'Show a dashboard of plots and charts of the game statistics.',
+  component: Statistics,
+  propsSchema: StatisticsPropsSchema,
+  handler: () => state.statistics,
+});
+```
+
+::: tip
+If you have tools, queries, and apps, it can be useful to organize all three
+files under a folder called `mcp`. E.g., `src/mcp/tools.ts`,
+`src/mcp/queries.ts`, and `src/mcp/apps.ts`.
+:::
+
+### 8. `bridge.ts`
 
 A NodeJS script for running the bridge server:
 
 ```typescript
-import { startBridge } from '@mcp-web/bridge';
+import { MCPWebBridgeNode } from '@mcp-web/bridge';
 import { MCP_WEB_CONFIG } from './mcp-web.config';
 
-startBridge({
-  wsPort: MCP_WEB_CONFIG.wsPort,
-  mcpPort: MCP_WEB_CONFIG.mcpPort,
+const bridgeUrl = MCP_WEB_CONFIG.bridgeUrl;
+const url = new URL(bridgeUrl.startsWith('http') ? bridgeUrl : `http://${bridgeUrl}`);
+
+const bridge = new MCPWebBridgeNode({
+  name: MCP_WEB_CONFIG.name,
+  description: MCP_WEB_CONFIG.description,
+  port: url.port,
 });
 ```
 
-### 8. `agent.ts` (Optional)
+### 9. `agent.ts` (Optional)
 
 A NodeJS script for starting the AI agent server for
 [frontend-triggered AI queries](/frontend-triggered-queries):
 
 ```typescript
+import { serve } from '@hono/node-server';
+import { createAgent } from './agent-app';
 import { MCP_WEB_CONFIG } from './mcp-web.config';
 
-const port = new URL(MCP_WEB_CONFIG.agentURL).port;
+const agentUrl = MCP_WEB_CONFIG.agentUrl;
+const url = new URL(agentUrl.startsWith('http') ? agentUrl : `http://${agentUrl}`);
 
-startAgent({ port });
+const app = createAgent({
+  bridgeUrl: MCP_WEB_CONFIG.bridgeUrl,
+  // ... AI provider API keys
+});
+
+serve({ fetch: app.fetch, port: url.port });
 ```
 
 ::: tip
-See the [checkers game demo](https://github.com/flekschas/mcp-web/blob/main/demos/checkers/agent.ts)
-for a complete example for an AI agent.
+See the [checkers game demo](https://github.com/anthropics/mcp-web/tree/main/demos/checkers)
+for a complete agent server example using Hono and the Vercel AI SDK.
 :::
 
 ## Development Workflow
@@ -291,10 +345,12 @@ Get your auth token:
 console.log('Auth token:', mcp.authToken);
 ```
 
-### 4. Start Building
-
-- Define schemas in `schemas.ts`
-- Create reactive state in `state.ts`
-- Register tools in `mcp.ts`
-- Build your UI
-- Test with AI agent!
+::: note Test Remote MCP Locally
+You can also test the remote MCP server locally as follows:
+1. Install [mkcert](https://github.com/FiloSottile/mkcert) and set it up via `mkcert -instal` to use HTTPS locally.
+2. Install [ngrok](https://ngrok.com/) and set it up
+3. Start start the frontend dev and bridge servers
+4. Start ngrok via `ngrok http https://localhost:3001` and remember the _forwarding URL_ (something like https://bla-blub-jones.ngrok-free.dev)
+5. Open the demo, click on the MCP button, and copy the auth token
+6. In Claude Desktop (or any other tool supporting remote MCP), add the follwing URL: <FORWARDING_URL>?token=<AUTH_TOKEN>
+:::

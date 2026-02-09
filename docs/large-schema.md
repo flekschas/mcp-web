@@ -129,164 +129,57 @@ Creates:
 - `set_config_tracks_top(track: Track)` - Add/update single top track
 - `set_config_tracks_bottom(track: Track)` - Add/update single bottom track
 
-## Framework Examples
+## Usage Example
 
-### React with `useTool`
+Here's how to use schema splitting with `addStateTools`:
 
 ```typescript
-import { useTool } from '@mcp-web/react';
+import { MCPWeb } from '@mcp-web/core';
 import { z } from 'zod';
 
-function GameApp() {
-  const [gameState, setGameState] = useState<GameState>(initialState);
+const mcp = new MCPWeb({ name: 'My App' });
 
-  useTool({
-    mcp,
-    name: 'game_state',
-    description: 'Current game state',
-    value: gameState,
-    setValue: setGameState,
-    valueSchema: GameStateSchema,
-    valueSchemaSplit: [
-      'board',
-      'currentPlayer',
-      ['score.red', 'score.black'],
-    ],
-  });
-
-  return <Game state={gameState} />;
-}
-```
-
-### Jotai with `addAtomTool`
-
-```typescript
-import { addAtomTool } from '@mcp-web/core/integrations/jotai';
-import { atom } from 'jotai';
-
-const gameStateAtom = atom<GameState>(initialState);
-
-addAtomTool({
-  mcp,
-  atom: gameStateAtom,
-  name: 'game_state',
-  description: 'Current game state',
-  atomSchema: GameStateSchema,
-  atomSchemaSplit: [
-    'board',
-    'currentPlayer',
-    ['score.red', 'score.black'],
-  ],
-});
-```
-
-### Vue with Pinia
-
-```typescript
-import { defineStore } from 'pinia';
-
-export const useGameStore = defineStore('game', () => {
-  const gameState = ref<GameState>(initialState);
-
-  return { gameState };
+const GameStateSchema = z.object({
+  board: z.array(z.array(z.string())),
+  currentPlayer: z.number(),
+  score: z.object({
+    red: z.number(),
+    black: z.number(),
+  }),
+  settings: z.object({
+    theme: z.string(),
+    sound: z.boolean(),
+  }),
 });
 
-// In MCP setup
-const store = useGameStore();
+let state = { /* initial state */ };
 
 mcp.addStateTools({
   name: 'game_state',
   description: 'Current game state',
-  get: () => store.gameState,
-  set: (value) => { store.gameState = value; },
+  get: () => state,
+  set: (value) => { state = value; },
   schema: GameStateSchema,
   schemaSplit: [
     'board',
     'currentPlayer',
-    ['score.red', 'score.black'],
+    ['score.red', 'score.black'],  // Grouped setter
+    'settings',
   ],
 });
 ```
 
-### Svelte 5 Runes
+This creates:
+- `get_game_state()` - Returns full state
+- `set_game_state_board(board)` - Update board only
+- `set_game_state_current_player(player)` - Update current player
+- `set_game_state_score({ red, black })` - Update both scores together
+- `set_game_state_settings(settings)` - Update settings
 
-```typescript
-// state.svelte.ts
-let gameState = $state<GameState>(initialState);
-
-export const state = {
-  get gameState() { return gameState; },
-  set gameState(value: GameState) { gameState = value; },
-};
-
-// mcp.ts
-import { state } from './state.svelte';
-
-mcp.addStateTools({
-  name: 'game_state',
-  description: 'Current game state',
-  get: () => state.gameState,
-  set: (value) => { state.gameState = value; },
-  schema: GameStateSchema,
-  schemaSplit: [
-    'board',
-    'currentPlayer',
-    ['score.red', 'score.black'],
-  ],
-});
-```
-
-## Real-World Example: HiGlass Configuration
-
-The [HiGlass genome browser](https://higlass.io) has a complex nested configuration:
-
-```typescript
-const HiglassConfigSchema = z.object({
-  editable: z.boolean(),
-  views: z.array(z.object({
-    uid: z.string(),
-    tracks: z.object({
-      top: z.array(TrackSchema),
-      center: z.array(TrackSchema),
-      bottom: z.array(TrackSchema),
-      left: z.array(TrackSchema),
-      right: z.array(TrackSchema),
-    }),
-    layout: z.object({ w: z.number(), h: z.number(), x: z.number(), y: z.number() }),
-  })),
-  zoomLocks: z.record(z.string()),
-  locationLocks: z.record(z.string()),
-  trackSourceServers: z.array(z.string()),
-});
-```
-
-This could result in 1000+ lines of JSON. With decomposition:
-
-```typescript
-addAtomTool({
-  mcp,
-  atom: higlassConfigAtom,
-  name: 'higlass_config',
-  description: 'HiGlass visualization configuration',
-  atomSchema: HiglassConfigSchema,
-  atomSchemaSplit: [
-    'views[]',                  // Add/update individual views
-    'views[].tracks.top[]',     // Add/update top tracks
-    'views[].tracks.center[]',  // Add/update center tracks
-    'views[].tracks.bottom[]',  // Add/update bottom tracks
-    'zoomLocks',               // Update zoom synchronization
-    'locationLocks',           // Update position synchronization
-    'trackSourceServers',      // Update data sources
-  ],
-});
-```
-
-Now AI agents can efficiently:
-- Add a single track: `set_higlass_config_views_tracks_top({ viewId: "view1", track: {...} })`
-- Synchronize zoom: `set_higlass_config_zoom_locks({ view1: "lock1", view2: "lock1" })`
-- Add a view: `set_higlass_config_views({ uid: "view3", ... })`
-
-All without fetching or modifying the entire 1000-line config!
+::: tip Real-World Example
+See the [HiGlass demo](/demos/higlass) for schema splitting in a complex
+genome browser configuration with deeply nested tracks and views.
+:::
 
 ## Best Practices
 
@@ -335,7 +228,7 @@ The getter always returns the complete state. Only decompose setters:
 
 ```typescript
 // The getter remains simple
-get_game_state() � { board: [...], currentPlayer: 0, score: {...}, ... }
+get_game_state() → { board: [...], currentPlayer: 0, score: {...}, ... }
 
 // Setters are focused
 set_game_state_board(newBoard)
@@ -343,76 +236,13 @@ set_game_state_current_player(playerId)
 set_game_state_score({ red: 10, black: 8 })
 ```
 
-## When NOT to Use Schema Decomposition
-
-### Small, Flat Objects
-```typescript
-// No need to decompose - already simple
-const UserSchema = z.object({
-  name: z.string(),
-  email: z.string(),
-  age: z.number(),
-});
-```
-
-### Atomic Updates
-When fields must always be updated together:
-```typescript
-// Position should be updated atomically
-const PositionSchema = z.object({
-  x: z.number(),
-  y: z.number(),
-  z: z.number(),
-});
-
-// Don't split - always update together
-mcp.addStateTools({
-  name: 'position',
-  description: 'Player position',
-  get: () => position,
-  set: (value) => { position = value; },
-  schema: PositionSchema,
-  // No schemaSplit
-});
-```
-
-### Read-Only State
-```typescript
-// Derived/computed atoms don't need splitting
-const statisticsAtom = atom((get) => {
-  const todos = get(todosAtom);
-  return {
-    total: todos.length,
-    completed: todos.filter(t => t.completed).length,
-  };
-});
-
-// Read-only - no setters needed
-addAtomTool({
-  mcp,
-  atom: statisticsAtom,
-  name: 'statistics',
-  description: 'Todo statistics',
-  atomSchema: StatisticsSchema,
-  // No atomSchemaSplit - read-only
-});
-```
-
 ## Combining with Expanded Tools
 
 Schema splitting can be combined with [expanded tools](/expanded-state-tools)
-for maximum efficiency. When you use both `schemaSplit` and `expandedTools: true`,
-the order of operations is:
+for maximum efficiency. When you use both `schemaSplit` and `expandedTools: true`:
 
 1. **Split first**: Extract the specified props into separate tool groups
 2. **Expand second**: Generate expanded tools for each part (including the remainder)
-
-### When to Use Both
-
-Use schema splitting **with** expanded tools when you have:
-- Large schemas with both settings objects and collections
-- Semantically related props that should be grouped (e.g., display settings)
-- Collections (arrays/records) that benefit from targeted add/set/delete tools
 
 ```typescript
 const AppSchema = z.object({
@@ -425,10 +255,6 @@ const AppSchema = z.object({
     sortOrder: z.enum(['asc', 'desc']),
     showCompleted: z.boolean(),
   }),
-  appSettings: z.object({
-    theme: z.enum(['system', 'light', 'dark']),
-    notifications: z.boolean(),
-  }),
 });
 
 mcp.addStateTools({
@@ -437,70 +263,19 @@ mcp.addStateTools({
   get: () => store.app,
   set: (value) => { store.app = value; },
   schema: AppSchema,
-  schemaSplit: [
-    'displaySettings',  // Creates: get_app_display_settings, set_app_display_settings
-    'appSettings',      // Creates: get_app_app_settings, set_app_app_settings
-  ],
-  expandedTools: true,  // Expands collections into targeted tools
+  schemaSplit: ['displaySettings'],  // Group settings together
+  expandedTools: true,               // Expand collections
 });
 ```
 
-This generates:
-
-| Part | Tools | Count |
-|------|-------|-------|
-| `displaySettings` (split) | get + set | 2 |
-| `appSettings` (split) | get + set | 2 |
-| Remaining root | get only (collections have no fixed props) | 1 |
-| `todos` array | get + set + add + delete | 4 |
-| `projects` record | get + set + delete | 3 |
-| **Total** | | **12** |
-
-::: note
-The root setter is omitted when the remaining schema contains only collections,
-since there are no fixed-shape props to set directly.
-:::
-
-### When to Use Schema Splitting Alone
-
-Use schema splitting **without** expanded tools when you want:
-- Fine-grained control over exactly which setters are created
-- To target specific nested paths (e.g., `score.red`, `settings.theme`)
-- Simpler tool signatures without collection-specific operations
-
-```typescript
-// Without expandedTools - just creates focused setters for paths you specify
-mcp.addStateTools({
-  name: 'game_state',
-  description: 'Game state',
-  get: () => state,
-  set: (value) => { state = value; },
-  schema: GameStateSchema,
-  schemaSplit: [
-    'currentPlayer',
-    ['score.red', 'score.black'],  // Grouped setter for scores
-    'settings',
-  ],
-  // No expandedTools - collections stay as single get/set
-});
-```
-
-## Performance Benefits
-
-Schema decomposition provides:
-
-1. **Reduced Token Usage**: AI only processes relevant fields
-2. **Faster Responses**: Smaller payloads transfer faster
-3. **Better AI Understanding**: Focused tools are easier for AI to reason about
-4. **Fewer Errors**: Less chance of accidentally modifying unrelated fields
-5. **Clearer Intent**: Tool names clearly describe what changes
+This generates focused tools for both the grouped settings and individual
+collection operations (add/set/delete for todos and projects).
 
 ## Summary
 
-- Use `schemaSplit` / `valueSchemaSplit` / `atomSchemaSplit` for complex nested state
+- Use `schemaSplit` for complex nested state in legacy apps
 - Split by use case, not arbitrary structure
 - Group related fields that change together
 - Use `[]` for array element operations
 - Keep getters simple, decompose setters
-- Skip decomposition for small/flat objects
-- Combine with `expandedTools: true` for automatic collection tools (add/set/delete)
+- Combine with `expandedTools: true` for automatic collection tools

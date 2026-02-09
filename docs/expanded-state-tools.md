@@ -2,7 +2,7 @@
 
 Wouldn't it be nice if we could expose any schema as a set of tools for AI
 to efficiently and effectively generate and update frontend state? Then all we'd
-have to do to make a web app fully controllable by AI is to define a
+have to do to make a frontend app fully controllable by AI is to define a
 well-described Zod schema for the app state.
 
 With MCP-Web you can automatically generate an expanded set of tools that offers

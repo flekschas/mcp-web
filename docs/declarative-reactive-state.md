@@ -154,7 +154,7 @@ See how we refactor the todos
 ```tsx
 const SettingsSchema = z.object({
   sortByDate: z.enum(['asc', 'desc']).default('asc').describe('Todos sort order'),
-  showDone: z.bool().default(false).describe('If `true`, show completed todos'),
+  showDone: z.boolean().default(false).describe('If `true`, show completed todos'),
 }).describe('Todo settings');
 
 const AddTodoSchema = z.object({

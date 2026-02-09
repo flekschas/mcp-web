@@ -1,6 +1,6 @@
 # Get Started
 
-MCP-Web is a JavaScript library to enable AI apps/agents (like Claude Desktop) to control frontend web apps directly. The library allows your app to expose state and actions as tools using [MCP](https://modelcontextprotocol.io).
+MCP-Web is a JavaScript library to enable AI agents (like Claude Desktop) to control frontend apps directly. The library allows your app to expose state and actions as tools using [MCP](https://modelcontextprotocol.io).
 Using this approach you can build more effective AI interactions while preserving
 user agency by making the frontend the main control surface.
 
@@ -12,7 +12,7 @@ Imagine asking AI to "select all outliers in this scatter plot" and watching the
 
 With MCP-Web you can:
 
-- 🤖 **Enable AI to control** your frontend web apps directly via MCP
+- 🤖 **Enable AI to control** your frontend apps directly via MCP
 - 🛠️ **Dynamically expose state and actions** as type-safe tools
 - ✨ **Auto-generate efficient tools** from schemas with built-in helpers
 - 🔄 **Trigger AI queries from your frontend** using the same tools
@@ -23,18 +23,18 @@ With MCP-Web you can:
 
 MCP-Web is ideal when you want to:
 
-- **Make frontend web apps accessible to AI agents** without backend modifications
-- **Your UI has rich ephemeral state** like selections, filters, or layouts settings that shouldn't live in a database (or in other words, your view model is a lot richer than your data model)
+- **Make frontend apps accessible to AI agents** without backend modifications
+- **Handle UIs with rich ephemeral state** like selections, filters, or layouts settings where the view state shouldn't live in a database
 - **Preserve user agency** by letting the frontend (i.e., UI state) be the source of truth and control surface.
 - **Build mixed-initiative applications** where humans and AI collaborate through the same state interface
-- **Create reliable AI interactions** by modeling user interactions as declarative
-state actions and expose those as MCP tools
+- **Create reliable AI interactions** with declarative state actions exposed as MCP tools
 - **Skip complex authentication** by letting your existing auth approach handle access control and then expose tools conditionally
 
-MCP-Web might be overkill or not ideal if:
+MCP-Web might not ideal if:
 
 - Your frontend is a more or less plain representation of your backend data resources
 - You need multi-user real-time collaboration where a database should be the source of truth
+- You want the convenience of being able to access the tools without an active frontend session
 
 ## Quick Start
 
@@ -46,14 +46,14 @@ npm install @mcp-web/core
 
 ### 2. Frontend Web App Setup
 
-In your frontend web app, create an MCP-Web instance and connect to the bridge:
+In your frontend app, create an `MCPWeb` instance and connect to the bridge:
 
 ```typescript
 import { MCPWeb } from '@mcp-web/core';
 
 const mcp = new MCPWeb({
   name: 'My App',
-  description: 'A web application controllable by AI agents',
+  description: 'A frontend app controllable by AI agents',
   autoConnect: true, // Auto-connects to bridge on localhost:3001 by default
 });
 ```
@@ -111,7 +111,7 @@ See the [Todo Demo](/demos/todo) for a full CRUD application with schema-driven 
 
 ### 5. Bridge MCP Server
 
-To connect your web app to MCP-compatible AI app/agents, you need to run the
+To connect your frontend app to MCP-compatible AI agents, you need to run the
 bridge:
 
 ```bash
@@ -122,9 +122,9 @@ The bridge runs two servers in parallel on:
 - **Port 3001**: WebSocket server for connecting browser sessions
 - **Port 3002**: MCP server for AI agents
 
-### 6. Connecting AI App to MCP Server
+### 6. Connecting AI Agent to MCP Server
 
-To connect an MCP-compatible AI app/agent, like Claude Desktop, you need to
+To connect an MCP-compatible AI agent, like Claude Desktop, you need to
 add the bridge server. You have two options to connect: remote or local. Both
 provide the same functionality but remote MCP is simpler.
 
@@ -174,7 +174,7 @@ This config looks like:
       "command": "npx",
       "args": ["@mcp-web/client"],
       "env": {
-        "MCP_SERVER_URL": "http://localhost:3001",
+        "MCP_SERVER_URL": "http://localhost:3002",
         "AUTH_TOKEN": "your-auth-token-here"
       }
     }
@@ -182,7 +182,7 @@ This config looks like:
 }
 ```
 
-Add this config to your MCP-compatible AI app.
+Add this config to your MCP-compatible AI agent.
 
 ::: tip
 For Claude Desktop, the config file is located at:
@@ -194,11 +194,11 @@ For Claude Desktop, the config file is located at:
 
 Check that everything is running:
 
-- [x] Frontend web app with `MCPWeb` instance
+- [x] Frontend app with `MCPWeb` instance
 - [x] Bridge server
-- [x] Configured and restarted AI app
+- [x] Configured and restarted AI agent
 
-Finally, now you can ask your AI app to "add a todo to my-app".
+Finally, now you can ask your AI agent to "add a todo to my-app".
 
 <style scoped>
   .img {

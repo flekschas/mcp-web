@@ -1,7 +1,7 @@
 # Architecture
 
-MCP-Web provides the glue to enable AI apps or agents to control and interact
-with your frontend web app. The key architectural design aspect of MCP-Web is
+MCP-Web provides the glue to enable AI agents to control and interact
+with your frontend app. The key architectural design aspect of MCP-Web is
 that is treats the frontend as the source of truth and main control surface.
 
 <div id="mcp-web-architecture" class="img"><div /></div>
@@ -15,7 +15,7 @@ integration through AI.
 ## MCP-Web vs Classic MCP Server
 
 To better understand the difference let's compare MCP-Web approach shown above
-to a"classic" web app plus MCP server architecture:
+to a "classic" web app plus MCP server architecture:
 
 <div id="classic-architecture" class="img"><div /></div>
 
@@ -88,14 +88,14 @@ Frontend  ↔  MCPWeb()  ↔  MCPWebBridge()  ↔  AI App/Agent
 
 ### Connection Options
 
-AI apps can connect to the bridge in two ways:
+AI agents can connect to the bridge in two ways:
 
 1. **Remote MCP (Recommended)**: Direct HTTP connection to the bridge server.
-   The AI app connects via URL with a token query parameter for session routing.
+   The AI agent connects via URL with a token query parameter for session routing.
    This is the simplest setup with no intermediate process required.
 
 2. **Stdio via MCPWebClient**: Uses `@mcp-web/client` as a stdio wrapper that
-   the AI app spawns as a subprocess. This approach is primarily useful when
+   the AI agent spawns as a subprocess. This approach is primarily useful when
    building agent servers that handle [frontend-triggered queries](./frontend-triggered-queries.md).
 
 One can say that with MCP-Web, the frontend becomes the MCP server by executing
@@ -114,12 +114,13 @@ reuse the already registered tools.
 MCP-Web uses the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/)
 as the primary communication standard between AI agents and your frontend
 application. The obvious benefit here is that it allows you to integrate
-frontend easily with the MCP ecosystem.
+frontend tools easily with the MCP ecosystem.
 
-### How Tools Are Exposed
+### Tool Exposure and Call Flow
 
-When your frontend registers tools using `mcp.addTool()` or `mcp.addStateTools()`,
-they are exposed to AI agents through the MCP protocol as follows:
+When your frontend registers tools using `mcp.addTool()`, `mcp.addStateTools()`,
+or `mcp.addApp()` they are exposed to AI agents through the MCP protocol as
+follows:
 
 ```
 1. Frontend calls mcp.addTool()
@@ -135,99 +136,7 @@ they are exposed to AI agents through the MCP protocol as follows:
 6. AI agent sees tool in available tools list
 ```
 
-### Tool Discovery Mechanism
-
-The MCP Client implements the `tools/list` MCP method to provide tool discovery:
-
-```typescript
-// AI Agent requests available tools
-→ Request: { method: "tools/list" }
-
-← Response: {
-  tools: [
-    {
-      name: "get_todos",
-      description: "Get the current list of todos",
-      inputSchema: { type: "object", properties: {...} },
-      outputSchema: { type: "object", properties: {...} }
-    },
-    {
-      name: "create_todo",
-      description: "Create a new todo item",
-      inputSchema: {...},
-      outputSchema: {...}
-    }
-  ]
-}
-```
-
-The AI agent can then call any discovered tool using the `tools/call` MCP method.
-
-### Session-Based Tool Routing
-
-The Bridge server manages multiple frontend sessions and routes tool calls appropriately:
-
-**Single Session:**
-- If only one frontend is connected, tools are automatically routed to that session
-- No need for AI to identify which session to call
-
-**Multiple Sessions:**
-- Each session has unique tools or the same tools for different instances
-- The Bridge aggregates all tools and may prefix them with session identifiers
-- AI agents can use the `list_active_sessions` tool to see all connected frontends
-- Tool calls can specify which session to target
-
-**Example with multiple sessions:**
-```typescript
-// Session 1: Todo App
-Tools: get_todos, create_todo, update_todo
-
-// Session 2: Another Todo App instance
-Tools: get_todos, create_todo, update_todo
-
-// Bridge exposes:
-Tools:
-  - list_active_sessions (bridge-provided)
-  - get_todos (auto-routed if one session, or requires session context)
-  - create_todo
-  - update_todo
-```
-
-### Multi-Session Tool Aggregation
-
-The Bridge server aggregates tools from all active sessions:
-
-```typescript
-// Bridge maintains a session registry:
-{
-  "session-abc-123": {
-    origin: "http://localhost:5173",
-    pageTitle: "My Todo App",
-    tools: ["get_todos", "create_todo", "update_todo"],
-    lastActivity: 1234567890
-  },
-  "session-def-456": {
-    origin: "http://localhost:5174",
-    pageTitle: "My Checkers Game",
-    tools: ["get_game_state", "make_move"],
-    lastActivity: 1234567891
-  }
-}
-
-// Aggregated tool list exposed via MCP:
-[
-  { name: "list_active_sessions", ... },  // Bridge-provided
-  { name: "get_todos", ... },             // From session-abc-123
-  { name: "create_todo", ... },
-  { name: "update_todo", ... },
-  { name: "get_game_state", ... },        // From session-def-456
-  { name: "make_move", ... }
-]
-```
-
-### Tool Call Flow
-
-When an AI agent calls a tool:
+When an AI agent calls a tool, the flow reverses:
 
 ```
 1. AI agent calls tool via MCP Client
@@ -258,87 +167,80 @@ When an AI agent calls a tool:
    ← Tool result in MCP format
 ```
 
-### MCP Standard Compliance
+### Session-Based Tool Routing
 
-MCP-Web implements the core MCP specification:
+It's worth nothing that tool calls are not just token scoped but also session
+scored. In other words, you can run the same frontend app multiple times in
+different browser tabs and each session registers its own set of tools.
 
-- **Protocol Version**: Compatible with MCP 2024-11-05
-- **Transport**: STDIO (MCP Client ↔ AI Agent) and HTTP (MCP Client ↔ Bridge)
-- **Methods Implemented**:
-  - `tools/list`: List all available tools
-  - `tools/call`: Execute a tool
-  - Connection lifecycle management
-- **Tool Schema**: Tools use JSON Schema for input/output validation
-- **Error Handling**: Proper MCP error responses with codes and messages
+The Bridge server manages multiple sessions and routes tool calls as follows:
 
-This ensures compatibility with any AI agent that supports the Model Context
-Protocol, like Claude Desktop, custom agents, and future MCP-compatible systems.
+**Single Session:**
+- If only one frontend is connected, tools are automatically routed to that session
+- No need for AI to identify which session to call
 
-## AI Agent API
+**Multiple Sessions:**
+- Each session has unique tools or the same tools for different instances
+- The Bridge aggregates all tools and may prefix them with session identifiers
+- AI agents can use the `list_active_sessions` tool to see all connected frontends
+- Tool calls can specify which session to target
 
-In a classic MCP setup, requests always get triggered by the AI app/agent. This
-is super fine for scenarios where the user is only interfacing with the AI
-app/agent but in the context of MCP-Web your user might be working with both: an
-AI app and your frontend app.
+## Frontend-Triggered Queries Design
+
+In a classic MCP setup, requests always get triggered by the AI agent. This
+is works well for scenarios where the user is only interfacing with the AI
+agent but in the context of MCP-Web users might be working with both: an
+AI agent and your frontend app.
 
 In this case, it'd be nice to query AI directly from the frontend and reuse
 the existing MCP tools. MCP-Web supports this through frontend-triggered queries
 using a separate lightweight Agent API that makes use of the same MCP tools
 you've registered.
 
-### Why Frontend-Triggered Queries?
-
-While MCP traditionally flows from AI agent → tools, many AI-native web apps
-need the reverse: triggering AI queries from user interactions. The Agent API
-enables this while reusing the same MCP tools, so both AI apps (like Claude
-Desktop) and your web app can use identical tool definitions.
+::: note MCP Sampling
+MCP's sampling concept allows servers to issue queries to a connected AI agent
+but those queries need to be approached. This makes sense but there are also
+scenarios where manual approval isn't a great user experience. This is what
+frontend-triggered queries are useful for.
+:::
 
 ### Query Flow
 
+When you issue a query via `mcp.query()`, the query goes through the bridge
+to the agent server. The bridge registers the query and scopes which tools
+the agent can call during query execution.
+
 ```
-Frontend                    Agent Server                    AI Service
-   │                             │                               │
-   │ PUT /query                  │                               │
-   ├────────────────────────────►│                               │
-   │                             │                               │
-   │ ← query_accepted            │                               │
-   │◄────────────────────────────┤                               │
-   │                             │                               │
-   │                             │  Process with context         │
-   │                             ├──────────────────────────────►│
-   │                             │                               │
-   │ ← query_progress            │  ← Streaming response         │
-   │◄────────────────────────────┤◄──────────────────────────────┤
-   │                             │                               │
-   │                             │  (AI may call tools)          │
-   │                             ├─────┐                         │
-   │                             │     │ Tool execution          │
-   │                             │◄────┘ via Bridge              │
-   │                             │                               │
-   │ ← query_complete            │  ← Final result               │
-   │◄────────────────────────────┤◄──────────────────────────────┤
-   │                             │                               │
+Frontend            Bridge              Agent Server
+   │                   │                     │
+   │ mcp.query()       │                     │
+   ├──────────────────►│ PUT /query          │
+   │                   ├────────────────────►│
+   │  ← query_accepted │                     │
+   │◄──────────────────┤                     │
+   │                   │                     │
+   │       ← forwarded │          Tool calls │
+   │◄──────────────────│◄────────────────────┤
+   │ returns result →  │                     │
+   │──────────────────►│────────────────────►│
+   │                   │                     │
+   │       ← forwarded │    ← query_progress │
+   │◄──────────────────┤◄────────────────────┤
+   │                   │                     │
+   │       ← forwarded │    ← query_complete │
+   │◄──────────────────┤◄────────────────────┤
+   │                   │                     │
 ```
 
-The agent server acts as an intermediary that:
+The bridge server acts as an intermediary that:
 
-1. Receives queries from the frontend via HTTP
-2. Streams progress events back via WebSocket
-3. Can call MCP tools through the Bridge during processing
-4. Returns structured results or executes response tools
+1. Routes frontend-triggered queries to the agent server
+2. Scopes which tools are accessible during query execution
+3. Forwards tool calls back to the frontend for execution
 
-### Agent Design Principles
-
-The Agent server is designed to be:
-
-- **Pluggable**: Integrate with different AI services (Claude API, OpenAI, custom models)
-- **Stateful**: Manages query lifecycle and progress tracking
-- **Streaming**: Provides real-time progress updates to the frontend
-- **Secure**: Validates authentication for all query requests
-
-::: tip Usage Guide
-For implementation details, code examples, and usage patterns, see the
-[Frontend-Triggered Queries](./frontend-triggered-queries.md) guide.
+::: note
+For details on how to use and implement frontend-triggered queries see our
+[dedicated guide](./frontend-triggered-queries.md).
 :::
 
 <style scoped>

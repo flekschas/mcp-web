@@ -1,7 +1,7 @@
 # Visual Tools
 
 Visual tools are MCP tools that return visual UI components rendered inline in
-AI apps like Claude Desktop. While regular tools return data for AI to process
+AI agents like Claude Desktop. While regular tools return data for AI to process
 and reason about, visual tools return interfaces meant for the human user —
 charts, dashboards, and data visualizations that help users understand their
 data at a glance.
@@ -18,14 +18,14 @@ props are passed to your component via `postMessage`.
 ::: tip React Support Only
 For now, only React components are supported but over time we'll add support for
 other frameworks. The work needed to support other frameworks primarily involves
-creating templates for bundling components of your app as standaline MCP apps.
+creating templates for bundling components of your app as standalone MCP apps.
 :::
 
 <div id="app-flow" class="img"><div /></div>
 
 ## When to Use Visual Tools
 
-Visual tools are ideal when you want to show something to the user of an AI app.
+Visual tools are ideal when you want to show something to the user of an AI agent.
 Common use cases include:
 
 - **Data visualizations and dashboards**: Charts, graphs, stats
@@ -86,7 +86,7 @@ export function Stats({ total, completed, completionRate }: StatsProps) {
 ::: tip Reuse Existing Components
 You can expose any existing component without modification. The component just
 receives props like normal. The only real consideration is that it should be
-fairly self-contained. The bigger it's state/props dependencies the more
+fairly self-contained. The bigger its state/props dependencies the more
 involved it is to exposed it as a standalone app.
 :::
 
@@ -195,7 +195,7 @@ In our case, this outputs `public/mcp-web-apps/show-stats.html`
 
 ### 5. Test It
 
-With your app running and connected to an AI app, ask:
+With your app running and connected to an AI agent, ask:
 
 > "Show me the todo statistics"
 

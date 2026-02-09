@@ -40,5 +40,5 @@ features:
     details: Let AI interact with multiple browser sessions of your frontend app independently.
 
   - title: Framework Agnostic
-    details: Works with React, Vue, Svelte, or other frontend framework that run in the browser.
+    details: Works with React, Vue, Svelte, or any other frontend framework that runs in the browser.
 ---
