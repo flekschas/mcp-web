@@ -239,7 +239,7 @@ set_game_state_score({ red: 10, black: 8 })
 ## Combining with Expanded Tools
 
 Schema splitting can be combined with [expanded tools](/expanded-state-tools)
-for maximum efficiency. When you use both `schemaSplit` and `expandedTools: true`:
+for maximum efficiency. When you use both `schemaSplit` and `expand: true`:
 
 1. **Split first**: Extract the specified props into separate tool groups
 2. **Expand second**: Generate expanded tools for each part (including the remainder)
@@ -264,7 +264,7 @@ mcp.addStateTools({
   set: (value) => { store.app = value; },
   schema: AppSchema,
   schemaSplit: ['displaySettings'],  // Group settings together
-  expandedTools: true,               // Expand collections
+  expand: true,                      // Expand collections
 });
 ```
 
@@ -278,4 +278,4 @@ collection operations (add/set/delete for todos and projects).
 - Group related fields that change together
 - Use `[]` for array element operations
 - Keep getters simple, decompose setters
-- Combine with `expandedTools: true` for automatic collection tools
+- Combine with `expand: true` for automatic collection tools

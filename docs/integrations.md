@@ -1,6 +1,6 @@
 # Framework Integrations
 
-MCP-Web is framework agnostic. Here we describe how you can use MCP-Web with
+MCP-Web is framework-agnostic. Here we describe how you can use MCP-Web with
 several popular frameworks and state management libraries.
 
 ::: tip
@@ -30,7 +30,7 @@ always returns fresh values.
 
 [Jotai](https://jotai.org) is the **recommended approach** for React. Its
 architecture separates state from components, which makes it straightforward to
-to expose the state as tools with MCP-Web.
+expose the state as tools with MCP-Web.
 
 **1. Define your schemas, types, and state:**
 
@@ -99,7 +99,7 @@ export const activeTodosTool = createTool({
 
 **3. Register tools in React:**
 
-While you can manually create a `MCBWeb()` instance, it's more convenient to
+While you can manually create a `MCPWeb()` instance, it's more convenient to
 use our provider to handle auto-connection and simplify `useMCPTools()`.
 
 ```typescript
@@ -145,8 +145,8 @@ function App() {
 
 #### Dynamic Tool Registration
 
-Tools are tied to the component lifecycle with `useMCPTools()`. Meaning, when the
-component mounts, tools are registered. And when the component unmounts tools
+Tools are tied to the component lifecycle with `useMCPTools()`. That means when the
+component mounts, tools are registered, and when the component unmounts tools
 are revoked. This makes it easy to conditionally expose tools.
 
 ```typescript
@@ -269,7 +269,7 @@ function App() {
 ## Svelte
 
 Svelte's architecture also allows externalizing state, which makes it work
-seamlessly with MCP-Web without any the need for a special state management
+seamlessly with MCP-Web without the need for a special state management
 library.
 
 ### Svelte with Runes (Svelte 5)

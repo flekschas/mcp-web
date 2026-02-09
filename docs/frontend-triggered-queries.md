@@ -136,7 +136,7 @@ export const MCP_WEB_CONFIG = {
 #### Custom Query Endpoint (Optional)
 
 By default, when the `agentUrl` does not contain any path, queries are routed to
-`/query`. You can customize the routing by include a custom path in the
+`/query`. You can customize the routing by including a custom path in the
 `agentUrl`. In either case, a query UUID will be appended to the URL:
 
 ```typescript{4}
@@ -177,7 +177,7 @@ const query = mcp.query({
 
 ## Simple Example
 
-In the most simple case, send a prompt and await the query result. 🎉
+In the simplest case, send a prompt and await the query result. 🎉
 
 ```typescript{2-4}
 async function summarizeTodos() {
@@ -233,7 +233,7 @@ For getter tool definition context, the tool's current value is pre-computed
 prior to issuing the query. I.e., the AI agent will immediately have the value of
 that tool call without needing to call this tool.
 
-Ephemeral information, could be anything that might be useful to complete the
+Ephemeral information could be anything that might be useful to complete the
 query. The difference to tool context is that this information does not
 correspond to a tool.
 

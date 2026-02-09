@@ -12,7 +12,7 @@ app fully AI controllable by exposing its state as tools using a single function
 </video>
 
 In addition, this demo also shows how you can expose parts of your UI to AI
-using a `<Statistics />` component that we turn into a MCP App with our
+using a `<Statistics />` component that we turn into an MCP App with our
 `@mcp-web/app` package.
 
 **Live Version:** https://todo.demo.mcp-web.dev

@@ -2,7 +2,7 @@
 
 MCP-Web provides the glue to enable AI agents to control and interact
 with your frontend app. The key architectural design aspect of MCP-Web is
-that is treats the frontend as the source of truth and main control surface.
+that it treats the frontend as the source of truth and main control surface.
 
 <div id="mcp-web-architecture" class="img"><div /></div>
 
@@ -71,7 +71,7 @@ not.
 ## How MCP-Web Works
 
 Instead of having AI communicate with a backend database and have the backend
-push changes to the frontend, with MCP-Web, AI directly communicates with the
+push changes to the frontend, MCP-Web lets AI communicate directly with the
 frontend via dual server that is both an MCP server and a websocket server
 connected to your frontend browser sessions. This is accomplished via three
 packages: Web, Bridge, Client. These three packages communicate as follows:
@@ -169,8 +169,8 @@ When an AI agent calls a tool, the flow reverses:
 
 ### Session-Based Tool Routing
 
-It's worth nothing that tool calls are not just token scoped but also session
-scored. In other words, you can run the same frontend app multiple times in
+It's worth noting that tool calls are not just token scoped but also session
+scoped. In other words, you can run the same frontend app multiple times in
 different browser tabs and each session registers its own set of tools.
 
 The Bridge server manages multiple sessions and routes tool calls as follows:
@@ -188,7 +188,7 @@ The Bridge server manages multiple sessions and routes tool calls as follows:
 ## Frontend-Triggered Queries Design
 
 In a classic MCP setup, requests always get triggered by the AI agent. This
-is works well for scenarios where the user is only interfacing with the AI
+it works well for scenarios where the user is only interfacing with the AI
 agent but in the context of MCP-Web users might be working with both: an
 AI agent and your frontend app.
 

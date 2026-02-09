@@ -1,7 +1,7 @@
 # Declarative & Reactive State
 
 A clean way to ensure parity between human and AI when interacting with your
-web app, is to model interactions as declarative state changes if they lead to
+web app is to model interactions as declarative state changes if they lead to
 persistent settings, express transient operations as imperative actions, and
 move imperative operations into reactive computation.
 
@@ -147,7 +147,7 @@ computed.
 
 A more elegant solution is to model persistent settings as declarative state
 and reactively compute derived values. That way, it becomes trivial to handle
-state changes via event (e.g., onClick callbacks) and tool handlers.
+state changes via events (e.g., onClick callbacks) and tool handlers.
 
 See how we refactor the todos
 
@@ -300,7 +300,7 @@ The action vs setter also nicely maps to zod schemas:
 **Dynamic-shape schemas → actions:**
 
 - `z.record(z.string(), z.any())`: keys can be added/removed
-- `z.array(z.any())`: length can varies
+- `z.array(z.any())`: length can vary
 - `z.map()`, `z.set()`: items can be added/removed
 
 ::: tip Expanded Tools for Large Schemas

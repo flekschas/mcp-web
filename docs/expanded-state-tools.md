@@ -67,7 +67,7 @@ mcp.addStateTools({
 });
 ```
 
-While this can work for small schemas this doesn't scale with larger schemas.
+While this can work for small schemas, this doesn't scale with larger schemas.
 For instance, with every new _todo_, AI needs to generate more and more tokens
 for simple operations like adding or updating a todo. It'd be much more
 efficient and less error prone to have targeted tools.
@@ -267,7 +267,7 @@ set_app_todos({ id: 'abc-123', value: { priority: 1 } })
 ## Optional Props
 
 You might notice that none of the props in our schema are optional. This is on
-purpose. Optional props are tricky to deal with as (a) JSON doesn't support
+purpose. Optional props are tricky to deal with because (a) JSON doesn't support
 `undefined` and hence you cannot set a property to undefined and (b) since
 setter tools use upsert via deep merging, we cannot differentiate between
 unsetting and ignoring a property.

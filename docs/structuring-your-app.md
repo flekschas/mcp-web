@@ -25,9 +25,9 @@ your-project/
 ```
 
 While you can obviously organize your source code however you want, this
-file structure helps to things tidy and easily findable. It also re-enforces
-the philosophy behind MCP-Web and makes it straight forward to expose frontend
-state as MCP tools.:
+file structure helps to keep things tidy and easily findable. It also reinforces
+the philosophy behind MCP-Web and makes it straightforward to expose frontend
+ state as MCP tools:
 
 1. Define state schemas
 2. Derive types from those schemas
@@ -35,7 +35,7 @@ state as MCP tools.:
 4. Expose the declarative state as tools using the schemas
 
 ::: tip
-See our [guide on delcarative reactive state](./declarative-reactive-state.md)
+See our [guide on declarative reactive state](./declarative-reactive-state.md)
 to learn why this approach is working so well.
 :::
 
@@ -96,7 +96,7 @@ for AI agents to understand your state and how to change it.
 
 While not necessary, it's nice to have a single source of truth for your
 resources types: your Zod schemas. Hence, it's convenient to derive TypeScript
-types from your Zod schemas whereever possible:
+types from your Zod schemas wherever possible:
 
 ```typescript
 import type { z } from 'zod';
@@ -261,7 +261,7 @@ files under a folder called `mcp`. E.g., `src/mcp/tools.ts`,
 
 ### 8. `bridge.ts`
 
-A NodeJS script for running the bridge server:
+A Node.js script for running the bridge server:
 
 ```typescript
 import { MCPWebBridgeNode } from '@mcp-web/bridge';
@@ -279,7 +279,7 @@ const bridge = new MCPWebBridgeNode({
 
 ### 9. `agent.ts` (Optional)
 
-A NodeJS script for starting the AI agent server for
+A Node.js script for starting the AI agent server for
 [frontend-triggered AI queries](/frontend-triggered-queries):
 
 ```typescript
@@ -347,10 +347,10 @@ console.log('Auth token:', mcp.authToken);
 
 ::: note Test Remote MCP Locally
 You can also test the remote MCP server locally as follows:
-1. Install [mkcert](https://github.com/FiloSottile/mkcert) and set it up via `mkcert -instal` to use HTTPS locally.
+1. Install [mkcert](https://github.com/FiloSottile/mkcert) and set it up via `mkcert -install` to use HTTPS locally.
 2. Install [ngrok](https://ngrok.com/) and set it up
-3. Start start the frontend dev and bridge servers
+3. Start the frontend dev and bridge servers
 4. Start ngrok via `ngrok http https://localhost:3001` and remember the _forwarding URL_ (something like https://bla-blub-jones.ngrok-free.dev)
 5. Open the demo, click on the MCP button, and copy the auth token
-6. In Claude Desktop (or any other tool supporting remote MCP), add the follwing URL: <FORWARDING_URL>?token=<AUTH_TOKEN>
+6. In Claude Desktop (or any other tool supporting remote MCP), add the following URL: <FORWARDING_URL>?token=<AUTH_TOKEN>
 :::

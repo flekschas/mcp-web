@@ -87,7 +87,7 @@ export function Stats({ total, completed, completionRate }: StatsProps) {
 You can expose any existing component without modification. The component just
 receives props like normal. The only real consideration is that it should be
 fairly self-contained. The bigger its state/props dependencies the more
-involved it is to exposed it as a standalone app.
+involved it is to expose it as a standalone app.
 :::
 
 ### 2. Create a Visual Tool
@@ -107,7 +107,7 @@ export const statsApp = createApp({
   propsSchema: StatsPropsSchema,
   // Optional: AI-provided input values
   inputSchema: z.object({
-    project: z.string().nullable().default(null).describe('Project name to filter the statistics or null for all todos')
+    project: z.string().nullable().default(null).describe('Project name to filter the statistics, or null for all todos')
   }),
   // Given the AI-provided inputs, derive and return the props for <Stats />
   handler: ({ project }) => {
@@ -221,7 +221,7 @@ subscribing to incoming props and rendering your component when they arrive.
 ### Minimize Prop Surface Area
 
 Each app's props should be self-contained and computed. Avoid exposing components
-that require large portions of your app state as input as this creates maintenance
+that require large portions of your app state as input, as this creates maintenance
 burden and/or bloated prop schemas.
 
 ```typescript

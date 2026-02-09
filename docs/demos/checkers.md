@@ -3,7 +3,7 @@
 The _Checkers_ demo showcases **action tools** and **frontend-triggered queries**.
 Play a game of Spanish Checkers against an AI opponent. When you make a move,
 the frontend automatically queries the AI agent for its counter-move. To check
-out entirely, you can also ask AI (through your favorite MCP-compatible AI agent)
+it out entirely, you can also ask AI (through your favorite MCP-compatible AI agent)
 to make moves for you.
 
 <video autoplay loop muted playsinline width="1256" data-name="checkers">

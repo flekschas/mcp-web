@@ -1,7 +1,7 @@
 # Get Started
 
 MCP-Web is a JavaScript library to enable AI agents (like Claude Desktop) to control frontend apps directly. The library allows your app to expose state and actions as tools using [MCP](https://modelcontextprotocol.io).
-Using this approach you can build more effective AI interactions while preserving
+Using this approach, you can build more effective AI interactions while preserving
 user agency by making the frontend the main control surface.
 
 <div id="overview" class="img"><div /></div>
@@ -24,15 +24,15 @@ With MCP-Web you can:
 MCP-Web is ideal when you want to:
 
 - **Make frontend apps accessible to AI agents** without backend modifications
-- **Handle UIs with rich ephemeral state** like selections, filters, or layouts settings where the view state shouldn't live in a database
+- **Handle UIs with rich ephemeral state** like selections, filters, or layout settings where the view state shouldn't live in a database
 - **Preserve user agency** by letting the frontend (i.e., UI state) be the source of truth and control surface.
 - **Build mixed-initiative applications** where humans and AI collaborate through the same state interface
 - **Create reliable AI interactions** with declarative state actions exposed as MCP tools
 - **Skip complex authentication** by letting your existing auth approach handle access control and then expose tools conditionally
 
-MCP-Web might not ideal if:
+MCP-Web might not be ideal if:
 
-- Your frontend is a more or less plain representation of your backend data resources
+- Your frontend is a mostly plain representation of your backend data resources
 - You need multi-user real-time collaboration where a database should be the source of truth
 - You want the convenience of being able to access the tools without an active frontend session
 
@@ -130,7 +130,7 @@ provide the same functionality but remote MCP is simpler.
 
 #### Option 1: Remote MCP (Recommended)
 
-The simplest approach is to Remote MCP and connect directly via URL:
+The simplest approach is to use Remote MCP and connect directly via URL:
 
 ```typescript
 console.log(JSON.stringify(mcp.remoteMcpConfig, null, 2));

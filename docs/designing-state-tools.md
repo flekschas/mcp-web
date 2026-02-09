@@ -1,7 +1,7 @@
 # The Art of Designing State Tools
 
 Frontend application state often comes in two flavors: a collection of many
-atomic state variables or a single large state object. Both forms are not ideal
+atomic state variables or a single large state object. Neither form is ideal
 when exposed directly to AI via tools.
 
 Exposing a set of CRUD tools for each atomic state variable can result in an
@@ -14,7 +14,7 @@ setter, picking the right tools is trivial as there's only one getter and one
 setter tool but then your AI agent needs to deal with a potentially very large
 object, even if just a single property needs to be adjusted.
 
-Same as how well crafted user interface group related actions and settings
+Same as how well-crafted user interfaces group related actions and settings
 together, we want to expose semantically related state variables through one
 tool set. The question, of course, is how to do this most efficiently.
 
@@ -53,7 +53,7 @@ best practices, see our comprehensive guide on
 ## Group Atomic State Variables
 
 When structuring frontend state through [declarative state in a reactive framework](/declarative-reactive-state),
-your application state tends to be a set declarative and reactive state
+your application state tends to be a set of declarative and reactive state
 variables.
 
 ```typescript
@@ -85,7 +85,7 @@ const ThemeSchema = z.enum(['system', 'light', 'dark']);
 
 The question is which of these state variables do you want to expose
 individually or group together. There is no one-size-fits-all answer but a good
-question to ask yourself, is which variable are semantically or interface-wise
+question to ask yourself is which variables are semantically or interface-wise
 related. How big would related groups of variables be? And what type of state
 variables would be part of groups?
 
@@ -104,7 +104,7 @@ numerical vectors. Depending on which models and hyper parameters you use
 you'll likely get different results but it would automate the grouping process.
 :::
 
-Code-wise, this would eventually look as following for the above mentioned
+Code-wise, this would eventually look as follows for the above mentioned
 example:
 
 ```typescript
