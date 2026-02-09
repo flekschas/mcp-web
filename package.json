@@ -4,7 +4,7 @@
   "description": "MCP integration for frontend web apps: expose state and actions as tools",
   "type": "module",
   "scripts": {
-    "prepare": "lefthook install",
+    "prepare": "lefthook install || true",
     "build": "pnpm -r build",
     "build:packages": "pnpm --filter './packages/*' build",
     "build:demos": "tsx scripts/build-demos.ts",
