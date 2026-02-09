@@ -15,7 +15,7 @@ In addition, this demo also shows how you can expose parts of your UI to AI
 using a `<Statistics />` component that we turn into a MCP App with our
 `@mcp-web/app` package.
 
-**Live Version:** https://todo.demos.mcp-web.dev
+**Live Version:** https://todo.demo.mcp-web.dev
 
 **Code:** https://github.com/flekschas/mcp-web/tree/main/demos/todo
 
@@ -25,7 +25,7 @@ using a `<Statistics />` component that we turn into a MCP App with our
    controllable by AI.
 
 - `src/mcp-apps.ts`: This file contains everything you need to turn the
-   `<Statistics />` component into an MCP App. Todo App controllable by AI.
+   `<Statistics />` component into an MCP App.
 
 <script setup>
   import { videoColorModeSrcSwitcher } from '../utils';

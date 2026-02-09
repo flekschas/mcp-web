@@ -3,8 +3,8 @@
 The _Checkers_ demo showcases **action tools** and **frontend-triggered queries**.
 Play a game of Spanish Checkers against an AI opponent. When you make a move,
 the frontend automatically queries the AI agent for its counter-move. To check
-out entirely, you can also ask AI (through your favorite MCP-compatible AI app)
-to make moves for your.
+out entirely, you can also ask AI (through your favorite MCP-compatible AI agent)
+to make moves for you.
 
 <video autoplay loop muted playsinline width="1256" data-name="checkers">
   <source
@@ -17,7 +17,7 @@ This demo illustrates how MCP-Web can power bidirectional AI interactions:
 the AI can control the game board, but the frontend can also request the AI
 to analyze positions and suggest moves.
 
-**Live Version:** https://checkers.demos.mcp-web.dev
+**Live Version:** https://checkers.demo.mcp-web.dev
 
 **Code:** https://github.com/flekschas/mcp-web/tree/main/demos/checkers
 

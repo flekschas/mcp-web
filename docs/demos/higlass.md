@@ -15,7 +15,7 @@ the existing state with [Jotai](https://jotai.org/) to make it AI-controllable.
 configuration schema. This demo demonstrates how MCP-Web can tame complex
 schemas by decomposing them into manageable tool definitions.
 
-**Live Version:** https://higlass.demos.mcp-web.dev
+**Live Version:** https://higlass.demo.mcp-web.dev
 
 **Code:** https://github.com/flekschas/mcp-web/tree/main/demos/higlass
 
