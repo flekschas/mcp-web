@@ -31,19 +31,22 @@ is to ensure the human user never loses agency while at the same time enabling
 AI to effectively operate a frontend app. There should be parity between both.
 Whatever the human can do the AI should be able to do and vice versa.
 
-In the past, user interfaces were purely written for humans. Sure there was no
-working AI back then so one could argue it made sense but even then it would
-have made sense to build apps declaratively such that different software can
-interoperate seamlessly. With modern LLMs, there's really no excuse anymore to
-having to fight with poorly-designed or overly complex user interfaces. Even
-when complex UIs are unavoidable. And they can be, trust me, I've built many
-myself. LLMs enable us to make any software accessible through natural language.
+In the past, graphical end-user software was most often designed purely for
+humans interacting through screens and pointers. Unlike CLIs and APIs, GUIs were
+rarely built with programmatic control or integration in mind. You could argue
+that made sense before working AI existed, but it meant these tools became hard
+to automate, integrate, and learn.
+
+With modern LLMs, there's really no reason anymore not to make graphical
+interfaces fully programmable and AI-controllable. Even when complex UIs are
+unavoidable — and they can be, trust me, I've built many — LLMs allow us to
+lower the entry barrier, increase accessibility, and automate the tedious parts.
 
 The flip side, of course, is optimizing only for AI. As great as LLMs are at
-automating tedious interactions, they can fail. Either by making genuine
-mistakes, or by the user not specifying their intent correctly. In either case
-it's important to ensure the user can take over at any time to intervene if they
-need to.
+automating tedious interactions, they can fail (like humans). Either by making
+genuine mistakes, or by the user not specifying their intent correctly. In
+either case it's important to ensure the user can take over at any time to
+intervene if they need to.
 
 With human-AI parity, the user can choose which route to take, how much to
 automate with AI and when to take over. And it turns out, it's fairly
