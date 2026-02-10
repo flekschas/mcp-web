@@ -694,3 +694,74 @@ describe('Remote MCP - Capabilities', () => {
     });
   });
 });
+
+describe('Remote MCP - Server Info', () => {
+  let bridge: MCPWebBridgeNode;
+  const port = 4606;
+
+  afterEach(async () => {
+    if (bridge) {
+      await bridge.close();
+    }
+  });
+
+  test('GET / returns server info without auth', async () => {
+    bridge = new MCPWebBridgeNode({
+      name: 'Test Bridge',
+      description: 'A test bridge server',
+      port,
+    });
+
+    const response = await fetch(`http://localhost:${port}/`);
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as Record<string, unknown>;
+    expect(body.name).toBe('Test Bridge');
+    expect(body.description).toBe('A test bridge server');
+    expect(typeof body.version).toBe('string');
+    // No icon configured, so it should not be present
+    expect(body.icon).toBeUndefined();
+  });
+
+  test('GET / includes icon when configured as data URI', async () => {
+    const testIcon = 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=';
+    bridge = new MCPWebBridgeNode({
+      name: 'Test Bridge',
+      description: 'Test',
+      port,
+      icon: testIcon,
+    });
+
+    const response = await fetch(`http://localhost:${port}/`);
+    expect(response.status).toBe(200);
+
+    const body = (await response.json()) as Record<string, unknown>;
+    expect(body.icon).toBe(testIcon);
+  });
+
+  test('initialize response includes icon when configured', async () => {
+    const testIcon = 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=';
+    bridge = new MCPWebBridgeNode({
+      name: 'Test Bridge',
+      description: 'Test',
+      port,
+      icon: testIcon,
+    });
+
+    const { body } = await mcpRequest(
+      port,
+      'initialize',
+      { protocolVersion: '2024-11-05' },
+      { Authorization: 'Bearer test-token' }
+    );
+
+    expect(body).toMatchObject({
+      result: {
+        serverInfo: {
+          name: 'Test Bridge',
+          icon: testIcon,
+        },
+      },
+    });
+  });
+});

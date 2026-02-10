@@ -98,25 +98,6 @@ export class MCPWebClient {
     if (query) {
       this.#query = QuerySchema.parse(query);
     }
-
-    // Only create server for root instances (not contextualized ones)
-    if (!this.#query) {
-      this.#server = new Server(
-        {
-          name: '@mcp-web/client',
-          version: '1.0.0',
-        },
-        {
-          capabilities: {
-            tools: {},
-            resources: {},
-            prompts: {},
-          },
-        }
-      );
-
-      this.setupHandlers();
-    }
   }
 
   private getMetaParams(sessionId?: string): McpRequestMetaParams | undefined {
@@ -676,6 +657,47 @@ export class MCPWebClient {
   }
 
   /**
+   * Fetches server identity (name, version, icon) from the bridge.
+   * Falls back to defaults if the bridge is unreachable.
+   */
+  private async fetchBridgeInfo(): Promise<{
+    name: string;
+    version: string;
+    icon?: string;
+  }> {
+    const defaults = { name: '@mcp-web/client', version: '1.0.0' };
+    try {
+      const url = this.#config.serverUrl
+        .replace('ws:', 'http:')
+        .replace('wss:', 'https:');
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      const response = await fetch(url, {
+        method: 'GET',
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) return defaults;
+
+      const data = (await response.json()) as Record<string, unknown>;
+      return {
+        name: typeof data.name === 'string' ? data.name : defaults.name,
+        version:
+          typeof data.version === 'string'
+            ? data.version
+            : defaults.version,
+        ...(typeof data.icon === 'string' && { icon: data.icon }),
+      };
+    } catch {
+      return defaults;
+    }
+  }
+
+  /**
    * Starts the MCP server using stdio transport.
    *
    * This method is intended for running as a subprocess of an AI host like
@@ -697,9 +719,25 @@ export class MCPWebClient {
       throw new Error('Cannot run a contextualized client instance. Only root clients can be run as MCP servers.');
     }
 
-    if (!this.#server) {
-      throw new Error('Server not initialized. Cannot run client.');
-    }
+    // Fetch bridge identity before creating the MCP server
+    const bridgeInfo = await this.fetchBridgeInfo();
+
+    this.#server = new Server(
+      {
+        name: bridgeInfo.name,
+        version: bridgeInfo.version,
+        ...(bridgeInfo.icon && { icon: bridgeInfo.icon }),
+      },
+      {
+        capabilities: {
+          tools: {},
+          resources: {},
+          prompts: {},
+        },
+      }
+    );
+
+    this.setupHandlers();
 
     const transport = new StdioServerTransport();
     await this.#server.connect(transport);

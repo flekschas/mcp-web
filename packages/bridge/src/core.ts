@@ -309,6 +309,10 @@ export class MCPWebBridge {
   #mcpSessionTimeoutIntervalId?: string;
   static readonly MCP_SESSION_IDLE_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour
 
+  // Resolved icon (data URI), populated asynchronously if icon is a URL
+  #resolvedIcon: string | undefined;
+  #iconReady: Promise<void>;
+
   /**
    * Creates a new MCPWebBridge instance.
    *
@@ -326,6 +330,9 @@ export class MCPWebBridge {
 
     this.#config = parsedConfig.data;
     this.#scheduler = scheduler ?? new NoopScheduler();
+
+    // Resolve icon: if it's a URL, fetch and convert to base64 data URI
+    this.#iconReady = this.#resolveIcon();
 
     // Start session timeout checker if configured
     if (this.#config.sessionMaxDurationMs) {
@@ -812,8 +819,16 @@ export class MCPWebBridge {
         debug(`  Opening SSE stream`);
         return this.#handleSSEStream(req);
       }
-      debug(`← 405 (GET without Accept: text/event-stream) [${Date.now() - startTime}ms]`);
-      return jsonResponse(405, { error: 'Method Not Allowed' });
+
+      // Plain GET returns server info (no auth required)
+      debug(`← 200 (server info) [${Date.now() - startTime}ms]`);
+      const icon = await this.#getIcon();
+      return jsonResponse(200, {
+        name: this.#config.name,
+        description: this.#config.description,
+        version: this.#getVersion(),
+        ...(icon && { icon }),
+      });
     }
 
     // Handle MCP JSON-RPC requests
@@ -1008,7 +1023,7 @@ export class MCPWebBridge {
             MissingAuthenticationErrorCode
           );
         }
-        const { result, sessionId } = this.#handleInitialize(authToken);
+        const { result, sessionId } = await this.#handleInitialize(authToken);
         if (this.#config.debug) {
           console.log(`[MCP Debug]   Created MCP session: ${sessionId}`);
         }
@@ -1246,10 +1261,63 @@ export class MCPWebBridge {
   }
 
   /**
+   * Resolves the icon config value to a data URI.
+   * If icon is already a data URI, uses it directly.
+   * If icon is an HTTP(S) URL, fetches it and converts to a base64 data URI.
+   * Fails gracefully — icon is simply omitted if resolution fails.
+   */
+  async #resolveIcon(): Promise<void> {
+    const icon = this.#config.icon;
+    if (!icon) return;
+
+    // Already a data URI — use as-is
+    if (icon.startsWith('data:')) {
+      this.#resolvedIcon = icon;
+      return;
+    }
+
+    // HTTP(S) URL — fetch and convert
+    if (icon.startsWith('http://') || icon.startsWith('https://')) {
+      try {
+        const response = await fetch(icon);
+        if (!response.ok) {
+          console.warn(
+            `[MCPWebBridge] Failed to fetch icon from ${icon}: HTTP ${response.status}`
+          );
+          return;
+        }
+
+        const contentType =
+          response.headers.get('content-type') || 'image/png';
+        const buffer = await response.arrayBuffer();
+        const base64 = Buffer.from(buffer).toString('base64');
+        this.#resolvedIcon = `data:${contentType};base64,${base64}`;
+      } catch (error) {
+        console.warn(
+          `[MCPWebBridge] Failed to fetch icon from ${icon}:`,
+          error instanceof Error ? error.message : error
+        );
+      }
+      return;
+    }
+
+    // Unrecognized format — use as-is (could be a relative URL)
+    this.#resolvedIcon = icon;
+  }
+
+  /**
+   * Returns the resolved icon data URI, waiting for resolution if needed.
+   */
+  async #getIcon(): Promise<string | undefined> {
+    await this.#iconReady;
+    return this.#resolvedIcon;
+  }
+
+  /**
    * Handles MCP initialize request and creates a new MCP session.
    * Returns the initialize result along with a session ID for the Mcp-Session-Id header.
    */
-  #handleInitialize(authToken: string): { result: unknown; sessionId: string } {
+  async #handleInitialize(authToken: string): Promise<{ result: unknown; sessionId: string }> {
     // Create a new MCP session
     const sessionId = crypto.randomUUID();
     const mcpSession: McpSession = {
@@ -1260,6 +1328,7 @@ export class MCPWebBridge {
     };
     this.#mcpSessions.set(sessionId, mcpSession);
 
+    const icon = await this.#getIcon();
     const result = {
       protocolVersion: '2024-11-05',
       capabilities: {
@@ -1271,7 +1340,7 @@ export class MCPWebBridge {
         name: this.#config.name,
         description: this.#config.description,
         version: this.#getVersion(),
-        ...(this.#config.icon && { icon: this.#config.icon }),
+        ...(icon && { icon }),
       },
     };
 
