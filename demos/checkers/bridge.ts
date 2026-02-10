@@ -13,6 +13,7 @@ const bridge = new MCPWebBridgeNode({
   description: 'Interactive checkers game where human plays against AI',
   port: Number(bridgeUrl.port || bridgeUrl.protocol === 'https:' ? 443 : 80),
   agentUrl: agentUrl.toString(),
+  icon: config.icon,
 });
 
 console.log('✅ Bridge started successfully!');
