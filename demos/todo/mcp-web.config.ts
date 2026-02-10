@@ -1,7 +1,7 @@
 import type { MCPWebConfig } from '@mcp-web/types';
 
 const config: MCPWebConfig = {
-  name: 'MCP-Web Todo Demo',
+  name: 'MCP-Web Todo',
   description:
     'Manage a todo list - add, complete, delete, and organize tasks',
   bridgeUrl: 'localhost:3001',
