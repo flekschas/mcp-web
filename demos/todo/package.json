@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently \"pnpm run dev:app\" \"pnpm run dev:bridge\"",
+    "dev:ssl": "concurrently \"pnpm run dev:app -- --ssl\" \"pnpm run dev:bridge -- --ssl\"",
     "dev:app": "vite",
     "dev:bridge": "tsx watch bridge.ts",
     "dev:mcp-apps": "vite build --config vite.apps.config.ts --watch",

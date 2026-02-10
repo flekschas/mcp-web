@@ -1,28 +1,34 @@
 #!/usr/bin/env tsx
 
-import { readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
 import { MCPWebBridgeNode } from '@mcp-web/bridge';
+import type { MCPWebBridgeNodeSSLConfig } from '@mcp-web/bridge';
 
 // Port constant shared with mcp-web.config.ts (but we can't import it because
 // that file uses Vite-specific import.meta.env which doesn't work in tsx)
 const BRIDGE_PORT = 3001;
 
-// Load SSL certificates from vite-plugin-mkcert's cache directory
-// This ensures the bridge uses the same certificates as Vite for local development
-const mkcertDir = join(homedir(), '.vite-plugin-mkcert');
+const useSSL = process.argv.includes('--ssl');
 
-let ssl: { key: Buffer; cert: Buffer } | undefined;
-try {
-  ssl = {
-    key: readFileSync(join(mkcertDir, 'dev.pem')),
-    cert: readFileSync(join(mkcertDir, 'cert.pem')),
-  };
-  console.log('Starting MCP Bridge with SSL (using vite-plugin-mkcert certificates)...');
-} catch {
-  console.log('Starting MCP Bridge without SSL (no mkcert certificates found)...');
-  console.log('  Run the Vite dev server first to generate certificates.');
+let ssl: MCPWebBridgeNodeSSLConfig | undefined;
+if (useSSL) {
+  const { readFileSync } = await import('node:fs');
+  const { homedir } = await import('node:os');
+  const { join } = await import('node:path');
+
+  // Load SSL certificates from vite-plugin-mkcert's cache directory
+  const mkcertDir = join(homedir(), '.vite-plugin-mkcert');
+  try {
+    ssl = {
+      key: readFileSync(join(mkcertDir, 'dev.pem')),
+      cert: readFileSync(join(mkcertDir, 'cert.pem')),
+    };
+  } catch {
+    console.error(
+      'SSL certificates not found. Run `pnpm dev:ssl` for the Vite app first to generate them,',
+      'or use `pnpm dev` to run without SSL.',
+    );
+    process.exit(1);
+  }
 }
 
 const bridge = new MCPWebBridgeNode({
