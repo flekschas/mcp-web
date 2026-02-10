@@ -3,8 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" href="/favicon.svg">
-    <title>MCP-Web Demo: Checkers Game</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>MCP-Web: Checkers Demo</title>
+    <meta name="author" content="Fritz Lekschas, Claude">
+    <meta name="description" content="Play checkers against an AI opponent. Demonstrates MCP-Web's frontend-triggered query system where the web app initiates AI moves via exposed MCP tools." />
+    <link rel="canonical" href="https://checkers.demos.mcp-web.dev" />
+    <meta property="og:title" content="MCP-Web: Checkers Demo" />
+    <meta property="og:description" content="Human vs. AI checkers game powered by MCP-Web. The frontend exposes game state and move tools to an AI agent." />
+    <meta property="og:url" content="https://checkers.demos.mcp-web.dev" />
+    <!--
+      MCP-Web Checkers Demo
+      A human-vs-AI checkers game showcasing frontend-triggered AI queries.
+      The frontend exposes `get_game_state` and `make_move` tools via MCP-Web.
+
+      Live demo:  https://checkers.demos.mcp-web.dev
+      Source:     https://github.com/flekschas/mcp-web/tree/main/demos/checkers
+      Docs:       https://mcp-web.dev
+    -->
   </head>
   <body class="bg-yellow-900 text-[#C99DA3]">
     <div id="app"></div>
