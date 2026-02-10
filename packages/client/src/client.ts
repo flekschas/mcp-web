@@ -27,6 +27,9 @@ import {
   type ListResourcesResult,
   ListToolsRequestSchema,
   type ListToolsResult,
+  type ReadResourceRequest,
+  ReadResourceRequestSchema,
+  type ReadResourceResult,
   type Tool,
 } from '@modelcontextprotocol/sdk/types.js';
 import {
@@ -162,9 +165,21 @@ export class MCPWebClient {
       // 1. A wrapped response: { data: <actual data> }
       // 2. Direct tool result: any type (string, number, object, etc.)
       let content: Content[];
-      const actualData = (response && typeof response === 'object' && 'data' in response)
+      let topLevelMeta: Record<string, unknown> | undefined;
+      let actualData = (response && typeof response === 'object' && 'data' in response)
         ? response.data
         : response;
+
+      // Extract _meta from the data to place at the top level of CallToolResult.
+      // The MCP protocol expects _meta as a top-level field on the result object,
+      // not embedded inside the JSON text content.
+      if (actualData && typeof actualData === 'object' && '_meta' in actualData) {
+        const { _meta: extractedMeta, ...rest } = actualData as Record<string, unknown>;
+        if (extractedMeta && typeof extractedMeta === 'object') {
+          topLevelMeta = extractedMeta as Record<string, unknown>;
+        }
+        actualData = rest;
+      }
 
       if (typeof actualData === 'string') {
         // Check if it's a data URL (image)
@@ -201,7 +216,11 @@ export class MCPWebClient {
         ];
       }
 
-      return { content };
+      const callToolResult: CallToolResult = { content };
+      if (topLevelMeta) {
+        callToolResult._meta = topLevelMeta;
+      }
+      return callToolResult;
 
     } catch (error) {
       // Re-throw authentication and query errors
@@ -258,6 +277,22 @@ export class MCPWebClient {
     return response;
   }
 
+  private async makeReadResourceRequest(request: ReadResourceRequest): Promise<ReadResourceResult> {
+    const { uri, _meta } = request.params;
+
+    const response = await this.makeRequest<ReadResourceResult | FatalError>('resources/read', {
+      uri,
+      ...(_meta && { _meta }),
+      ...this.getParams(),
+    });
+
+    if (isFatalError(response)) {
+      throw new Error(response.error_message);
+    }
+
+    return response;
+  }
+
   private setupHandlers() {
     if (!this.#server) return;
 
@@ -269,6 +304,9 @@ export class MCPWebClient {
 
     // Handle resource listing
     this.#server.setRequestHandler(ListResourcesRequestSchema, () => this.makeListResourcesRequest());
+
+    // Handle resource reading
+    this.#server.setRequestHandler(ReadResourceRequestSchema, (request: ReadResourceRequest) => this.makeReadResourceRequest(request));
 
     // Handle prompt listing
     this.#server.setRequestHandler(ListPromptsRequestSchema, () => this.makeListPromptsRequest());

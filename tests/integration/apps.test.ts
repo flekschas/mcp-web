@@ -279,11 +279,18 @@ describe('MCP Apps', () => {
     expect(result.content).toHaveLength(1);
     expect(result.content[0].type).toBe('text');
 
+    // Verify _meta.ui is at the top level of CallToolResult (not inside JSON text)
+    expect(result._meta).toBeDefined();
+    expect((result._meta as Record<string, unknown>).ui).toEqual({
+      resourceUri: 'ui://client_test_app/app.html',
+    });
+
+    // Verify the text content contains the props WITHOUT _meta
     const textContent = result.content[0] as { type: 'text'; text: string };
     const parsed = JSON.parse(textContent.text);
     expect(parsed.message).toBe('Hello from app');
     expect(parsed.timestamp).toBe(12345);
-    expect(parsed._meta.ui.resourceUri).toBe('ui://client_test_app/app.html');
+    expect(parsed._meta).toBeUndefined();
 
     mcpWeb.disconnect();
   });

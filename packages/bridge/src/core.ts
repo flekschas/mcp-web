@@ -1177,10 +1177,15 @@ export class MCPWebBridge {
   /**
    * Wraps a tool call result in the MCP CallToolResult format.
    * This ensures compatibility with both Remote MCP (direct HTTP) and STDIO clients.
+   *
+   * If the result object contains a `_meta` field, it is extracted and placed at
+   * the top level of the CallToolResult (as required by the MCP protocol), rather
+   * than being serialized inside the JSON text content.
    */
   #wrapToolCallResult(result: unknown): {
     content: Array<{ type: string; text?: string; data?: string; mimeType?: string }>;
     isError?: boolean;
+    _meta?: Record<string, unknown>;
   } {
     // Check if this is an error response
     if (result && typeof result === 'object' && 'error' in result) {
@@ -1223,14 +1228,37 @@ export class MCPWebBridge {
     }
 
     if (result !== null && result !== undefined) {
-      return {
+      // Extract _meta from the result object to place at the top level of CallToolResult.
+      // The MCP protocol expects _meta as a top-level field on the result object,
+      // not embedded inside the JSON text content (where the host can't find it).
+      let topLevelMeta: Record<string, unknown> | undefined;
+      let resultToSerialize = result;
+
+      if (typeof result === 'object' && '_meta' in result) {
+        const { _meta, ...rest } = result as Record<string, unknown>;
+        if (_meta && typeof _meta === 'object') {
+          topLevelMeta = _meta as Record<string, unknown>;
+        }
+        resultToSerialize = rest;
+      }
+
+      const wrapped: {
+        content: Array<{ type: string; text?: string; data?: string; mimeType?: string }>;
+        _meta?: Record<string, unknown>;
+      } = {
         content: [
           {
             type: 'text',
-            text: typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result),
+            text: typeof resultToSerialize === 'object' ? JSON.stringify(resultToSerialize, null, 2) : String(resultToSerialize),
           },
         ],
       };
+
+      if (topLevelMeta) {
+        wrapped._meta = topLevelMeta;
+      }
+
+      return wrapped;
     }
 
     // null or undefined result
