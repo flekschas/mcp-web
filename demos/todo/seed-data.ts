@@ -76,7 +76,7 @@ function generateProjects(): Record<string, Project> {
     {
       id: 'proj-genomics',
       title: 'Genomics',
-      pattern: 'pattern-grid',
+      pattern: 'pattern-zigzag',
       description: 'Next-gen genome browser with AI superpowers',
       created_at: randomDate(15, 20).toISOString(),
     },
@@ -209,7 +209,7 @@ function generateTodos(_projects: Record<string, Project>): Todo[] {
             ? 24 + Math.random() * 72 // 30% 1-4 days
             : 96 + Math.random() * 240; // 40% 4-14 days
         completedAt = addRandomTime(createdAt, completionTimeHours * 0.8, completionTimeHours * 1.2);
-        
+
         // Don't complete in the future
         if (completedAt > new Date()) {
           completedAt = addRandomTime(new Date(), -24, -1);
@@ -240,7 +240,7 @@ function generateTodos(_projects: Record<string, Project>): Todo[] {
   // Add special self-referential checkers todos (always included)
   const checkersCreatedAt = randomDate(5, 7);
   const checkersCompletedAt = addRandomTime(checkersCreatedAt, 2, 6);
-  
+
   // First game: completed
   todos.push({
     id: crypto.randomUUID(),
@@ -251,7 +251,7 @@ function generateTodos(_projects: Record<string, Project>): Todo[] {
     due_at: null,
     project_id: null,
   });
-  
+
   // Rematch: pending (Claude wants revenge)
   todos.push({
     id: crypto.randomUUID(),
