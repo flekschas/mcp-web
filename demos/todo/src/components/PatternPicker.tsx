@@ -34,8 +34,6 @@ export function PatternPicker({ value, onChange }: PatternPickerProps) {
     }
   }, [isOpen]);
 
-  console.log('value', value);
-
   return (
     <div className="relative" ref={pickerRef}>
       <button

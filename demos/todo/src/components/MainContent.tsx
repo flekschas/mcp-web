@@ -47,7 +47,7 @@ export function MainContent() {
             <button
               type="button"
               onClick={() => deleteProject(view.id)}
-              className="inline-flex items-center justify-center p-1.5 text-(--color-text) rounded hover:bg-(--color-border) cursor-pointer select-none opacity-0 group-hover:opacity-30 hover:opacity-100 transition-opacity"
+              className="inline-flex items-center justify-center p-1.5 text-(--color-text) hover:text-(--color-danger) rounded hover:bg-(--color-danger-bg) cursor-pointer select-none opacity-0 group-hover:opacity-30 hover:opacity-100 transition-all"
               title="Delete project"
             >
               <TrashIcon className="w-5 h-5" />

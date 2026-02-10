@@ -27,16 +27,16 @@ export function TodoItem({ todo }: TodoItemProps) {
   const isCompleted = !!todo.completed_at;
 
   return (
-    <div className="group bg-(--color-bg) border-2 border-(--color-border) rounded-lg p-4 flex items-center gap-4 transition-all">
+    <div className={`group bg-(--color-bg) border-2 border-(--color-border) rounded-lg p-4 flex items-center gap-4 transition-all ${isCompleted ? 'opacity-50' : 'hover:border-(--color-border-hover)'}`}>
       <input
         type="checkbox"
         checked={isCompleted}
         onChange={toggleComplete}
-        className="checkbox-retro mt-0.5 shrink-0"
+        className={`checkbox-retro mt-0.5 shrink-0 ${isCompleted ? 'text-(--color-text)' : 'text-(--color-border-hover) group-hover:text-(--color-accent) hover:text-(--color-accent-hover)'}`}
       />
 
       <div className="flex-1 min-w-0">
-        <div className={`font-medium leading-tight ${isCompleted ? 'line-through text-(--color-text-secondary) opacity-60' : 'text-(--color-text)'}`}>
+        <div className="font-medium leading-tight text-(--color-text)">
           {todo.title}
         </div>
         {todo.description && (
@@ -52,7 +52,7 @@ export function TodoItem({ todo }: TodoItemProps) {
       <button
         type="button"
         onClick={deleteTodo}
-        className="inline-flex items-center justify-center p-1.5 text-(--color-text) rounded hover:bg-(--color-border) cursor-pointer select-none opacity-0 group-hover:opacity-30 hover:opacity-100 transition-opacity"
+        className="inline-flex items-center justify-center p-1.5 text-(--color-text) hover:text-(--color-danger) rounded hover:bg-(--color-danger-bg) cursor-pointer select-none opacity-0 group-hover:opacity-30 hover:opacity-100 transition-all"
       >
         <TrashIcon className="w-4 h-4" />
       </button>

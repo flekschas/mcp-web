@@ -42,7 +42,7 @@ export function ProjectItem({
       </button>
       <button
         type="button"
-        className={`opacity-0 group-hover:opacity-50 hover:opacity-100 inline-flex items-center justify-center rounded-md text-xs font-semibold cursor-pointer select-none w-6 h-6 transition-opacity absolute right-2 ${isActive ? 'text-(--color-bg)' : 'text-(--color-text)'}`}
+        className={`opacity-0 group-hover:opacity-50 hover:opacity-100 inline-flex items-center justify-center rounded-md text-xs font-semibold cursor-pointer select-none w-6 h-6 transition-all absolute right-2 ${isActive ? 'text-(--color-bg)' : 'text-(--color-text)'}`}
         onClick={(e) => {
           e.stopPropagation();
           onEdit();

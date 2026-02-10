@@ -125,14 +125,14 @@ export function ConfigModal({
             {activeTab === 'remote' ? (
               <div className="space-y-4">
                 <p className="text-sm opacity-60">
-                  In Claude Desktop, go to <strong>Settings → Developer → Add MCP Server</strong> and enter:
+                  In Claude Desktop, go to <strong>Settings → Connectors → Add custom connector</strong> and enter:
                 </p>
 
                 {/* Name field */}
                 <div className="space-y-1">
                   <label className="block text-sm font-medium opacity-80">Name</label>
                   <div className="flex gap-2">
-                    <code className="flex-1 bg-(--color-bg) border border-(--color-border) rounded px-3 py-2 text-sm font-mono">
+                    <code className="flex-1 border-2 border-(--color-border) rounded px-3 py-2 text-sm font-mono">
                       {serverName}
                     </code>
                     <button
@@ -149,7 +149,7 @@ export function ConfigModal({
                 <div className="space-y-1">
                   <label className="block text-sm font-medium opacity-80">URL</label>
                   <div className="flex gap-2">
-                    <code className="flex-1 bg-(--color-bg) border border-(--color-border) rounded px-3 py-2 text-sm font-mono overflow-x-auto whitespace-nowrap">
+                    <code className="flex-1 border-2 border-(--color-border) rounded px-3 py-2 text-sm font-mono overflow-x-auto whitespace-nowrap">
                       {serverUrl}
                     </code>
                     <button
@@ -166,15 +166,17 @@ export function ConfigModal({
                   Once configured, you can ask Claude to manage your todos. For example:
                 </p>
 
-                <div className="border border-(--color-border) rounded p-4 relative">
+                <div className="flex gap-2">
+                  <code className="flex-1 border-2 border-(--color-border) rounded px-3 py-2 text-sm font-mono overflow-x-auto whitespace-nowrap">
+                    add a todo to read up on MCP-Web. seems like a cool library
+                  </code>
                   <button
                     type="button"
                     onClick={() => copyToClipboard('remind me to water my mass cane plant every two weeks', 'example')}
-                    className="absolute top-2 right-2 px-2 py-1 bg-(--color-accent-subtle) hover:bg-(--color-accent-subtle-hover) text-sm rounded transition-colors cursor-pointer"
+                    className="px-3 py-2 bg-(--color-accent-subtle) hover:bg-(--color-accent-subtle-hover) text-sm rounded transition-colors cursor-pointer whitespace-nowrap"
                   >
                     {copySuccess === 'example' ? '✓ Copied!' : 'Copy'}
                   </button>
-                  <code className="text-sm opacity-80 pr-16 block">remind me to water my mass cane plant every two weeks</code>
                 </div>
               </div>
             ) : (
@@ -185,7 +187,7 @@ export function ConfigModal({
 
                 {/* JSON config display */}
                 <div className="border-2 border-(--color-border) rounded p-4 relative">
-                  <pre className="text-sm text-(--color-text) opacity-80 overflow-x-auto pr-20">
+                  <pre className="text-sm text-(--color-text) overflow-x-auto pr-20">
                     <code>{JSON.stringify(stdioConfig, null, 2)}</code>
                   </pre>
                   <button

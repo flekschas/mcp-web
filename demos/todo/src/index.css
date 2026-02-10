@@ -19,6 +19,8 @@
   --color-accent: oklch(0.5733 0.2051 146.12);
   --color-accent-hover: oklch(0.6233 0.2051 146.12);
   --color-accent-dark: oklch(0.4733 0.2051 146.12);
+  --color-danger: oklch(0.5733 0.2051 50);
+  --color-danger-bg: oklch(0.7632 0.1954 50 / 0.2);
 
   /* Semantic mapping for light mode */
   --color-bg: var(--color-light);
@@ -26,8 +28,11 @@
   --color-text: var(--color-dark);
   --color-text-secondary: var(--color-dark-muted);
   --color-border-dark: rgba(26, 26, 26, 0.2);
+  --color-border-darker: rgba(26, 26, 26, 0.4);
   --color-border-light: rgba(255, 255, 255, 0.2);
+  --color-border-lighter: rgba(255, 255, 255, 0.4);
   --color-border: var(--color-border-dark);
+  --color-border-hover: var(--color-border-darker);
 
   /* Button shadows */
   --shadow-3d: 0 4px 0 var(--color-dark);
@@ -49,9 +54,12 @@
   --color-text: var(--color-light);
   --color-text-secondary: #999999;
   --color-border: var(--color-border-light);
+  --color-border-hover: var(--color-border-lighter);
   --color-accent: oklch(0.9 0.1954 119.02);
   --color-accent-hover: oklch(0.95 0.1954 119.02);
   --color-accent-dark: oklch(0.75 0.1954 119.02);
+  --color-danger: oklch(0.7632 0.1954 50);
+  --color-danger-bg: oklch(0.7632 0.1954 50 / 0.2);
 
   /* Button shadows for dark mode */
   --shadow-3d: 0 4px 0 #000000;
@@ -104,15 +112,15 @@ body {
   width: 1.25rem;
   height: 1.25rem;
   background-color: var(--color-bg);
-  border: 2px solid var(--color-border);
+  border: 2px solid currentColor;
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.15s ease;
   position: relative;
 
   &:checked {
-    background-color: var(--color-accent);
-    border-color: var(--color-accent);
+    opacity: 0.5;
+    background-color: currentColor;
   }
 
   &:checked::after {
@@ -127,12 +135,13 @@ body {
     transform: rotate(45deg);
   }
 
-  &:hover {
-    border-color: var(--color-text);
-  }
-
-  &:checked:hover {
-    border-color: var(--color-accent);
+  &:hover:not(:checked)::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-color: currentColor;
+    opacity: 0.25;
+    transition: opacity 0.15s ease;
   }
 }
 
