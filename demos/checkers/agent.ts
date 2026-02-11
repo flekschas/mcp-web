@@ -47,8 +47,8 @@ export interface AgentConfig {
 const PROVIDER_DEFAULTS = {
   anthropic: 'claude-sonnet-4-5',
   google: 'gemini-2.5-flash',
-  openai: 'gpt-4o',
-  cerebras: 'llama-4-scout-17b-16e-instruct',
+  openai: 'gpt-5-mini',
+  cerebras: 'gpt-oss-120b',
 } as const;
 
 type Provider = keyof typeof PROVIDER_DEFAULTS;
@@ -170,9 +170,8 @@ function queryContextToXmlTemplate(query: Query) {
       context.type,
       [
         xml('name', context.name),
-        xml('description', context.name),
-        xml('value', JSON.stringify(context.value)),
-        context.schema ? xml('schema', JSON.stringify(context.schema)) : '',
+        context.description ? xml('description', context.description) : '',
+        xml('value', JSON.stringify(context.value))
       ].join('')
     );
   });
@@ -211,26 +210,23 @@ async function generateAnswer<T extends Record<string, unknown>>({
     delete aiSdkTools[query.responseTool.name];
   }
 
+  // Remove tools whose results are already provided in context
+  for (const ctx of query.context) {
+    delete aiSdkTools[ctx.name];
+  }
+
+  const instructions = trim(`
+    You are an AI assistant. Use the provided context and available tools to fulfill the user's request.
+
+    ${queryContextToXmlTemplate(query)}
+
+    If you need additional information not present in the context, use the available tools to retrieve it.
+  `)
+
   const agent = new ToolLoopAgent({
     model,
     tools: aiSdkTools,
-    instructions: trim(`
-      You are an AI assistant expert in Spanish checkers rules, strategy, and gameplay.
-      Use the provided information below and available tools to answer the user's query.
-
-      The following context contains:
-      1. Already-executed tool calls and their results
-      2. Ephemeral information relevant to the query
-
-      ${queryContextToXmlTemplate(query)}
-
-      INSTRUCTIONS:
-      - Analyze what additional information is required to answer the query
-      - Call relevant tools to gather missing information
-      - Make multiple tool calls if needed to get complete information
-      - Do NOT re-call tools whose results are already provided in the context above
-      - After gathering necessary information, provide a complete answer to the user's query
-    `),
+    instructions,
     ...(query.responseTool?.inputSchema && {
       output: Output.object({
         schema: jsonSchema(query.responseTool.inputSchema as JSONSchema7),
