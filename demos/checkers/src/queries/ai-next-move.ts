@@ -37,7 +37,19 @@ export async function queryAIForMove() {
 
     // Query the AI agent
     const lastMove = state.gameState.moveHistory.at(-1);
-    const prompt = `Make your move as player black. Analyze the position and choose the best move. ${lastMove ? `The human just moved from (${lastMove.from.row},${lastMove.from.col}) to (${lastMove.to.row},${lastMove.to.col}).` : 'This is the start of the game.'}`;
+    const prompt = [
+      'You are playing as black in Spanish checkers. It is your turn.',
+      lastMove
+        ? `The opponent just moved from (${lastMove.from.row},${lastMove.from.col}) to (${lastMove.to.row},${lastMove.to.col}).`
+        : 'This is the opening move of the game.',
+      'Analyze the board and choose the best move. Consider:',
+      '- Captures are mandatory in Spanish checkers',
+      '- Protect your pieces from being captured',
+      '- Advance pieces toward row 7 for promotion to queen',
+      '- Queens are powerful — prioritize getting and keeping them',
+      '- Control the center of the board',
+      'Select the strongest move from the valid_moves in the game state.',
+    ].join('\n');
 
     const query = mcpWeb.query({
       prompt,
