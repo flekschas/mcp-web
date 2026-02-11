@@ -2,6 +2,12 @@ import type { ComponentType } from 'react';
 import { z } from 'zod';
 
 /**
+ * MIME type for MCP App resources, per the ext-apps specification (SEP-1865).
+ * @see https://github.com/modelcontextprotocol/ext-apps
+ */
+export const RESOURCE_MIME_TYPE = 'text/html;profile=mcp-app';
+
+/**
  * Handler function for an MCP App tool.
  * Returns props that will be passed to the app component.
  */
@@ -52,7 +58,8 @@ export const AppDefinitionSchema = z.object({
  *
  * When AI calls the tool, the handler returns props which are included
  * in the tool response with `_meta.ui.resourceUri`. The host then fetches
- * the resource HTML and renders it in an iframe, passing the props via postMessage.
+ * the resource HTML and renders it in an iframe, communicating via the
+ * ext-apps JSON-RPC protocol (`@modelcontextprotocol/ext-apps`).
  *
  * @example Basic App
  * ```typescript

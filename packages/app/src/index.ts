@@ -59,6 +59,7 @@ export type { CreateAppConfig, CreatedApp } from './create-app.js';
 
 export {
   useMCPAppProps,
+  useMCPApp,
   getMCPAppProps,
   subscribeMCPAppProps,
 } from './use-mcp-app-props.js';

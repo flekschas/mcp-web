@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { MCPWebClient, type MCPWebClientConfig } from '@mcp-web/client';
 import { MCPWeb } from '@mcp-web/core';
 import type { MCPWebConfig } from '@mcp-web/types';
-import { isCreatedApp } from '@mcp-web/types';
+import { RESOURCE_MIME_TYPE, isCreatedApp } from '@mcp-web/types';
 import type { ComponentType } from 'react';
 import { z } from 'zod';
 import { killProcess } from '../helpers/kill-process';
@@ -82,8 +82,16 @@ describe('MCP Apps', () => {
     // Check that tool was registered
     expect(mcpWeb.tools.has('show_stats')).toBe(true);
 
-    // Check that resource was registered
+    // Check that tool has _meta.ui.resourceUri (ext-apps spec)
+    const tool = mcpWeb.tools.get('show_stats');
+    expect(tool?._meta).toEqual({
+      ui: { resourceUri: 'ui://show_stats/app.html' },
+    });
+
+    // Check that resource was registered with ext-apps mimeType
     expect(mcpWeb.resources.has('ui://show_stats/app.html')).toBe(true);
+    const resource = mcpWeb.resources.get('ui://show_stats/app.html');
+    expect(resource?.mimeType).toBe(RESOURCE_MIME_TYPE);
 
     mcpWeb.disconnect();
   });
@@ -268,11 +276,15 @@ describe('MCP Apps', () => {
       authToken,
     });
 
-    // List tools to verify app tool is registered
+    // List tools to verify app tool is registered with _meta.ui
     const tools = await client.listTools();
     const appTool = tools.tools.find((t) => t.name === 'client_test_app');
     expect(appTool).toBeDefined();
     expect(appTool?.description).toBe('App testable via client');
+    // Verify _meta.ui.resourceUri is in the tool description (ext-apps spec)
+    expect((appTool as Record<string, unknown>)?._meta).toEqual({
+      ui: { resourceUri: 'ui://client_test_app/app.html' },
+    });
 
     // Call the app tool
     const result = await client.callTool('client_test_app', {});

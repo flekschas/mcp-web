@@ -83,40 +83,14 @@ const VIRTUAL_PREFIX = 'virtual:mcp-app/';
 const RESOLVED_VIRTUAL_PREFIX = `\0${VIRTUAL_PREFIX}`;
 
 /**
- * The MCP App runtime script that receives props via postMessage.
- * This is injected into every MCP App HTML file.
+ * The MCP App runtime is now handled by the ext-apps protocol
+ * via `@modelcontextprotocol/ext-apps` React hooks bundled
+ * into the app's JavaScript. No injected script is needed.
+ *
+ * Previously, this was a <script> tag that listened for
+ * `postMessage({ props })` from the host. The ext-apps protocol
+ * uses JSON-RPC 2.0 messages instead (ui/initialize, tool-result, etc.)
  */
-const MCP_APP_RUNTIME = `
-<script>
-  // MCP App Props Runtime
-  window.__MCP_APP_PROPS__ = null;
-  window.__MCP_APP_PROPS_LISTENERS__ = [];
-
-  window.addEventListener('message', (event) => {
-    // Validate message format
-    if (event.data && typeof event.data === 'object' && 'props' in event.data) {
-      window.__MCP_APP_PROPS__ = event.data.props;
-      // Notify all listeners
-      window.__MCP_APP_PROPS_LISTENERS__.forEach(listener => listener(event.data.props));
-    }
-  });
-
-  // Helper function for apps to subscribe to props
-  window.__MCP_APP_SUBSCRIBE__ = (listener) => {
-    window.__MCP_APP_PROPS_LISTENERS__.push(listener);
-    // If props are already available, call immediately
-    if (window.__MCP_APP_PROPS__) {
-      listener(window.__MCP_APP_PROPS__);
-    }
-    // Return unsubscribe function
-    return () => {
-      const index = window.__MCP_APP_PROPS_LISTENERS__.indexOf(listener);
-      if (index > -1) {
-        window.__MCP_APP_PROPS_LISTENERS__.splice(index, 1);
-      }
-    };
-  };
-</script>`;
 
 /**
  * Get a nested property value from an object using dot notation.
@@ -336,7 +310,6 @@ function generateHTMLContent(appName: string, virtualModulePath: string): string
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>${appName}</title>
-    ${MCP_APP_RUNTIME}
   </head>
   <body>
     <div id="root"></div>

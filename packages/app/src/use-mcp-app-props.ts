@@ -1,19 +1,14 @@
-import { useEffect, useState } from 'react';
-
-declare global {
-  interface Window {
-    __MCP_APP_PROPS__: unknown;
-    __MCP_APP_PROPS_LISTENERS__: Array<(props: unknown) => void>;
-    __MCP_APP_SUBSCRIBE__: (listener: (props: unknown) => void) => () => void;
-  }
-}
+import { useCallback, useRef, useState } from 'react';
+import { useApp } from '@modelcontextprotocol/ext-apps/react';
+import type { App } from '@modelcontextprotocol/ext-apps';
 
 /**
- * React hook to receive props from the MCP host.
+ * React hook to receive props from the MCP host via the ext-apps protocol.
  *
- * This hook subscribes to the props passed via postMessage from the
- * MCP host (e.g., Claude Desktop). The props are the values returned
- * by your app's handler function when the AI calls the tool.
+ * This hook connects to the host (e.g., Claude Desktop) using the
+ * `@modelcontextprotocol/ext-apps` JSON-RPC protocol. It listens for
+ * `tool-result` notifications, which contain the props returned by the
+ * tool handler as JSON in `content[0].text`.
  *
  * @template T - The type of props expected from the handler
  * @returns The props object, or null if not yet received
@@ -60,75 +55,121 @@ declare global {
  * ```
  */
 export function useMCPAppProps<T>(): T | null {
-  const [props, setProps] = useState<T | null>(() => {
-    // Check if props are already available (e.g., from SSR or fast load)
-    if (typeof window !== 'undefined' && window.__MCP_APP_PROPS__) {
-      return window.__MCP_APP_PROPS__ as T;
-    }
-    return null;
-  });
+  const [props, setProps] = useState<T | null>(null);
+  const appRef = useRef<App | null>(null);
 
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.__MCP_APP_SUBSCRIBE__) {
-      return;
-    }
+  const onAppCreated = useCallback((app: App) => {
+    appRef.current = app;
 
-    const unsubscribe = window.__MCP_APP_SUBSCRIBE__((newProps) => {
-      setProps(newProps as T);
-    });
+    // Listen for tool result - this is where our props come from.
+    // The tool handler returns props which the bridge wraps into
+    // CallToolResult.content[0].text as JSON.
+    app.ontoolresult = async (result) => {
+      if (result?.content) {
+        for (const block of result.content) {
+          if (block.type === 'text' && typeof block.text === 'string') {
+            try {
+              const parsed = JSON.parse(block.text);
+              setProps(parsed as T);
+            } catch {
+              // If JSON parsing fails, treat the text as-is
+              setProps(block.text as unknown as T);
+            }
+            return;
+          }
+        }
+      }
+    };
 
-    return unsubscribe;
+    // Also listen for tool input - useful for apps that need
+    // the raw tool call arguments
+    app.ontoolinput = async (input) => {
+      // If we have arguments and no result yet, use them as initial props.
+      // This enables apps to render immediately with the tool input
+      // before the full result arrives.
+      if (input?.arguments) {
+        setProps((prev) => prev ?? (input.arguments as unknown as T));
+      }
+    };
   }, []);
+
+  useApp({
+    appInfo: {
+      name: 'mcp-web-app',
+      version: '0.1.0',
+    },
+    capabilities: {},
+    onAppCreated,
+  });
 
   return props;
 }
 
 /**
- * Get current MCP App props synchronously.
+ * Get the ext-apps `App` instance for advanced use cases.
  *
- * This is useful for non-React code that needs to access props.
- * Returns null if props haven't been received yet.
+ * This hook provides access to the underlying `App` class from
+ * `@modelcontextprotocol/ext-apps`, enabling bidirectional communication
+ * with the host (e.g., calling server tools, sending messages).
  *
- * @template T - The type of props expected
- * @returns The props object, or null if not yet received
+ * @returns The App state including app instance, connection status, and errors
  *
- * @example
- * ```ts
- * const props = getMCPAppProps<MyAppProps>();
- * if (props) {
- *   console.log('Received props:', props);
+ * @example Calling a server tool from the app
+ * ```tsx
+ * import { useMCPApp } from '@mcp-web/app';
+ *
+ * function MyApp() {
+ *   const { app, isConnected } = useMCPApp();
+ *
+ *   const handleClick = async () => {
+ *     if (app) {
+ *       const result = await app.callServerTool({
+ *         name: 'update_data',
+ *         arguments: { key: 'value' },
+ *       });
+ *       console.log('Server tool result:', result);
+ *     }
+ *   };
+ *
+ *   return <button onClick={handleClick}>Update</button>;
  * }
  * ```
  */
+export function useMCPApp() {
+  return useApp({
+    appInfo: {
+      name: 'mcp-web-app',
+      version: '0.1.0',
+    },
+    capabilities: {},
+  });
+}
+
+/**
+ * Get current MCP App props synchronously.
+ *
+ * @deprecated Use `useMCPAppProps` hook instead. This function is maintained
+ * for backward compatibility but does not work with the ext-apps protocol.
+ *
+ * @template T - The type of props expected
+ * @returns null (ext-apps protocol is async-only)
+ */
 export function getMCPAppProps<T>(): T | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-  return (window.__MCP_APP_PROPS__ as T) ?? null;
+  return null;
 }
 
 /**
  * Subscribe to MCP App props changes.
  *
- * This is useful for non-React code that needs to react to prop changes.
+ * @deprecated Use `useMCPAppProps` hook instead. This function is maintained
+ * for backward compatibility but does not work with the ext-apps protocol.
  *
  * @template T - The type of props expected
- * @param listener - Function called when props are received or updated
- * @returns Unsubscribe function
- *
- * @example
- * ```ts
- * const unsubscribe = subscribeMCPAppProps<MyAppProps>((props) => {
- *   console.log('Props updated:', props);
- * });
- *
- * // Later, to stop listening:
- * unsubscribe();
- * ```
+ * @param _listener - Function called when props are received or updated
+ * @returns No-op unsubscribe function
  */
-export function subscribeMCPAppProps<T>(listener: (props: T) => void): () => void {
-  if (typeof window === 'undefined' || !window.__MCP_APP_SUBSCRIBE__) {
-    return () => {};
-  }
-  return window.__MCP_APP_SUBSCRIBE__((props) => listener(props as T));
+export function subscribeMCPAppProps<T>(
+  _listener: (props: T) => void
+): () => void {
+  return () => {};
 }

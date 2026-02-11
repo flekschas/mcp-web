@@ -92,6 +92,7 @@ interface RegisterToolMessage {
     description: string;
     inputSchema?: z.core.JSONSchema.JSONSchema;
     outputSchema?: z.core.JSONSchema.JSONSchema;
+    _meta?: Record<string, unknown>;
   };
 }
 
@@ -155,6 +156,7 @@ interface ToolDefinition {
   inputSchema?: z.core.JSONSchema.JSONSchema;
   outputSchema?: z.core.JSONSchema.JSONSchema;
   handler?: string;
+  _meta?: Record<string, unknown>;
 }
 
 interface SessionData {
@@ -1474,6 +1476,8 @@ export class MCPWebBridge {
           },
           required: tool.inputSchema?.required || [],
         },
+        // Forward _meta (e.g., _meta.ui.resourceUri for MCP Apps)
+        ...(tool._meta ? { _meta: tool._meta } : {}),
       };
       tools.push(sessionAwareTool);
     }

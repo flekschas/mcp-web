@@ -86,6 +86,11 @@ export interface ToolDefinition {
   inputSchema?: z.ZodObject | Record<string, unknown>;
   /** Output value schema (Zod or JSON Schema). */
   outputSchema?: z.ZodType | Record<string, unknown>;
+  /**
+   * Tool metadata, forwarded to the MCP `tools/list` response.
+   * Used for MCP Apps to declare `_meta.ui.resourceUri`.
+   */
+  _meta?: Record<string, unknown>;
 }
 
 /**

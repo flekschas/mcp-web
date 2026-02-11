@@ -10,7 +10,7 @@ packages:
   - tests
 
 catalog:
-  '@modelcontextprotocol/sdk': ^1.15.1
+  '@modelcontextprotocol/sdk': ^1.24.0
   '@tailwindcss/vite': ^4.1.18
   '@types/node': ^25.0.9
   '@types/react': ^18.3.24

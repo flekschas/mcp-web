@@ -15,6 +15,7 @@ import type {
 } from '@mcp-web/types';
 import {
   AppDefinitionSchema,
+  RESOURCE_MIME_TYPE,
   getDefaultAppResourceUri,
   getDefaultAppUrl,
   isCreatedApp,
@@ -555,7 +556,9 @@ export class MCPWeb {
         name: tool.name,
         description: tool.description,
         inputSchema: tool.inputJsonSchema,
-        outputSchema: tool.outputJsonSchema
+        outputSchema: tool.outputJsonSchema,
+        // Forward _meta (e.g., _meta.ui.resourceUri for MCP Apps)
+        ...(tool._meta ? { _meta: tool._meta } : {}),
       }
     } satisfies RegisterToolMessage;
 
@@ -782,6 +785,7 @@ export class MCPWeb {
     handler: (input?: unknown) => unknown | Promise<unknown> | void | Promise<void>;
     inputSchema?: { type: string; [key: string]: unknown };
     outputSchema?: { type: string; [key: string]: unknown };
+    _meta?: Record<string, unknown>;
   }): ToolDefinition;
 
   addTool(tool: ToolDefinition | CreatedTool): ToolDefinition {
@@ -800,6 +804,8 @@ export class MCPWeb {
     // Create processed tool with both Zod and JSON schemas
     const processedTool: ProcessedToolDefinition = {
       ...validationResult.data,
+      // Preserve _meta from original input (not in Zod schema)
+      _meta: tool._meta,
       inputZodSchema: isInputZodSchema ? (validationResult.data.inputSchema as z.ZodObject) : undefined,
       outputZodSchema: isOutputZodSchema ? (validationResult.data.outputSchema as z.ZodType) : undefined,
       inputJsonSchema: validationResult.data.inputSchema ? toJSONSchema(validationResult.data.inputSchema) : undefined,
@@ -1025,6 +1031,13 @@ export class MCPWeb {
       outputSchema: app.propsSchema
         ? (toJSONSchema(app.propsSchema) as { type: string; [key: string]: unknown })
         : undefined,
+      // Include _meta.ui in tool description (per ext-apps spec)
+      // so the host knows this tool has a UI before calling it
+      _meta: {
+        ui: {
+          resourceUri: resolvedResourceUri,
+        },
+      },
     });
 
     // Create and register the resource that serves the app HTML
@@ -1032,7 +1045,7 @@ export class MCPWeb {
       uri: resolvedResourceUri,
       name: `${app.name} UI`,
       description: `HTML UI for ${app.name}`,
-      mimeType: 'text/html',
+      mimeType: RESOURCE_MIME_TYPE,
       handler: async () => {
         // Fetch the HTML from the URL
         const response = await fetch(resolvedUrl);
