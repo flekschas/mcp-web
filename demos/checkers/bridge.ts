@@ -11,7 +11,7 @@ const agentUrl = new URL(config.agentUrl?.startsWith("http") ? config.agentUrl :
 const bridge = new MCPWebBridgeNode({
   name: 'MCP-Web Checkers Game',
   description: 'Interactive checkers game where human plays against AI',
-  port: Number(bridgeUrl.port || bridgeUrl.protocol === 'https:' ? 443 : 80),
+  port: Number(bridgeUrl.port || (bridgeUrl.protocol === 'https:' ? 443 : 80)),
   agentUrl: agentUrl.toString(),
   icon: config.icon,
 });
