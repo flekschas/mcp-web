@@ -10,7 +10,10 @@ export const mcpWeb = new MCPWeb(config);
 export const getGameStateToolDefinition = mcpWeb.addTool({
   name: 'get_game_state',
   description: 'Get the current game state including board, turn, and move history. As wel as all valid moves for the current player',
-  handler: () => ({ ...state.gameState, valid_moves: state.allValidMoves }),
+  handler: () => {
+    const { moveHistory, ...rest } = state.gameState;
+    return { ...rest, moveHistory: moveHistory.slice(-20), valid_moves: state.allValidMoves };
+  },
   outputSchema: GameStateSchema
 });
 
