@@ -70,6 +70,7 @@ jobs:
       github.event.inputs.demo == ''
     runs-on: ubuntu-latest
     permissions:
+      id-token: write
       contents: read
 
     steps:
@@ -111,6 +112,7 @@ jobs:
       github.event.inputs.demo == ''
     runs-on: ubuntu-latest
     permissions:
+      id-token: write
       contents: read
 
     steps:
@@ -152,6 +154,7 @@ jobs:
       github.event.inputs.demo == ''
     runs-on: ubuntu-latest
     permissions:
+      id-token: write
       contents: read
 
     steps:
@@ -194,6 +197,7 @@ jobs:
       github.event.inputs.demo == ''
     runs-on: ubuntu-latest
     permissions:
+      id-token: write
       contents: read
 
     steps:
