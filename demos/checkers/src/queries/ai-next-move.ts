@@ -37,11 +37,14 @@ export async function queryAIForMove() {
 
     // Query the AI agent
     const lastMove = state.gameState.moveHistory.at(-1);
-    const prompt = `Make your move as black. Analyze the position and choose the best move. ${lastMove ? `The human just moved from (${lastMove.from.row},${lastMove.from.col}) to (${lastMove.to.row},${lastMove.to.col}).` : 'This is the start of the game.'}`;
+    const prompt = `Make your move as player black. Analyze the position and choose the best move. ${lastMove ? `The human just moved from (${lastMove.from.row},${lastMove.from.col}) to (${lastMove.to.row},${lastMove.to.col}).` : 'This is the start of the game.'}`;
 
     const query = mcpWeb.query({
       prompt,
-      context: [getGameStateToolDefinition],
+      context: [
+        getGameStateToolDefinition,
+        { name: 'your_player', value: 'black' }
+      ],
       responseTool: makeMoveToolDefinition
     });
 
