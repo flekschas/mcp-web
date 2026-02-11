@@ -46,23 +46,23 @@ export async function queryAIForMove() {
     });
 
     // Access UUID synchronously - now we can map make_move calls to this query!
-    console.log('Started AI query with UUID:', query.uuid);
     state.activeQueryUuid = query.uuid;
 
     // Use query.stream for fine-grained event handling
     for await (const event of query.stream) {
       switch (event.type) {
         case 'query_accepted':
-          console.log('AI query accepted:', event.uuid);
           state.gameMessage = 'AI is getting ready to make a move...';
           break;
         case 'query_progress':
           state.gameMessage = event.message;
           break;
         case 'query_complete': {
-          console.log('AI query complete. Tool calls:', event.toolCalls);
-          const move = event.toolCalls?.[0].arguments as Move;
-          state.gameMessage = `AI moved a piece from (${move.from.row + 1},${move.from.col + 1}) to (${move.to.row + 1},${move.to.col + 1})`;
+          const responseTool = event.toolCalls?.at(-1);
+          if (responseTool?.tool === 'make_move') {
+            const move = responseTool.arguments as Move;
+            state.gameMessage = `AI moved a piece from (${move.from.row + 1},${move.from.col + 1}) to (${move.to.row + 1},${move.to.col + 1})`;
+          }
           break;
         }
         case 'query_failure':
@@ -76,7 +76,10 @@ export async function queryAIForMove() {
   } catch (error) {
     console.error('AI query failed:', error);
     state.gameMessage = `AI error: ${error instanceof Error ? error.message : String(error)}`;
-    makeRandomMove();
+    // Only fall back to random move if it's still the AI's turn (move wasn't already made)
+    if (state.gameState.currentTurn === 'black') {
+      makeRandomMove();
+    }
   } finally {
     state.aiThinking = false;
     state.activeQueryUuid = undefined;
