@@ -70,7 +70,6 @@ jobs:
       github.event.inputs.demo == ''
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
       contents: read
 
     steps:
@@ -93,16 +92,13 @@ jobs:
         with:
           deno-version: ${{ env.DENO_VERSION }}
 
+      - name: Install deployctl
+        run: deno install -gArf jsr:@deno/deployctl
+
       - name: Deploy to Deno Deploy
-        uses: denoland/deployctl@v1
-        with:
-          project: mcp-web-higlass
-          entrypoint: demos/deploy/higlass/server.bundle.js
-          root: .
-          token: ${{ secrets.DENO_DEPLOY_TOKEN }}
-          include: |
-            demos/deploy/higlass/server.bundle.js
-            demos/deploy/higlass/static
+        run: deployctl deploy --project=mcp-web-higlass --entrypoint=demos/deploy/higlass/server.bundle.js --include=demos/deploy/higlass/server.bundle.js,demos/deploy/higlass/static
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
 
   deploy-todo:
     needs: build
@@ -112,7 +108,6 @@ jobs:
       github.event.inputs.demo == ''
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
       contents: read
 
     steps:
@@ -135,16 +130,13 @@ jobs:
         with:
           deno-version: ${{ env.DENO_VERSION }}
 
+      - name: Install deployctl
+        run: deno install -gArf jsr:@deno/deployctl
+
       - name: Deploy to Deno Deploy
-        uses: denoland/deployctl@v1
-        with:
-          project: mcp-web-todo
-          entrypoint: demos/deploy/todo/server.bundle.js
-          root: .
-          token: ${{ secrets.DENO_DEPLOY_TOKEN }}
-          include: |
-            demos/deploy/todo/server.bundle.js
-            demos/deploy/todo/static
+        run: deployctl deploy --project=mcp-web-todo --entrypoint=demos/deploy/todo/server.bundle.js --include=demos/deploy/todo/server.bundle.js,demos/deploy/todo/static
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
 
   deploy-checkers:
     needs: build
@@ -154,7 +146,6 @@ jobs:
       github.event.inputs.demo == ''
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
       contents: read
 
     steps:
@@ -177,16 +168,13 @@ jobs:
         with:
           deno-version: ${{ env.DENO_VERSION }}
 
+      - name: Install deployctl
+        run: deno install -gArf jsr:@deno/deployctl
+
       - name: Deploy Bridge to Deno Deploy
-        uses: denoland/deployctl@v1
-        with:
-          project: mcp-web-checkers
-          entrypoint: demos/deploy/checkers/server.bundle.js
-          root: .
-          token: ${{ secrets.DENO_DEPLOY_TOKEN }}
-          include: |
-            demos/deploy/checkers/server.bundle.js
-            demos/deploy/checkers/static
+        run: deployctl deploy --project=mcp-web-checkers --entrypoint=demos/deploy/checkers/server.bundle.js --include=demos/deploy/checkers/server.bundle.js,demos/deploy/checkers/static
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
 
   deploy-checkers-agent:
     needs: build
@@ -197,7 +185,6 @@ jobs:
       github.event.inputs.demo == ''
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
       contents: read
 
     steps:
@@ -214,12 +201,10 @@ jobs:
         with:
           deno-version: ${{ env.DENO_VERSION }}
 
+      - name: Install deployctl
+        run: deno install -gArf jsr:@deno/deployctl
+
       - name: Deploy Agent to Deno Deploy
-        uses: denoland/deployctl@v1
-        with:
-          project: mcp-web-checkers-agent
-          entrypoint: demos/deploy/checkers/agent.bundle.js
-          root: .
-          token: ${{ secrets.DENO_DEPLOY_TOKEN }}
-          include: |
-            demos/deploy/checkers/agent.bundle.js
+        run: deployctl deploy --project=mcp-web-checkers-agent --entrypoint=demos/deploy/checkers/agent.bundle.js --include=demos/deploy/checkers/agent.bundle.js
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
