@@ -1,12 +1,11 @@
 import { z } from 'zod';
 import { BOARD_SIZE } from './constants.js';
 
-
 export const PlayerSchema = z.enum(['white', 'black']).describe('The players');
 
 export const PositionSchema = z.object({
-  row: z.number().min(0).max(BOARD_SIZE - 1).describe('Row number (0=top/AI side, 7=bottom/human side)'),
-  col: z.number().min(0).max(BOARD_SIZE - 1).describe('Column number')
+  row: z.number().describe('Row number (0=top/AI side, 7=bottom/human side)').refine(n => n >= 0 && n <= BOARD_SIZE - 1, { message: `Row must be between 0 and ${BOARD_SIZE - 1}` }),
+  col: z.number().describe('Column number').refine(n => n >= 0 && n <= BOARD_SIZE - 1, { message: `Column must be between 0 and ${BOARD_SIZE - 1}` })
 });
 
 export const MoveSchema = z.object({
@@ -21,7 +20,7 @@ export const MoveWithStatsSchema = MoveSchema.extend({
 
 export const GameStateSchema = z.object({
   id: z.string().describe('Unique game identifier'),
-  board: z.array(z.array(z.number().min(0).max(4)).length(BOARD_SIZE)).length(BOARD_SIZE).describe('8x8 board: 0=empty, 1=white, 2=white queen, 3=black, 4=black queen'),
+  board: z.array(z.array(z.number()).length(BOARD_SIZE)).length(BOARD_SIZE).describe('8x8 board: 0=empty, 1=white, 2=white queen, 3=black, 4=black queen'),
   currentTurn: PlayerSchema.describe('The player whose turn it is'),
   moveHistory: z.array(MoveWithStatsSchema).describe('All moves made in the game'),
   capturedPieces: z.object({
