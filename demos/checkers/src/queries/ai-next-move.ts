@@ -9,7 +9,9 @@ function makeRandomMove() {
   const randomMove = state.allValidMoves[Math.floor(Math.random() * state.allValidMoves.length)];
   const newState = makeMove(state.gameState, randomMove);
   Object.assign(state.gameState, newState);
-  state.gameMessage = `AI made random move: ${randomMove.from.row},${randomMove.from.col} → ${randomMove.to.row},${randomMove.to.col}`;
+  const [rFromRow, rFromCol] = randomMove.from;
+  const [rToRow, rToCol] = randomMove.to;
+  state.gameMessage = `AI made random move: ${rFromRow},${rFromCol} → ${rToRow},${rToCol}`;
 }
 
 export async function queryAIForMove() {
@@ -31,7 +33,9 @@ export async function queryAIForMove() {
       const move = state.allValidMoves[0];
       const newState = makeMove(state.gameState, move);
       Object.assign(state.gameState, newState);
-      state.gameMessage = `AI made move: ${move.from.row},${move.from.col} → ${move.to.row},${move.to.col}`;
+      const [mFromRow, mFromCol] = move.from;
+      const [mToRow, mToCol] = move.to;
+      state.gameMessage = `AI made move: ${mFromRow},${mFromCol} → ${mToRow},${mToCol}`;
       return;
     }
 
@@ -40,7 +44,7 @@ export async function queryAIForMove() {
     const prompt = [
       'You are playing as black in Spanish checkers. It is your turn.',
       lastMove
-        ? `The opponent just moved from (${lastMove.from.row},${lastMove.from.col}) to (${lastMove.to.row},${lastMove.to.col}).`
+        ? `The opponent just moved from (${lastMove.from[0]},${lastMove.from[1]}) to (${lastMove.to[0]},${lastMove.to[1]}).`
         : 'This is the opening move of the game.',
       'Analyze the board and choose the best move. Consider:',
       '- Captures are mandatory in Spanish checkers',
@@ -76,7 +80,9 @@ export async function queryAIForMove() {
           const responseTool = event.toolCalls?.at(-1);
           if (responseTool?.tool === 'make_move') {
             const move = responseTool.arguments as Move;
-            state.gameMessage = `AI moved a piece from (${move.from.row + 1},${move.from.col + 1}) to (${move.to.row + 1},${move.to.col + 1})`;
+            const [mFromRow, mFromCol] = move.from;
+            const [mToRow, mToCol] = move.to;
+            state.gameMessage = `AI moved a piece from (${mFromRow + 1},${mFromCol + 1}) to (${mToRow + 1},${mToCol + 1})`;
           }
           break;
         }

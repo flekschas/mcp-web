@@ -37,16 +37,13 @@ export function createInitialBoard(): PieceType[][] {
 }
 
 export function isValidPosition(pos: Position): boolean {
-  return (
-    pos.row >= 0 &&
-    pos.row < BOARD_SIZE &&
-    pos.col >= 0 &&
-    pos.col < BOARD_SIZE
-  );
+  const [row, col] = pos;
+  return row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE;
 }
 
 export function isDarkSquare(pos: Position): boolean {
-  return (pos.row + pos.col) % 2 === 1;
+  const [row, col] = pos;
+  return (row + col) % 2 === 1;
 }
 
 export function isWhite(piece: PieceType): boolean {
@@ -79,9 +76,13 @@ export function canPieceMoveTo(
 ): boolean {
   if (!isValidPosition(from) || !isValidPosition(to)) return false;
   if (!isDarkSquare(from) || !isDarkSquare(to)) return false;
-  if (board[to.row][to.col] !== EMPTY) return false;
 
-  const piece = board[from.row][from.col];
+  const [fromRow, fromCol] = from;
+  const [toRow, toCol] = to;
+
+  if (board[toRow][toCol] !== EMPTY) return false;
+
+  const piece = board[fromRow][fromCol];
   if (piece === EMPTY) return false;
 
   // Check if piece belongs to current player
@@ -92,8 +93,8 @@ export function canPieceMoveTo(
     return false;
   }
 
-  const rowDiff = to.row - from.row;
-  const colDiff = to.col - from.col;
+  const rowDiff = toRow - fromRow;
+  const colDiff = toCol - fromCol;
   const isPieceQueen = isQueen(piece);
 
   // Regular move (one diagonal step)
@@ -108,8 +109,8 @@ export function canPieceMoveTo(
 
   // Jump move (two diagonal steps with capture)
   if (Math.abs(rowDiff) === 2 && Math.abs(colDiff) === 2) {
-    const middleRow = from.row + rowDiff / 2;
-    const middleCol = from.col + colDiff / 2;
+    const middleRow = fromRow + rowDiff / 2;
+    const middleCol = fromCol + colDiff / 2;
     const middlePiece = board[middleRow][middleCol];
 
     // Must jump over opponent piece
@@ -132,8 +133,8 @@ export function canPieceMoveTo(
 
     // Check diagonal path
     for (let i = 1; i < Math.abs(rowDiff); i++) {
-      const checkRow = from.row + i * stepRow;
-      const checkCol = from.col + i * stepCol;
+      const checkRow = fromRow + i * stepRow;
+      const checkCol = fromCol + i * stepCol;
       const checkPiece = board[checkRow][checkCol];
 
       if (checkPiece !== EMPTY) {
@@ -169,12 +170,12 @@ export function getLegalMoves(state: GameState): Move[] {
         (currentTurn === 'white' && isWhite(piece)) ||
         (currentTurn === 'black' && isBlack(piece))
       ) {
-        const from = { row, col };
+        const from: Position = [row, col];
 
         // Check all possible moves for this piece
         for (let toRow = 0; toRow < BOARD_SIZE; toRow++) {
           for (let toCol = 0; toCol < BOARD_SIZE; toCol++) {
-            const to = { row: toRow, col: toCol };
+            const to: Position = [toRow, toCol];
 
             if (canPieceMoveTo(board, from, to, currentTurn)) {
               const move = { from, to };
@@ -199,19 +200,21 @@ export function getLegalMoves(state: GameState): Move[] {
 
 export function isCaptureMove(board: PieceType[][], move: Move): boolean {
   const { from, to } = move;
-  const rowDiff = Math.abs(to.row - from.row);
-  const colDiff = Math.abs(to.col - from.col);
+  const [fromRow, fromCol] = from;
+  const [toRow, toCol] = to;
+  const rowDiff = Math.abs(toRow - fromRow);
+  const colDiff = Math.abs(toCol - fromCol);
 
   if (rowDiff !== colDiff) return false; // Not diagonal
   if (rowDiff < 2) return false; // Single step, not a jump
 
-  const stepRow = to.row > from.row ? 1 : -1;
-  const stepCol = to.col > from.col ? 1 : -1;
+  const stepRow = toRow > fromRow ? 1 : -1;
+  const stepCol = toCol > fromCol ? 1 : -1;
 
   // Check if there are opponent pieces to capture along the path
   for (let i = 1; i < rowDiff; i++) {
-    const checkRow = from.row + i * stepRow;
-    const checkCol = from.col + i * stepCol;
+    const checkRow = fromRow + i * stepRow;
+    const checkCol = fromCol + i * stepCol;
     const piece = board[checkRow][checkCol];
 
     if (piece !== EMPTY) {
@@ -225,27 +228,29 @@ export function isCaptureMove(board: PieceType[][], move: Move): boolean {
 export function makeMove(state: GameState, move: Move): GameState {
   const newBoard = state.board.map((row) => [...row]);
   const { from, to } = move;
+  const [fromRow, fromCol] = from;
+  const [toRow, toCol] = to;
 
-  const piece = newBoard[from.row][from.col];
-  newBoard[from.row][from.col] = EMPTY;
+  const piece = newBoard[fromRow][fromCol];
+  newBoard[fromRow][fromCol] = EMPTY;
 
   // Promote to queen if reaching opposite end
   let finalPiece = piece;
-  if (piece === WHITE_PIECE && to.row === 0) finalPiece = WHITE_QUEEN;
-  if (piece === BLACK_PIECE && to.row === 7) finalPiece = BLACK_QUEEN;
+  if (piece === WHITE_PIECE && toRow === 0) finalPiece = WHITE_QUEEN;
+  if (piece === BLACK_PIECE && toRow === 7) finalPiece = BLACK_QUEEN;
 
-  newBoard[to.row][to.col] = finalPiece;
+  newBoard[toRow][toCol] = finalPiece;
 
   // Handle captures
   const newCapturedPieces = { ...state.capturedPieces };
   if (isCaptureMove(state.board, move)) {
-    const stepRow = to.row > from.row ? 1 : -1;
-    const stepCol = to.col > from.col ? 1 : -1;
-    const distance = Math.abs(to.row - from.row);
+    const stepRow = toRow > fromRow ? 1 : -1;
+    const stepCol = toCol > fromCol ? 1 : -1;
+    const distance = Math.abs(toRow - fromRow);
 
     for (let i = 1; i < distance; i++) {
-      const captureRow = from.row + i * stepRow;
-      const captureCol = from.col + i * stepCol;
+      const captureRow = fromRow + i * stepRow;
+      const captureCol = fromCol + i * stepCol;
       const capturedPiece = newBoard[captureRow][captureCol];
 
       if (capturedPiece !== EMPTY) {

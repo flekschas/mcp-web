@@ -14,10 +14,11 @@
   const isHumanTurn = $derived(currentTurn === 'white');
   const validMovesForSelectedPiece = $derived.by(() => {
     if (!selectedPiece) return [];
+    const [selRow, selCol] = selectedPiece;
     return gameState.allValidMoves.filter(
       (move) =>
-        move.from.row === selectedPiece!.row &&
-        move.from.col === selectedPiece!.col,
+        move.from[0] === selRow &&
+        move.from[1] === selCol,
     );
   });
 
@@ -27,7 +28,7 @@
 
   function isValidMove(row: number, col: number): boolean {
     return validMovesForSelectedPiece.some(
-      (m) => m.to.row === row && m.to.col === col,
+      (m) => m.to[0] === row && m.to[1] === col,
     );
   }
 
@@ -36,7 +37,7 @@
       return;
     }
 
-    const position = { row, col };
+    const position: Position = [row, col];
 
     // Piece selection
     if (isWhite(board[row][col])) {
@@ -56,7 +57,7 @@
   }
 
   function isSelected(row: number, col: number): boolean {
-    return selectedPiece?.row === row && selectedPiece?.col === col;
+    return selectedPiece?.[0] === row && selectedPiece?.[1] === col;
   }
 
   function isLightSquare(row: number, col: number): boolean {

@@ -9,12 +9,18 @@ import type { Move } from "../types.js";
  */
 export function makeMove(move: Move): boolean {
   // Validate the move using reactively computed legal moves
-  const isLegal = state.allValidMoves.some((m) =>
-    m.from.row === move.from.row &&
-    m.from.col === move.from.col &&
-    m.to.row === move.to.row &&
-    m.to.col === move.to.col
-  );
+  const isLegal = state.allValidMoves.some((m) => {
+    const [mFromRow, mFromCol] = m.from;
+    const [mToRow, mToCol] = m.to;
+    const [moveFromRow, moveFromCol] = move.from;
+    const [moveToRow, moveToCol] = move.to;
+    return (
+      mFromRow === moveFromRow &&
+      mFromCol === moveFromCol &&
+      mToRow === moveToRow &&
+      mToCol === moveToCol
+    );
+  });
 
   if (!isLegal) {
     return false;

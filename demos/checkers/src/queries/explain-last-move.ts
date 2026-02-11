@@ -20,7 +20,7 @@ export async function queryAiToExplainLastMove() {
     const lastPlayer = state.gameState.currentTurn === 'black' ? 'red' : 'black';
     const lastPlayerName = lastPlayer === 'red' ? 'human' : 'AI';
 
-    const prompt = `Explain the last move made by the ${lastPlayer} player (${lastPlayerName}): from (${lastMove.from.row},${lastMove.from.col}) to (${lastMove.to.row},${lastMove.to.col}). Explain the presumable strategic reasoning behind this move and what it means for the game.`;
+    const prompt = `Explain the last move made by the ${lastPlayer} player (${lastPlayerName}): from (${lastMove.from[0]},${lastMove.from[1]}) to (${lastMove.to[0]},${lastMove.to[1]}). Explain the presumable strategic reasoning behind this move and what it means for the game.`;
 
     let explanation = '';
 

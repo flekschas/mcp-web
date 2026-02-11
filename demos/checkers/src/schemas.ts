@@ -3,10 +3,16 @@ import { BOARD_SIZE } from './constants.js';
 
 export const PlayerSchema = z.enum(['white', 'black']).describe('The players');
 
-export const PositionSchema = z.object({
-  row: z.number().describe('Row number (0=top/AI side, 7=bottom/human side)').refine(n => n >= 0 && n <= BOARD_SIZE - 1, { message: `Row must be between 0 and ${BOARD_SIZE - 1}` }),
-  col: z.number().describe('Column number').refine(n => n >= 0 && n <= BOARD_SIZE - 1, { message: `Column must be between 0 and ${BOARD_SIZE - 1}` })
-});
+export const PositionSchema = z.tuple([
+  z.number().describe('Row (0=top/AI side, 7=bottom/human side)').refine(
+    (n) => Number.isInteger(n) && n >= 0 && n <= BOARD_SIZE - 1,
+    { message: `Row must be an int in [0,${BOARD_SIZE - 1}]` },
+  ),
+  z.number().describe('Column').refine(
+    (n) => Number.isInteger(n) && n >= 0 && n <= BOARD_SIZE - 1,
+    { message: `Col must be an int in [0,${BOARD_SIZE - 1}]` },
+  ),
+]).describe('Position as [row, col]');
 
 export const MoveSchema = z.object({
   from: PositionSchema.describe('Starting position'),

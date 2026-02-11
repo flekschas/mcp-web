@@ -24,12 +24,18 @@ export const makeMoveToolDefinition = mcpWeb.addTool({
     const currentPlayer = state.gameState.currentTurn;
 
     // Validate the move is legal
-    const isValid = state.allValidMoves.some(m =>
-      m.from.row === move.from.row &&
-      m.from.col === move.from.col &&
-      m.to.row === move.to.row &&
-      m.to.col === move.to.col
-    );
+    const isValid = state.allValidMoves.some(m => {
+      const [mFromRow, mFromCol] = m.from;
+      const [mToRow, mToCol] = m.to;
+      const [moveFromRow, moveFromCol] = move.from;
+      const [moveToRow, moveToCol] = move.to;
+      return (
+        mFromRow === moveFromRow &&
+        mFromCol === moveFromCol &&
+        mToRow === moveToRow &&
+        mToCol === moveToCol
+      );
+    });
 
     if (!isValid) {
       console.error('Invalid move!');

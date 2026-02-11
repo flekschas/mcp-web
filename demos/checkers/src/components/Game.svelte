@@ -13,7 +13,7 @@
         lastMove.numCapturedPieces > 0
           ? `${currentTurn === 'white' ? 'AI' : 'You'} captured a piece!`
           : `${currentTurn === 'white' ? 'AI' : 'You'} moved`;
-      return `${player}: (${lastMove.from.row},${lastMove.from.col}) → (${lastMove.to.row},${lastMove.to.col})`;
+      return `${player}: (${lastMove.from[0]},${lastMove.from[1]}) → (${lastMove.to[0]},${lastMove.to[1]})`;
     }
     return '';
   });
