@@ -1,5 +1,6 @@
 <script lang="ts">
   import {
+    EMPTY,
     WHITE_PIECE,
     WHITE_QUEEN,
     BLACK_PIECE,
@@ -17,7 +18,7 @@
   const isQueen = $derived(piece === WHITE_QUEEN || piece === BLACK_QUEEN);
 </script>
 
-{#if piece !== 0}
+{#if piece !== EMPTY}
   <div
     class="w-9 h-9 rounded-full border-b-2 border-x flex items-center justify-center font-bold text-2xl shadow-sm"
     class:bg-white={isWhite}
