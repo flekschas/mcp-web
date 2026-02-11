@@ -310,33 +310,3 @@ export function checkGameStatus(
 
   return 'playing';
 }
-
-export function boardToAscii(board: PieceType[][]): string {
-  const pieces: Record<number, string> = {
-    [EMPTY]: ' ',
-    [WHITE_PIECE]: 'r',
-    [WHITE_QUEEN]: 'R',
-    [BLACK_PIECE]: 'b',
-    [BLACK_QUEEN]: 'B',
-  };
-
-  let result = '  a b c d e f g h\n';
-
-  for (let row = 0; row < BOARD_SIZE; row++) {
-    result += `${8 - row} `;
-    for (let col = 0; col < BOARD_SIZE; col++) {
-      const piece = board[row][col];
-      const char = pieces[piece];
-
-      if ((row + col) % 2 === 0) {
-        result += '■ '; // Light square
-      } else {
-        result += `${char} `;
-      }
-    }
-    result += `${8 - row}\n`;
-  }
-
-  result += '  a b c d e f g h\n';
-  return result;
-}
