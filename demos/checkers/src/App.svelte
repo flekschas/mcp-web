@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import Game from './components/Game.svelte';
   import ConfigModal from './components/ConfigModal.svelte';
-  import { mcpWeb } from './mcp.js';
+  import { mcpWeb } from './mcp-tools.js';
   import { state as gameState } from './state.svelte.js';
   import H1 from './components/H1.svelte';
 

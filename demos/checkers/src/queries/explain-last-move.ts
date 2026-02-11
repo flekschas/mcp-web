@@ -1,4 +1,4 @@
-import { mcpWeb } from "../mcp";
+import { mcpWeb } from "../mcp-tools";
 import { state } from "../state.svelte.js";
 
 /**

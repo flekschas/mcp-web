@@ -1,5 +1,5 @@
 import { makeMove } from "../game-logic";
-import { getGameStateToolDefinition, makeMoveToolDefinition, mcpWeb } from "../mcp";
+import { getGameStateToolDefinition, makeMoveToolDefinition, mcpWeb } from "../mcp-tools";
 import { state } from "../state.svelte";
 import type { Move } from "../types";
 

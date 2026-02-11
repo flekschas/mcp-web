@@ -1,4 +1,4 @@
-import { mcpWeb } from "../mcp.js";
+import { mcpWeb } from "../mcp-tools.js";
 import { state } from "../state.svelte.js";
 import type { Move } from "../types.js";
 

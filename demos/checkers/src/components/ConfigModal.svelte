@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { mcpWeb } from '../mcp.js';
+  import { mcpWeb } from '../mcp-tools.js';
   import config from '../../mcp-web.config.js';
 
   interface Props {
