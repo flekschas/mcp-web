@@ -70,7 +70,6 @@ jobs:
       github.event.inputs.demo == ''
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
       contents: read
 
     steps:
@@ -99,6 +98,7 @@ jobs:
           project: mcp-web-higlass
           entrypoint: demos/deploy/higlass/server.bundle.js
           root: .
+          token: ${{ secrets.DENO_DEPLOY_TOKEN }}
           include: |
             demos/deploy/higlass/server.bundle.js
             demos/deploy/higlass/static
@@ -111,7 +111,6 @@ jobs:
       github.event.inputs.demo == ''
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
       contents: read
 
     steps:
@@ -140,6 +139,7 @@ jobs:
           project: mcp-web-todo
           entrypoint: demos/deploy/todo/server.bundle.js
           root: .
+          token: ${{ secrets.DENO_DEPLOY_TOKEN }}
           include: |
             demos/deploy/todo/server.bundle.js
             demos/deploy/todo/static
@@ -152,7 +152,6 @@ jobs:
       github.event.inputs.demo == ''
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
       contents: read
 
     steps:
@@ -181,6 +180,7 @@ jobs:
           project: mcp-web-checkers
           entrypoint: demos/deploy/checkers/server.bundle.js
           root: .
+          token: ${{ secrets.DENO_DEPLOY_TOKEN }}
           include: |
             demos/deploy/checkers/server.bundle.js
             demos/deploy/checkers/static
@@ -194,7 +194,6 @@ jobs:
       github.event.inputs.demo == ''
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
       contents: read
 
     steps:
@@ -217,5 +216,6 @@ jobs:
           project: mcp-web-checkers-agent
           entrypoint: demos/deploy/checkers/agent.bundle.js
           root: .
+          token: ${{ secrets.DENO_DEPLOY_TOKEN }}
           include: |
             demos/deploy/checkers/agent.bundle.js
