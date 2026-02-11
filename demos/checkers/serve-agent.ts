@@ -13,16 +13,18 @@
 import { serve } from '@hono/node-server';
 import { config } from 'dotenv';
 import { createApp, type AgentConfig } from './agent.js';
-import { PORTS } from './mcp-web.config.js';
+import MCPWebConfig from './mcp-web.config.js';
 
 // Load environment variables from .env file
 config();
 
+const bridgeUrl = new URL(MCPWebConfig.bridgeUrl?.startsWith('http') ? MCPWebConfig.bridgeUrl : `http://${MCPWebConfig.bridgeUrl}`);
+const agentUrl = new URL(MCPWebConfig.agentUrl?.startsWith('http') ? MCPWebConfig.agentUrl : `http://${MCPWebConfig.agentUrl}`);
+
 const agentConfig: AgentConfig = {
-  bridgeUrl: process.env.BRIDGE_URL ?? `http://localhost:${PORTS.BRIDGE}`,
+  bridgeUrl: process.env.BRIDGE_URL ?? `http://localhost:${bridgeUrl.port}`,
   allowedOrigins: process.env.ALLOWED_ORIGINS?.split(',') ?? [
-    `http://localhost:${PORTS.FRONTEND}`,
-    `http://localhost:${PORTS.BRIDGE}`,
+    `http://localhost:${bridgeUrl.port}`,
   ],
   anthropicApiKey: process.env.ANTHROPIC_API_KEY,
   openaiApiKey: process.env.OPENAI_API_KEY,
@@ -32,7 +34,7 @@ const agentConfig: AgentConfig = {
   modelName: process.env.MODEL_NAME,
 };
 
-const port = Number(process.env.PORT) || PORTS.AGENT;
+const port = Number(process.env.PORT || agentUrl.port);
 const app = createApp(agentConfig);
 
 console.log(`🚀 Starting Checkers AI Agent on port ${port}...`);
