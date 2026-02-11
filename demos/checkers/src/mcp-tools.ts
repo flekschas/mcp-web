@@ -29,8 +29,8 @@ export const makeMoveToolDefinition = mcpWeb.addTool({
     );
 
     if (!isValid) {
-      console.error('Invalid move. The move is not legal. See `valid_moves` from `get_game_state` tool.');
-      return { error: 'Invalid move - not in valid moves list' };
+      console.error('Invalid move!');
+      return { error: 'Invalid move! Must be one of: ' + JSON.stringify(state.allValidMoves) };
     }
 
     const currentCapturedPieces = state.gameState.capturedPieces[currentPlayer];
