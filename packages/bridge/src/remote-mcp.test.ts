@@ -394,7 +394,7 @@ describe('Remote MCP - SSE Stream', () => {
     }
   });
 
-  test('GET without Accept: text/event-stream returns 405', async () => {
+  test('GET without Accept: text/event-stream returns server info', async () => {
     bridge = new MCPWebBridgeNode({
       name: 'Test Bridge',
       description: 'Test',
@@ -405,7 +405,10 @@ describe('Remote MCP - SSE Stream', () => {
       method: 'GET',
     });
 
-    expect(response.status).toBe(405);
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.name).toBe('Test Bridge');
+    expect(body.description).toBe('Test');
   });
 
   test('GET SSE without Mcp-Session-Id returns error event', async () => {
