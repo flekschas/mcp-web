@@ -190,6 +190,7 @@ addTool(tool: {
     handler: (input?: unknown) => unknown | Promise<unknown> | void | Promise<void>;
     inputSchema?: { type: string; [key: string]: unknown };
     outputSchema?: { type: string; [key: string]: unknown };
+    _meta?: Record<string, unknown>;
   }): ToolDefinition
 ```
 

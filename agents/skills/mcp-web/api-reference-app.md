@@ -191,14 +191,29 @@ isCreatedApp(value: unknown): value is CreatedApp
 
 *Function* — `packages/app/src/use-mcp-app-props.ts`
 
-React hook to receive props from the MCP host.
+React hook to receive props from the MCP host via the ext-apps protocol.
 
-This hook subscribes to the props passed via postMessage from the
-MCP host (e.g., Claude Desktop). The props are the values returned
-by your app's handler function when the AI calls the tool.
+This hook connects to the host (e.g., Claude Desktop) using the
+`@modelcontextprotocol/ext-apps` JSON-RPC protocol. It listens for
+`tool-result` notifications, which contain the props returned by the
+tool handler as JSON in `content[0].text`.
 
 ```ts
 useMCPAppProps<T>(): T | null
+```
+
+### useMCPApp
+
+*Function* — `packages/app/src/use-mcp-app-props.ts`
+
+Get the ext-apps `App` instance for advanced use cases.
+
+This hook provides access to the underlying `App` class from
+`@modelcontextprotocol/ext-apps`, enabling bidirectional communication
+with the host (e.g., calling server tools, sending messages).
+
+```ts
+useMCPApp(): void
 ```
 
 ### getMCPAppProps
@@ -206,9 +221,6 @@ useMCPAppProps<T>(): T | null
 *Function* — `packages/app/src/use-mcp-app-props.ts`
 
 Get current MCP App props synchronously.
-
-This is useful for non-React code that needs to access props.
-Returns null if props haven't been received yet.
 
 ```ts
 getMCPAppProps<T>(): T | null
@@ -220,10 +232,8 @@ getMCPAppProps<T>(): T | null
 
 Subscribe to MCP App props changes.
 
-This is useful for non-React code that needs to react to prop changes.
-
 ```ts
-subscribeMCPAppProps<T>(listener: (props: T) => void): () => void
+subscribeMCPAppProps<T>(_listener: (props: T) => void): () => void
 ```
 
 ### defineMCPAppsConfig
