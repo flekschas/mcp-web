@@ -267,6 +267,7 @@ export function makeMove(state: GameState, move: Move): GameState {
   };
 
   const newState: GameState = {
+    id: state.id,
     board: newBoard,
     currentTurn: state.currentTurn === 'white' ? 'black' : 'white',
     moveHistory: [...state.moveHistory, moveWithStats],
