@@ -1,11 +1,12 @@
 import { useAtom, useSetAtom } from 'jotai';
 import { useRef, useState } from 'react';
 import { mcp } from '../mcp/mcp.ts';
-import { getCurrentAuthToken } from '../mcp/mcp.ts';
 import { helpModalDismissedAtom, helpModalOpenAtom } from './states.ts';
 
 type ConfigTab = 'remote' | 'stdio';
 type CopyType = 'name' | 'url' | 'json' | 'example';
+
+const exampleQuery = "In HiGlass, zoom into a 2 Mb region around the MYC gene and add CTCF and Rad21 ChIP-seq signal as horizontal bar tracks on top"
 
 export function Help() {
   const [isOpen, setIsOpen] = useAtom(helpModalOpenAtom);
@@ -31,7 +32,6 @@ export function Help() {
   const serverName = Object.keys(mcp.remoteMcpConfig)[0];
   const serverUrl = mcp.remoteMcpConfig[serverName]?.url;
   const stdioConfigStr = JSON.stringify(stdioConfig, null, 2);
-  const authToken = getCurrentAuthToken();
 
   const copyToClipboard = async (text: string, type: CopyType) => {
     try {
@@ -58,7 +58,7 @@ export function Help() {
         >
           <div className="p-4 flex-1 overflow-y-auto">
             <h2 className="text-xl font-bold text-zinc-900 mb-4">
-              🤖 Get Started
+              Get Started
             </h2>
 
             <div className="prose max-w-none">
@@ -71,15 +71,7 @@ export function Help() {
                 >
                   HiGlass
                 </a>{' '}
-                can be controlled by{' '}
-                <a
-                  href="https://anthropic.com/claude"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Claude Desktop
-                </a>{' '}
-                through MCP (Model Context Protocol). Follow these steps to get
+                can be controlled by an AI agent through MCP tools. Follow these steps to get
                 started:
               </p>
 
@@ -89,12 +81,7 @@ export function Help() {
                     1. Add MCP Server Configuration
                   </h3>
                   <p className="text-zinc-700 mb-3">
-                    Add one of the following configurations to your Claude Desktop config (
-                    <code>
-                      ~/Library/Application
-                      Support/Claude/claude_desktop_config.json
-                    </code>
-                    ) under <code>mcpServers</code>:
+                    Add one of the following configurations to your AI agent:
                   </p>
 
                   {/* Tabs */}
@@ -129,8 +116,8 @@ export function Help() {
                   {/* Tab description */}
                   <p className="text-xs text-zinc-500 mb-3">
                     {activeTab === 'remote'
-                      ? 'In Claude Desktop, go to Settings → Developer → Add MCP Server and enter:'
-                      : 'Uses @mcp-web/client as a stdio wrapper. Add this to your Claude Desktop config file:'}
+                      ? 'In Claude Desktop, go to Settings → Connectors → Add custom connector and enter:'
+                      : 'Uses @mcp-web/client as a stdio wrapper. Add this to your MCP config file:'}
                   </p>
 
                   {activeTab === 'remote' ? (
@@ -139,7 +126,7 @@ export function Help() {
                       <div className="space-y-1">
                         <label className="block text-xs font-medium text-zinc-600">Name</label>
                         <div className="flex gap-2">
-                          <code className="flex-1 bg-zinc-100 border border-zinc-200 rounded px-3 py-2 text-sm font-mono overflow-x-auto whitespace-nowrap">
+                          <code className="flex-1 text-zinc-800 bg-zinc-100 border border-zinc-200 rounded px-3 py-2 text-sm font-mono overflow-x-auto whitespace-nowrap">
                             {serverName}
                           </code>
                           <button
@@ -156,7 +143,7 @@ export function Help() {
                       <div className="space-y-1">
                         <label className="block text-xs font-medium text-zinc-600">URL</label>
                         <div className="flex gap-2">
-                          <code className="flex-1 bg-zinc-100 border border-zinc-200 rounded px-3 py-2 text-sm font-mono overflow-x-auto whitespace-nowrap">
+                          <code className="flex-1 text-zinc-800 bg-zinc-100 border border-zinc-200 rounded px-3 py-2 text-sm font-mono whitespace-nowrap overflow-hidden">
                             {serverUrl}
                           </code>
                           <button
@@ -170,23 +157,28 @@ export function Help() {
                       </div>
 
                       <p className="text-xs text-zinc-500 pt-1">
-                        Once configured, you can ask Claude to control HiGlass. For example:
+                        Once configured, you can ask your AI agent to control HiGlass. For example:
                       </p>
 
-                      <div className="bg-zinc-100 border border-zinc-200 rounded p-3 relative">
+                      <div className="flex gap-2">
+                        <code className="flex-1 text-zinc-800 bg-zinc-100 border border-zinc-200 rounded px-3 py-2 text-sm font-mono whitespace-nowrap overflow-hidden">
+                          exampleQuery
+                        </code>
                         <button
                           type="button"
-                          onClick={() => copyToClipboard('zoom in on chromosome 3 and make the theme dark', 'example')}
-                          className="absolute top-2 right-2 px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 text-xs rounded transition-colors cursor-pointer"
+                          onClick={() => copyToClipboard(exampleQuery, 'url')}
+                          className="px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 text-sm rounded transition-colors cursor-pointer whitespace-nowrap"
                         >
-                          {copySuccess === 'example' ? '✓ Copied!' : 'Copy'}
+                          {copySuccess === 'url' ? '✓ Copied!' : 'Copy'}
                         </button>
-                        <code className="text-sm text-zinc-700 pr-16 block">zoom in on chromosome 3 and make the theme dark</code>
                       </div>
                     </div>
                   ) : (
                     <div className="space-y-3">
                       <div className="bg-zinc-100 rounded-lg p-4 overflow-x-auto relative">
+                        <pre className="text-xs text-zinc-800 whitespace-pre-wrap pr-16">
+                          {stdioConfigStr}
+                        </pre>
                         <button
                           type="button"
                           onClick={() => copyToClipboard(stdioConfigStr, 'json')}
@@ -194,38 +186,9 @@ export function Help() {
                         >
                           {copySuccess === 'json' ? '✓ Copied!' : 'Copy'}
                         </button>
-                        <pre className="text-xs text-zinc-800 whitespace-pre-wrap pr-16">
-                          {stdioConfigStr}
-                        </pre>
                       </div>
                     </div>
                   )}
-                  <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <h4 className="text-sm font-medium text-green-800 mb-1">
-                      🔒 Persistent Auth Token
-                    </h4>
-                    <p className="text-xs text-green-700 mb-2">
-                      Your auth token is automatically saved and will persist
-                      across browser sessions. Current token:{' '}
-                      <code className="bg-green-100 px-1 rounded text-xs">
-                        {authToken.slice(0, 8)}...
-                      </code>
-                    </p>
-                    <p className="text-xs text-green-600">
-                      ✅ No need to reconfigure Claude Desktop when you reload
-                      this page!
-                    </p>
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="text-lg font-semibold text-zinc-900 mb-2">
-                    2. Restart Claude Desktop
-                  </h3>
-                  <p className="text-zinc-700">
-                    After adding the configuration, restart Claude Desktop to
-                    load the new MCP server.
-                  </p>
                 </div>
               </div>
             </div>
@@ -235,7 +198,7 @@ export function Help() {
             <button
               type="button"
               onClick={handleClose}
-              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              className="px-6 py-2 cursor-pointer bg-zinc-900 text-white rounded-lg hover:bg-black transition-colors"
             >
               Let's Go! 🚀
             </button>
