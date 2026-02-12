@@ -5,10 +5,12 @@ import config from './mcp-web.config.js';
 
 console.log('🌉 Starting MCP Bridge for HiGlass Demo...');
 
+const bridgeUrl = new URL(config.bridgeUrl?.startsWith("http") ? config.bridgeUrl : `http://${config.bridgeUrl}`);
+
 const bridge = new MCPWebBridgeNode({
   name: 'HiGlass',
   description: 'Control the HiGlass web-based genome browser',
-  port: 3001,
+  port: Number(bridgeUrl.port),
   icon: config.icon,
 });
 
