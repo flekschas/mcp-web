@@ -21,7 +21,7 @@ export function App() {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="flex items-center gap-2 p-2 border border-zinc-800 rounded hover:bg-zinc-800 hover:text-white transition-colors cursor-pointer"
+            className="flex items-center gap-2 p-2 border border-zinc-800 rounded hover:bg-zinc-800 hover:text-white transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-0"
             onClick={handleHelpClick}
           >
             {mcpStatus === 'error' && (
