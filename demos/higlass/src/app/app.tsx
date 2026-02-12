@@ -16,8 +16,7 @@ export function App() {
     <div className="flex flex-col h-screen">
       <header className="flex items-center justify-between px-4 py-2 bg-zinc-950 dark:border-b dark:border-zinc-900 text-zinc-300 text-xs">
         <h1 className="text-white text-lg">
-          <strong className="font-bold">MCP-App:</strong> HiGlass (with React +
-          Jotai)
+          <strong className="font-bold">MCP-Web:</strong> HiGlass
         </h1>
         <div className="flex items-center gap-2">
           <button
