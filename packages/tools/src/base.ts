@@ -41,7 +41,7 @@ import type { z } from 'zod';
  */
 export abstract class BaseTool<
   TInput extends z.ZodObject,
-  TOutput extends z.ZodObject,
+  TOutput extends z.ZodType,
 > {
   /** Unique name for the tool. */
   abstract get name(): string;

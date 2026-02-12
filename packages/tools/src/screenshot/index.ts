@@ -15,22 +15,25 @@ const TakeScreenshotInputSchema = z.object({
 });
 type TakeScreenshotInput = z.infer<typeof TakeScreenshotInputSchema>;
 
-const TakeScreenshotOutputSchema = z.object({
-  format: z.enum(['png', 'jpeg', 'webp']).describe('The format of the screenshot'),
-  dataUrl: z.string().describe('The data URL of the screenshot'),
-});
-type TakeScreenshotOutput = z.infer<typeof TakeScreenshotOutputSchema>;
+/**
+ * Returns the screenshot as a data URL string (e.g., "data:image/png;base64,...").
+ * The bridge detects data URL strings and converts them into native MCP ImageContent
+ * blocks, so Claude receives the image efficiently rather than as raw base64 text.
+ */
+const TakeScreenshotOutputSchema = z
+  .string()
+  .describe('The screenshot as a data URL');
 
 const createScreenshot = (options: Options) => {
-  return async (params?: TakeScreenshotInput): Promise<TakeScreenshotOutput> => {
+  return async (params?: TakeScreenshotInput): Promise<string> => {
     return takeScreenshot(params || {}, options);
-  }
-}
+  };
+};
 
 async function takeScreenshot(
   params: TakeScreenshotInput,
-  options: Options
-): Promise<TakeScreenshotOutput> {
+  options: Options,
+): Promise<string> {
   const parsedParams = TakeScreenshotInputSchema.safeParse(params);
 
   if (!parsedParams.success) {
@@ -45,41 +48,38 @@ async function takeScreenshot(
     : document.body;
 
   try {
-    // The image as a data URL
-    let result: string;
-
     if (format === 'png') {
-      result = await toPng(element, options);
+      return await toPng(element, options);
     } else if (format === 'jpeg') {
-      result = await toJpeg(element, options);
+      return await toJpeg(element, options);
     } else if (format === 'webp') {
       // html-to-image doesn't have direct webp support, convert from canvas
       const canvas = await toCanvas(element, options);
-      result = canvas.toDataURL('image/webp', options.quality);
-    } else {
-      result = await toPng(element, options);
+      return canvas.toDataURL('image/webp', options.quality);
     }
-
-    return {
-      format: format || 'png',
-      dataUrl: result,
-    };
+    return await toPng(element, options);
   } catch (error) {
-    throw new Error(`Failed to take screenshot: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(
+      `Failed to take screenshot: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }
 
-export class ScreenshotTool extends BaseTool<typeof TakeScreenshotInputSchema, typeof TakeScreenshotOutputSchema> {
+export class ScreenshotTool extends BaseTool<
+  typeof TakeScreenshotInputSchema,
+  typeof TakeScreenshotOutputSchema
+> {
   #name: string;
   #description: string;
   #inputSchema = TakeScreenshotInputSchema;
   #outputSchema = TakeScreenshotOutputSchema;
-  #handler: (params?: TakeScreenshotInput) => Promise<TakeScreenshotOutput>;
+  #handler: (params?: TakeScreenshotInput) => Promise<string>;
 
   constructor(options: Options) {
     super();
     this.#name = options.name || 'screenshot';
-    this.#description = options.description || 'Take a screenshot of the web page';
+    this.#description =
+      options.description || 'Take a screenshot of the web page';
     this.#handler = createScreenshot(options);
   }
 
@@ -99,7 +99,7 @@ export class ScreenshotTool extends BaseTool<typeof TakeScreenshotInputSchema, t
     return this.#outputSchema;
   }
 
-  get handler(): (params?: TakeScreenshotInput) => Promise<TakeScreenshotOutput> {
+  get handler(): (params?: TakeScreenshotInput) => Promise<string> {
     return this.#handler;
   }
 }

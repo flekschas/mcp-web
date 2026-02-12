@@ -1230,6 +1230,25 @@ export class MCPWebBridge {
     }
 
     if (result !== null && result !== undefined) {
+      // Check if it's an object containing a data URL (e.g., { dataUrl: "data:image/png;base64,..." })
+      // This handles tools that return image data wrapped in an object rather than as a raw string.
+      if (typeof result === 'object' && 'dataUrl' in result) {
+        const dataUrl = (result as Record<string, unknown>).dataUrl;
+        if (typeof dataUrl === 'string' && dataUrl.startsWith('data:image/')) {
+          const mimeType = dataUrl.split(';')[0].split(':')[1];
+          const base64Data = dataUrl.split(',')[1];
+          return {
+            content: [
+              {
+                type: 'image',
+                data: base64Data,
+                mimeType,
+              },
+            ],
+          };
+        }
+      }
+
       // Extract _meta from the result object to place at the top level of CallToolResult.
       // The MCP protocol expects _meta as a top-level field on the result object,
       // not embedded inside the JSON text content (where the host can't find it).

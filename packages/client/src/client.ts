@@ -187,9 +187,9 @@ export class MCPWebClient {
           content = [
             {
               type: 'image',
-              data: actualData,
-              mimeType: actualData.split(';')[0].split(':')[1]
-            }
+              data: actualData.split(',')[1],
+              mimeType: actualData.split(';')[0].split(':')[1],
+            },
           ];
         } else {
           content = [
