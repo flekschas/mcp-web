@@ -1,10 +1,10 @@
 import { useAtom, useSetAtom } from 'jotai';
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { mcp } from '../mcp/mcp.ts';
 import { helpModalDismissedAtom, helpModalOpenAtom } from './states.ts';
 
 type ConfigTab = 'remote' | 'stdio';
-type CopyType = 'name' | 'url' | 'json' | 'example';
+type CopyType = 'name' | 'url' | 'json' | 'example' | 'query';
 
 const exampleQuery = "In HiGlass, zoom into a 2 Mb region around the MYC gene and add CTCF and Rad21 ChIP-seq signal as horizontal bar tracks on top"
 
@@ -15,12 +15,21 @@ export function Help() {
   const [activeTab, setActiveTab] = useState<ConfigTab>('remote');
   const [copySuccess, setCopySuccess] = useState<CopyType | null>(null);
 
-  if (!isOpen) return null;
-
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setDismissed(true);
     setIsOpen(false);
-  };
+  }, [setDismissed, setIsOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, handleClose]);
+
+  if (!isOpen) return null;
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
@@ -162,14 +171,14 @@ export function Help() {
 
                       <div className="flex gap-2">
                         <code className="flex-1 text-zinc-800 bg-zinc-100 border border-zinc-200 rounded px-3 py-2 text-sm font-mono whitespace-nowrap overflow-hidden">
-                          exampleQuery
+                          {exampleQuery}
                         </code>
                         <button
                           type="button"
-                          onClick={() => copyToClipboard(exampleQuery, 'url')}
+                          onClick={() => copyToClipboard(exampleQuery, 'query')}
                           className="px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 text-sm rounded transition-colors cursor-pointer whitespace-nowrap"
                         >
-                          {copySuccess === 'url' ? '✓ Copied!' : 'Copy'}
+                          {copySuccess === 'query' ? '✓ Copied!' : 'Copy'}
                         </button>
                       </div>
                     </div>
