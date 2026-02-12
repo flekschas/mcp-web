@@ -43,7 +43,13 @@ export const higlassTilesetsAtom = atom<Promise<HiGlassTileset[]>>(
           `${server}/tilesets/?limit=10000&dt=axis&dt=matrix&dt=vector&dt=multivec&dt=bed-value&dt=stacked-interval&dt=1d-projection&dt=gene-annotation&dt=2d-rectangle-domains&dt=nothing&dt=chromsizes&dt=bedlike`,
         );
         const tilesets = await tilesetsRequest.json();
-        return tilesets.results as HiGlassTileset[];
+        return tilesets.results.map((tileset: HiGlassTileset) => {
+          return {
+            ...tileset,
+            name: tileset.name.toLowerCase(),
+            description: tileset.description.toLowerCase(),
+          }
+        });
       }),
     );
 

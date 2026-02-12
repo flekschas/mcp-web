@@ -1,5 +1,23 @@
 import { z } from 'zod';
 
+export const higlassTilesetDatatypeSchema = z.enum(['axis', 'matrix', 'vector', 'multivec', 'bed-value', 'stacked-interval', '1d-projection', 'gene-annotation', '2d-rectangle-domains', 'chromsizes', 'bedlike']);
+
+export const higlassTilesetSearchSchema = z.object({
+  search: z.string().describe('The search query to search for name and description'),
+  datatype: higlassTilesetDatatypeSchema.describe('The datatype of the tileset to search for').optional(),
+});
+
+export const higlassTilesetSearchResultSchema = z.object({
+  tilesets: z.array(z.object({
+    uuid: z.string().describe('The UUID of the tileset'),
+    filetype: z.string().describe('The filetype of the tileset'),
+    datatype: higlassTilesetDatatypeSchema.describe('The datatype of the tileset'),
+    name: z.string().describe('The name of the tileset'),
+    description: z.string().describe('The description of the tileset'),
+    coordSystem: z.string().describe('The coordinate system of the tileset'),
+  })),
+});
+
 export const higlassGeneSearchSchema = z.object({
   view: z
     .string()
@@ -10,19 +28,21 @@ export const higlassGeneSearchSchema = z.object({
   gene: z.string().describe('The gene to search for'),
 });
 
-export const higlassGeneSearchResultSchema = z.array(
-  z.object({
-    chromosomeName: z.string().describe('Chromosome name'),
-    geneName: z.string().describe('Gene name'),
-    absoluteStart: z.number().describe('Absolute start position in base pairs'),
-    absoluteEnd: z.number().describe('Absolute end position in base pairs'),
-    relativeStart: z.number().describe('Relative start position on chromosome'),
-    relativeEnd: z.number().describe('Relative end position on chromosome'),
-    importanceScore: z
-      .number()
-      .describe('Importance score for ranking results'),
-  }),
-);
+export const higlassGeneSearchResultSchema = z.object({
+  genes: z.array(
+    z.object({
+      chromosomeName: z.string().describe('Chromosome name'),
+      geneName: z.string().describe('Gene name'),
+      absoluteStart: z.number().describe('Absolute start position in base pairs'),
+      absoluteEnd: z.number().describe('Absolute end position in base pairs'),
+      relativeStart: z.number().describe('Relative start position on chromosome'),
+      relativeEnd: z.number().describe('Relative end position on chromosome'),
+      importanceScore: z
+        .number()
+        .describe('Importance score for ranking results'),
+    }),
+  ),
+});
 
 export const higlassGeneAnnotationTilesetInfoSchema = z.record(
   z.string(),

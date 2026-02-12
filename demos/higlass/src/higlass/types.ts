@@ -1,5 +1,6 @@
 import type { z } from 'zod';
 import type { higlassOptionsSchema } from './schemas/options.ts';
+import type { higlassTilesetDatatypeSchema } from './schemas/others.ts';
 import type { higlassViewConfigSchema } from './schemas/view-config.ts';
 
 export type HiglassViewConfig = z.infer<typeof higlassViewConfigSchema>;
@@ -36,7 +37,7 @@ export interface HiGlassTileset {
   uuid: string;
   datafile: string;
   filetype: string;
-  datatype: string;
+  datatype: z.infer<typeof higlassTilesetDatatypeSchema>;
   name: string;
   coordSystem: string;
   coordSystem2: string;

@@ -5,6 +5,8 @@ import { mcp } from '../mcp/mcp.ts';
 import {
   higlassGeneSearchResultSchema,
   higlassGeneSearchSchema,
+  higlassTilesetSearchSchema,
+  higlassTilesetSearchResultSchema,
 } from './schemas/others.ts';
 import { higlassViewConfigSchema } from './schemas/view-config.ts';
 import { higlassViewConfigSplitPlan } from './schemas/view-config-split.ts';
@@ -36,11 +38,31 @@ mcp.addStateTools({
 
 // Read-only async state (tilesets)
 mcp.addTool({
-  name: 'higlass_tilesets',
+  name: 'higlass_tileset_search',
   description:
-    'A list of all available tilesets that can be visualized with HiGlass',
-  handler: async () => {
-    return await store.get(higlassTilesetsAtom);
+    'Search for tilesets by name or description. Returns a list of all matching tilesets that can be visualized with HiGlass',
+  inputSchema: higlassTilesetSearchSchema,
+  outputSchema: higlassTilesetSearchResultSchema,
+  handler: async ({ search, datatype }) => {
+    const allTilesets = await store.get(higlassTilesetsAtom);
+    const searchLower = search.toLowerCase();
+    const results = allTilesets.filter((tileset) => {
+      const matches = tileset.name.includes(searchLower) || tileset.description.includes(searchLower);
+      if (datatype) {
+        return matches && tileset.datatype === datatype;
+      }
+      return matches;
+    });
+    return {
+      tilesets: results.map((tileset) => ({
+        uuid: tileset.uuid,
+        filetype: tileset.filetype,
+        datatype: tileset.datatype,
+        name: tileset.name,
+        description: tileset.description,
+        coordSystem: tileset.coordSystem,
+      })),
+    };
   },
 });
 
@@ -93,7 +115,7 @@ mcp.addTool({
       });
     }
 
-    return results;
+    return { genes: results };
   },
 });
 
