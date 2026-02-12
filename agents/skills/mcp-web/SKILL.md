@@ -236,6 +236,7 @@ new MCPWebBridge(MCP_WEB_CONFIG);
   - `@mcp-web/core`: [api-reference-core.md](api-reference-core.md)
   - `@mcp-web/bridge`: [api-reference-bridge.md](api-reference-bridge.md)
   - `@mcp-web/client`: [api-reference-client.md](api-reference-client.md)
+  - `@mcp-web/app`: [api-reference-app.md](api-reference-app.md)
   - `@mcp-web/integrations`: [api-reference-integrations.md](api-reference-integrations.md)
   - `@mcp-web/tools`: [api-reference-tools.md](api-reference-tools.md)
   - `@mcp-web/decompose-zod-schema`: [api-reference-decompose-zod-schema.md](api-reference-decompose-zod-schema.md)
