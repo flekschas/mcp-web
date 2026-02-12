@@ -9,8 +9,8 @@ import { useMCPAppContext } from './mcp-app-context.js';
  * `tool-result` notifications, which contain the props returned by the
  * tool handler as JSON in `content[0].text`.
  *
- * Must be called within an {@link MCPAppProvider} (set up automatically
- * by {@link renderMCPApp}).
+ * Must be called within an `MCPAppProvider` (set up automatically
+ * by `renderMCPApp`).
  *
  * @template T - The type of props expected from the handler
  * @returns The props object, or null if not yet received
@@ -105,8 +105,8 @@ export function useMCPAppProps<T>(): T | null {
  * `@modelcontextprotocol/ext-apps`, enabling bidirectional communication
  * with the host (e.g., calling server tools, sending messages).
  *
- * Must be called within an {@link MCPAppProvider} (set up automatically
- * by {@link renderMCPApp}).
+ * Must be called within an `MCPAppProvider` (set up automatically
+ * by `renderMCPApp`).
  *
  * @returns The App state including app instance, connection status, and errors
  *

@@ -198,6 +198,9 @@ This hook connects to the host (e.g., Claude Desktop) using the
 `tool-result` notifications, which contain the props returned by the
 tool handler as JSON in `content[0].text`.
 
+Must be called within an `MCPAppProvider` (set up automatically
+by `renderMCPApp`).
+
 ```ts
 useMCPAppProps<T>(): T | null
 ```
@@ -211,6 +214,9 @@ Get the ext-apps `App` instance for advanced use cases.
 This hook provides access to the underlying `App` class from
 `@modelcontextprotocol/ext-apps`, enabling bidirectional communication
 with the host (e.g., calling server tools, sending messages).
+
+Must be called within an `MCPAppProvider` (set up automatically
+by `renderMCPApp`).
 
 ```ts
 useMCPApp(): void

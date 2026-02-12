@@ -9,7 +9,7 @@ import { useApp, useHostStyles, useDocumentTheme } from '@modelcontextprotocol/e
 import type { App, McpUiHostContext } from '@modelcontextprotocol/ext-apps';
 
 /**
- * Value provided by {@link MCPAppProvider}.
+ * Value provided by `MCPAppProvider`.
  *
  * Contains the ext-apps `App` instance, connection state, and the
  * current host context (theme, styles, display mode, locale, etc.).
@@ -36,7 +36,7 @@ const MCPAppContext = createContext<MCPAppContextValue | null>(null);
  * - Tracks host context changes (theme toggles, display mode changes, etc.)
  * - Makes the app instance and host context available to child components
  *
- * @internal Used by {@link renderMCPApp} — not typically used directly.
+ * @internal Used by `renderMCPApp` — not typically used directly.
  */
 export function MCPAppProvider({ children }: { children: ReactNode }) {
   const [hostContext, setHostContext] = useState<
@@ -79,13 +79,13 @@ export function MCPAppProvider({ children }: { children: ReactNode }) {
 /**
  * Access the full MCP App context including the app instance and host context.
  *
- * Must be called within an {@link MCPAppProvider} (which is set up automatically
- * by {@link renderMCPApp}).
+ * Must be called within an `MCPAppProvider` (which is set up automatically
+ * by `renderMCPApp`).
  *
  * @returns The context value with app, connection state, and host context
  * @throws If called outside of an MCPAppProvider
  *
- * @internal Used by {@link useMCPAppProps} and {@link useMCPApp}.
+ * @internal Used by `useMCPAppProps` and `useMCPApp`.
  */
 export function useMCPAppContext(): MCPAppContextValue {
   const ctx = useContext(MCPAppContext);
@@ -107,8 +107,8 @@ export function useMCPAppContext(): MCPAppContextValue {
  * and more. The value updates automatically when the host sends
  * `host-context-changed` notifications.
  *
- * Must be called within an {@link MCPAppProvider} (set up automatically
- * by {@link renderMCPApp}).
+ * Must be called within an `MCPAppProvider` (set up automatically
+ * by `renderMCPApp`).
  *
  * @returns The current host context, or undefined if not yet connected
  *
@@ -143,8 +143,8 @@ export function useMCPHostContext(): McpUiHostContext | undefined {
  * host styles system. It uses a `MutationObserver` internally so
  * it will re-render your component whenever the theme changes.
  *
- * Must be called within an {@link MCPAppProvider} (set up automatically
- * by {@link renderMCPApp}).
+ * Must be called within an `MCPAppProvider` (set up automatically
+ * by `renderMCPApp`).
  *
  * @returns The current theme — `"light"` or `"dark"`
  *
