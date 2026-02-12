@@ -22,17 +22,20 @@
   --color-danger: oklch(0.5733 0.2051 50);
   --color-danger-bg: oklch(0.7632 0.1954 50 / 0.2);
 
-  /* Semantic mapping for light mode */
-  --color-bg: var(--color-light);
-  --color-bg-alt: var(--color-light-alt);
-  --color-text: var(--color-dark);
-  --color-text-secondary: var(--color-dark-muted);
+  /* Semantic mapping for light mode
+     When hosted in an MCP app host (e.g. Claude Desktop), the host sets
+     --color-background-primary, --color-text-primary, etc. on :root.
+     We fall back to the app's own palette for standalone use. */
+  --color-bg: var(--color-background-primary, var(--color-light));
+  --color-bg-alt: var(--color-background-secondary, var(--color-light-alt));
+  --color-text: var(--color-text-primary, var(--color-dark));
+  --color-text-muted: var(--color-text-secondary, var(--color-dark-muted));
   --color-border-dark: rgba(26, 26, 26, 0.2);
   --color-border-darker: rgba(26, 26, 26, 0.4);
   --color-border-light: rgba(255, 255, 255, 0.2);
   --color-border-lighter: rgba(255, 255, 255, 0.4);
-  --color-border: var(--color-border-dark);
-  --color-border-hover: var(--color-border-darker);
+  --color-border: var(--color-border-primary, var(--color-border-dark));
+  --color-border-hover: var(--color-border-secondary, var(--color-border-darker));
 
   /* Button shadows */
   --shadow-3d: 0 4px 0 var(--color-dark);
@@ -42,19 +45,19 @@
   /* Card shadows */
   --shadow-card: 0 2px 0 rgba(26, 26, 26, 0.15);
 
-  /* Subtle button colors */
-  --color-accent-subtle: rgba(26, 26, 26, 0.1);
-  --color-accent-subtle-hover: rgba(26, 26, 26, 0.15);
+  /* Subtle button/card background colors */
+  --color-accent-subtle: var(--color-background-secondary, rgba(26, 26, 26, 0.1));
+  --color-accent-subtle-hover: var(--color-background-tertiary, rgba(26, 26, 26, 0.15));
 }
 
 /* Dark mode - inverted theme */
 .dark {
-  --color-bg: var(--color-dark);
-  --color-bg-alt: var(--color-dark-alt);
-  --color-text: var(--color-light);
-  --color-text-secondary: #999999;
-  --color-border: var(--color-border-light);
-  --color-border-hover: var(--color-border-lighter);
+  --color-bg: var(--color-background-primary, var(--color-dark));
+  --color-bg-alt: var(--color-background-secondary, var(--color-dark-alt));
+  --color-text: var(--color-text-primary, var(--color-light));
+  --color-text-muted: var(--color-text-secondary, #999999);
+  --color-border: var(--color-border-primary, var(--color-border-light));
+  --color-border-hover: var(--color-border-secondary, var(--color-border-lighter));
   --color-accent: oklch(0.9 0.1954 119.02);
   --color-accent-hover: oklch(0.95 0.1954 119.02);
   --color-accent-dark: oklch(0.75 0.1954 119.02);
@@ -69,14 +72,14 @@
   /* Card shadows */
   --shadow-card: 0 2px 0 rgba(0, 0, 0, 0.3);
 
-  /* Subtle button colors for dark mode */
-  --color-accent-subtle: rgba(255, 255, 255, 0.1);
-  --color-accent-subtle-hover: rgba(255, 255, 255, 0.15);
+  /* Subtle button/card background colors for dark mode */
+  --color-accent-subtle: var(--color-background-secondary, rgba(255, 255, 255, 0.1));
+  --color-accent-subtle-hover: var(--color-background-tertiary, rgba(255, 255, 255, 0.15));
 }
 
 /* Base body styles */
 body {
-  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: var(--font-sans, 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif);
   background-color: var(--color-bg);
   color: var(--color-text);
 }

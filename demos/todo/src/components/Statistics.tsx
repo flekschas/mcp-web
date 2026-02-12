@@ -199,9 +199,9 @@ function StatCard({
   return (
     <div className="bg-(--color-accent-subtle) rounded-lg p-4 text-center">
       <div className="text-2xl font-bold text-(--color-text)">{value}</div>
-      <div className="text-xs text-(--color-text-secondary) mt-1">{label}</div>
+      <div className="text-xs text-(--color-text-muted) mt-1">{label}</div>
       {sublabel && (
-        <div className="text-[10px] text-(--color-text-secondary) opacity-70 mt-0.5">{sublabel}</div>
+        <div className="text-[10px] text-(--color-text-muted) opacity-70 mt-0.5">{sublabel}</div>
       )}
     </div>
   );
@@ -215,7 +215,7 @@ function PatternLegend({ projects }: { projects: string[] }) {
           <div
             className={`w-4 h-4 rounded border border-(--color-border) ${PATTERN_IDS[i % PATTERN_IDS.length]}`}
           />
-          <span className="text-(--color-text-secondary)">{name}</span>
+          <span className="text-(--color-text-muted)">{name}</span>
         </div>
       ))}
     </div>
@@ -334,7 +334,7 @@ function CompletionTimeChart({
 
   if (filteredData.length === 0) {
     return (
-      <div className="h-16 flex items-center justify-center text-(--color-text-secondary) text-sm">
+      <div className="h-16 flex items-center justify-center text-(--color-text-muted) text-sm">
         No completed todos to display
       </div>
     );
@@ -458,7 +458,7 @@ function DueVarianceChart({
 
   if (filteredData.length === 0) {
     return (
-      <div className="h-16 flex items-center justify-center text-(--color-text-secondary) text-sm">
+      <div className="h-16 flex items-center justify-center text-(--color-text-muted) text-sm">
         No todos with due dates to display
       </div>
     );
@@ -605,7 +605,7 @@ export function Statistics({
         <h2 className="text-sm font-semibold text-(--color-text) mb-1">
           Due Date Performance
         </h2>
-        <p className="text-xs text-(--color-text-secondary) mb-3">
+        <p className="text-xs text-(--color-text-muted) mb-3">
           How early or late todos were completed relative to their due date
         </p>
         <div className="bg-(--color-accent-subtle) rounded-lg p-3">
@@ -620,7 +620,7 @@ export function Statistics({
 
       {/* Empty State */}
       {totalTodos === 0 && (
-        <div className="text-center py-10 text-(--color-text-secondary)">
+        <div className="text-center py-10 text-(--color-text-muted)">
           <div className="text-5xl mb-3">📝</div>
           <div className="text-sm">
             No todos yet. Create some to see statistics!

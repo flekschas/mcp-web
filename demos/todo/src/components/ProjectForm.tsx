@@ -34,7 +34,7 @@ export function ProjectForm({
         onChange={(e) => onTitleChange(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="Project name"
-        className="w-full px-4 text-base bg-(--color-bg) text-(--color-text) border-2 border-(--color-border) rounded-md shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] transition-[border-color] placeholder:text-(--color-text-secondary) placeholder:opacity-60 focus:outline-none focus:border-(--color-text) mb-3 py-2!"
+        className="w-full px-4 text-base bg-(--color-bg) text-(--color-text) border-2 border-(--color-border) rounded-md shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] transition-[border-color] placeholder:text-(--color-text-muted) placeholder:opacity-60 focus:outline-none focus:border-(--color-text) mb-3 py-2!"
         autoFocus
       />
       <div className="flex gap-2 items-start justify-between">

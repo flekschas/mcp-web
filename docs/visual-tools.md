@@ -216,6 +216,101 @@ When AI calls a visual tool:
 The Vite plugin automatically generates entry files that handle steps 5-6,
 subscribing to incoming props and rendering your component when they arrive.
 
+## Host Theming
+
+Visual tools receive information about the host application's theme. When your
+component renders inside Claude Desktop (or any MCP host), `@mcp-web/app`
+automatically sets the host's CSS custom properties, theme, and fonts on the
+document. You can then use these variables in your components for dynamic
+styling.
+
+### How It Works
+
+During initialization, the host sends its theme preference (`"light"` or
+`"dark"`) and a set of CSS custom properties covering colors, typography,
+borders, and more. MCP-Web automatically:
+
+- Sets `data-theme="light"` or `data-theme="dark"` on `<html>`
+- Sets `color-scheme` for native element theming (scrollbars, inputs)
+- Applies CSS custom properties like `--color-background-primary`,
+  `--color-text-primary`, etc.
+- Injects host font CSS
+- Updates all of the above when the user toggles theme at runtime
+
+This all happens inside the `MCPAppProvider` that wraps your component tree.
+You don't need to configure anything for this to work.
+
+### Tailwind CSS Dark Mode
+
+If your component uses Tailwind's `dark:` variant with the `class` or
+`selector` strategy, use the `useMCPHostTheme` hook to sync the host theme
+with Tailwind's `.dark` class:
+
+```tsx
+import { useMCPHostTheme } from '@mcp-web/app';
+import { useEffect } from 'react';
+
+function MyApp(props: MyProps) {
+  const theme = useMCPHostTheme();
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+  }, [theme]);
+
+  return (
+    <div className="bg-white dark:bg-gray-900 text-black dark:text-white">
+      {/* Your component */}
+    </div>
+  );
+}
+```
+
+The effect runs once on mount with the initial theme from the host and again
+whenever the user toggles theme in the host application.
+
+### Using Host CSS Variables
+
+The host provides CSS custom properties that you can use directly in your
+styles to match the host's look and feel:
+
+```css
+.card {
+  background: var(--color-background-secondary);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-primary);
+  border-radius: var(--border-radius-md);
+  font-family: var(--font-sans);
+}
+```
+
+These variables are applied automatically — just reference them in your CSS.
+See the [MCP Apps specification](https://modelcontextprotocol.io/specification/2025-06-18/extensions/apps#host-context)
+for the full list of available variables.
+
+### Accessing Host Context
+
+For cases where you need more than the theme, use `useMCPHostContext` to
+access the full host context:
+
+```tsx
+import { useMCPHostContext } from '@mcp-web/app';
+
+function MyApp() {
+  const hostContext = useMCPHostContext();
+
+  return (
+    <div>
+      <p>Display mode: {hostContext?.displayMode}</p>
+      <p>Locale: {hostContext?.locale}</p>
+      <p>Platform: {hostContext?.platform}</p>
+    </div>
+  );
+}
+```
+
+The host context includes theme, styles, display mode, locale, container
+dimensions, and more. It updates automatically when the host sends changes.
+
 ## Best Practices
 
 ### Minimize Prop Surface Area

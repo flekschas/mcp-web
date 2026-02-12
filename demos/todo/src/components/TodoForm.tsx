@@ -35,7 +35,7 @@ export function TodoForm() {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Add a new todo..."
-          className="w-full py-2 px-4 text-base bg-(--color-bg) text-(--color-text) border-2 border-(--color-border) hover:border-(--color-border-hover) rounded-md transition-[border-color] placeholder:text-(--color-text-secondary) placeholder:opacity-60 focus:outline-none focus:border-(--color-text) flex-1"
+          className="w-full py-2 px-4 text-base bg-(--color-bg) text-(--color-text) border-2 border-(--color-border) hover:border-(--color-border-hover) rounded-md transition-[border-color] placeholder:text-(--color-text-muted) placeholder:opacity-60 focus:outline-none focus:border-(--color-text) flex-1"
         />
         <button
           type="submit"

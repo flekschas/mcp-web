@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 import { StrictMode, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
+import { MCPAppProvider } from './mcp-app-context.js';
 import { useMCPAppProps } from './use-mcp-app-props.js';
 
 /**
@@ -28,6 +29,7 @@ export interface RenderMCPAppOptions {
 
 /**
  * Default loading component shown while waiting for props.
+ * Uses host CSS variable with fallback for theme-aware loading text.
  */
 function DefaultLoading() {
   return (
@@ -37,8 +39,8 @@ function DefaultLoading() {
         alignItems: 'center',
         justifyContent: 'center',
         height: '100%',
-        fontFamily: 'system-ui, sans-serif',
-        color: '#666',
+        fontFamily: 'var(--font-sans, system-ui, sans-serif)',
+        color: 'var(--color-text-secondary, #666)',
       }}
     >
       Loading...
@@ -129,7 +131,9 @@ export function renderMCPApp<P extends Record<string, unknown>>(
 
   const app = (
     <Suspense fallback={<Loading />}>
-      <MCPAppWrapper Component={Component} Loading={Loading} />
+      <MCPAppProvider>
+        <MCPAppWrapper Component={Component} Loading={Loading} />
+      </MCPAppProvider>
     </Suspense>
   );
 

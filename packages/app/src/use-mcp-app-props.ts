@@ -1,6 +1,5 @@
-import { useCallback, useRef, useState } from 'react';
-import { useApp } from '@modelcontextprotocol/ext-apps/react';
-import type { App } from '@modelcontextprotocol/ext-apps';
+import { useEffect, useState } from 'react';
+import { useMCPAppContext } from './mcp-app-context.js';
 
 /**
  * React hook to receive props from the MCP host via the ext-apps protocol.
@@ -9,6 +8,9 @@ import type { App } from '@modelcontextprotocol/ext-apps';
  * `@modelcontextprotocol/ext-apps` JSON-RPC protocol. It listens for
  * `tool-result` notifications, which contain the props returned by the
  * tool handler as JSON in `content[0].text`.
+ *
+ * Must be called within an {@link MCPAppProvider} (set up automatically
+ * by {@link renderMCPApp}).
  *
  * @template T - The type of props expected from the handler
  * @returns The props object, or null if not yet received
@@ -56,10 +58,10 @@ import type { App } from '@modelcontextprotocol/ext-apps';
  */
 export function useMCPAppProps<T>(): T | null {
   const [props, setProps] = useState<T | null>(null);
-  const appRef = useRef<App | null>(null);
+  const { app } = useMCPAppContext();
 
-  const onAppCreated = useCallback((app: App) => {
-    appRef.current = app;
+  useEffect(() => {
+    if (!app) return;
 
     // Listen for tool result - this is where our props come from.
     // The tool handler returns props which the bridge wraps into
@@ -91,16 +93,7 @@ export function useMCPAppProps<T>(): T | null {
         setProps((prev) => prev ?? (input.arguments as unknown as T));
       }
     };
-  }, []);
-
-  useApp({
-    appInfo: {
-      name: 'mcp-web-app',
-      version: '0.1.0',
-    },
-    capabilities: {},
-    onAppCreated,
-  });
+  }, [app]);
 
   return props;
 }
@@ -111,6 +104,9 @@ export function useMCPAppProps<T>(): T | null {
  * This hook provides access to the underlying `App` class from
  * `@modelcontextprotocol/ext-apps`, enabling bidirectional communication
  * with the host (e.g., calling server tools, sending messages).
+ *
+ * Must be called within an {@link MCPAppProvider} (set up automatically
+ * by {@link renderMCPApp}).
  *
  * @returns The App state including app instance, connection status, and errors
  *
@@ -136,13 +132,8 @@ export function useMCPAppProps<T>(): T | null {
  * ```
  */
 export function useMCPApp() {
-  return useApp({
-    appInfo: {
-      name: 'mcp-web-app',
-      version: '0.1.0',
-    },
-    capabilities: {},
-  });
+  const { app, isConnected, error } = useMCPAppContext();
+  return { app, isConnected, error };
 }
 
 /**

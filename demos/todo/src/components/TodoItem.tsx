@@ -40,10 +40,10 @@ export function TodoItem({ todo }: TodoItemProps) {
           {todo.title}
         </div>
         {todo.description && (
-          <div className="text-sm text-(--color-text-secondary) mt-1 opacity-80">{todo.description}</div>
+          <div className="text-sm text-(--color-text-muted) mt-1 opacity-80">{todo.description}</div>
         )}
         {todo.due_at && (
-          <div className="text-xs text-(--color-text-secondary) mt-2 font-medium uppercase tracking-wide opacity-70">
+          <div className="text-xs text-(--color-text-muted) mt-2 font-medium uppercase tracking-wide opacity-70">
             Due: {new Date(todo.due_at).toLocaleDateString()}
           </div>
         )}

@@ -12,7 +12,7 @@ export function TodoList() {
 
       <div className="space-y-3">
         {todos.length === 0 ? (
-          <div className="text-center text-(--color-text-secondary) py-16 font-medium opacity-70">
+          <div className="text-center text-(--color-text-muted) py-16 font-medium opacity-70">
             No todos yet. Add one above!
           </div>
         ) : (

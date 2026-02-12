@@ -93,7 +93,7 @@ export function Sidebar() {
 
         {/* Projects */}
         <div className="flex items-center justify-between mt-4 mb-2 mx-2">
-          <h2 className="text-xs font-bold text-(--color-text-secondary) uppercase tracking-wider">Projects</h2>
+          <h2 className="text-xs font-bold text-(--color-text-muted) uppercase tracking-wider">Projects</h2>
           <button
             type="button"
             onClick={() => {

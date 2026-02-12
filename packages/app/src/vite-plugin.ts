@@ -305,11 +305,12 @@ renderMCPApp(${componentName});
  */
 function generateHTMLContent(appName: string, virtualModulePath: string): string {
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="color-scheme: light dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>${appName}</title>
+    <style>body { margin: 0; background: transparent; }</style>
   </head>
   <body>
     <div id="root"></div>
