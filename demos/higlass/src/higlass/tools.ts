@@ -1,5 +1,4 @@
 import { PythonTool } from '@mcp-web/tools/python';
-import { ScreenshotTool } from '@mcp-web/tools/screenshot';
 import { getDefaultStore } from 'jotai';
 import { mcp } from '../mcp/mcp.ts';
 import {
@@ -118,14 +117,6 @@ mcp.addTool({
     return { genes: results };
   },
 });
-
-mcp.addTool(
-  new ScreenshotTool({
-    name: 'higlass_screenshot',
-    description: 'Take a screenshot of the current HiGlass view',
-    elementSelector: '#higlass-container',
-  }),
-);
 
 mcp.addTool(
   new PythonTool(getCurrentViewDataset, {
