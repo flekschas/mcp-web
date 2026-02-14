@@ -117,6 +117,10 @@ jobs:
           - `agents/skills/mcp-web/examples.md`
           PRBODY
 
+          # Ensure labels exist (create if missing)
+          gh label create "documentation" --color "0075ca" --description "Documentation updates" 2>/dev/null || true
+          gh label create "automated" --color "d4c5f9" --description "Automated PRs" 2>/dev/null || true
+
           gh pr create \
             --title "docs: Update agent documentation" \
             --body-file /tmp/pr-body.md \
