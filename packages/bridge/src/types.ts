@@ -19,6 +19,7 @@ export interface AuthenticateMessage {
   authToken: string;
   origin: string;
   pageTitle?: string;
+  sessionName?: string;
   userAgent?: string;
   timestamp: number;
 }
@@ -28,6 +29,12 @@ export interface AuthenticatedMessage {
   mcpPort?: number;
   sessionId: string;
   success: boolean;
+}
+
+export interface AuthenticationFailedMessage {
+  type: 'authentication-failed';
+  error: string;
+  code: string;
 }
 
 export interface RegisterToolMessage {
@@ -94,6 +101,7 @@ export type FrontendMessage =
 
 export type BridgeMessage =
   | AuthenticatedMessage
+  | AuthenticationFailedMessage
   | ToolCallMessage
   | ResourceReadMessage
   | QueryAcceptedMessage
@@ -155,6 +163,7 @@ export interface SessionData {
   authToken: string;
   origin: string;
   pageTitle?: string;
+  sessionName?: string;
   userAgent?: string;
   connectedAt: number;
   lastActivity: number;

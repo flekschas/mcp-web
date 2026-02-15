@@ -14,6 +14,7 @@ export type McpRequestMetaParams = z.infer<typeof McpRequestMetaParamsSchema>;
 
 export interface AvailableSession {
   session_id: string;
+  session_name: string | undefined;
   origin: string;
   page_title: string | undefined;
   connected_at: string;

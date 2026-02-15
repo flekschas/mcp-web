@@ -1,11 +1,19 @@
 import { MCPWeb } from '@mcp-web/core';
 import { z } from 'zod';
 import config from '../mcp-web.config.js';
+import { claimGameName } from './game-names.js';
 import { makeMove } from './game-logic.js';
 import { GameStateSchema, MoveSchema } from './schemas.js';
 import { state } from './state.svelte.js';
 
-export const mcpWeb = new MCPWeb(config);
+const { name: gameName, release: releaseGameName } = claimGameName();
+
+export { gameName, releaseGameName };
+
+export const mcpWeb = new MCPWeb({
+  ...config,
+  sessionName: gameName,
+});
 
 export const getGameStateToolDefinition = mcpWeb.addTool({
   name: 'get_game_state',

@@ -40,6 +40,7 @@ import {
   type ResourceMetadata,
   SessionExpiredErrorCode,
   SessionLimitExceededErrorCode,
+  SessionNameAlreadyInUseErrorCode,
   SessionNotFoundErrorCode,
   SessionNotSpecifiedErrorCode,
   type ToolMetadata,
@@ -81,6 +82,7 @@ interface AuthenticateMessage {
   authToken: string;
   origin: string;
   pageTitle?: string;
+  sessionName?: string;
   userAgent?: string;
   timestamp: number;
 }
@@ -164,6 +166,7 @@ interface SessionData {
   authToken: string;
   origin: string;
   pageTitle?: string;
+  sessionName?: string;
   userAgent?: string;
   connectedAt: number;
   lastActivity: number;
@@ -545,11 +548,33 @@ export class MCPWebBridge {
       }
     }
 
+    // Check for duplicate session name
+    if (message.sessionName) {
+      const existingSessionIds = this.#tokenSessionIds.get(authToken);
+      if (existingSessionIds) {
+        for (const existingId of existingSessionIds) {
+          const existingSession = this.#sessions.get(existingId);
+          if (existingSession?.sessionName === message.sessionName) {
+            ws.send(
+              JSON.stringify({
+                type: 'authentication-failed',
+                error: `Session name "${message.sessionName}" is already in use`,
+                code: SessionNameAlreadyInUseErrorCode,
+              })
+            );
+            ws.close(1008, 'Session name already in use');
+            return;
+          }
+        }
+      }
+    }
+
     const sessionData: SessionData = {
       ws,
       authToken: message.authToken,
       origin: message.origin,
       pageTitle: message.pageTitle,
+      sessionName: message.sessionName,
       userAgent: message.userAgent,
       connectedAt: Date.now(),
       lastActivity: Date.now(),
@@ -1656,6 +1681,7 @@ export class MCPWebBridge {
   #listSessions(sessions: Map<string, SessionData>): AvailableSession[] {
     return Array.from(sessions.entries()).map(([key, session]) => ({
       session_id: key,
+      session_name: session.sessionName,
       origin: session.origin,
       page_title: session.pageTitle,
       connected_at: new Date(session.connectedAt).toISOString(),

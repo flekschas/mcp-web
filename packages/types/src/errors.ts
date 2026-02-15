@@ -17,11 +17,14 @@ export const SessionLimitExceededErrorCode = 'SessionLimitExceeded';
 export const QueryLimitExceededErrorCode = 'QueryLimitExceeded';
 export const SessionExpiredErrorCode = 'SessionExpired';
 
+export const SessionNameAlreadyInUseErrorCode = 'SessionNameAlreadyInUse';
+
 /**
  * Session information returned in errors
  */
 export interface SessionInfo {
   session_id: string;
+  session_name: string | undefined;
   origin: string;
   page_title: string;
   connected_at: string;

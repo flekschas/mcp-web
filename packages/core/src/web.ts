@@ -83,6 +83,7 @@ export class MCPWeb {
   #apps = new Map<string, ProcessedAppDefinition>();
   #connected = false;
   #isConnecting = false;
+  #authError: { error: string; code: string } | null = null;
   #config: MCPWebConfigOutput;
   #mcpConfig: {
     [serverName: string]: {
@@ -140,7 +141,7 @@ export class MCPWeb {
   /**
    * Unique session identifier for this frontend instance.
    *
-   * The session ID is automatically generated and persisted in localStorage across page reloads.
+   * The session ID is automatically generated on construction.
    * It's used to identify this specific frontend instance in the bridge server.
    *
    * @returns The session ID string
@@ -270,12 +271,7 @@ export class MCPWeb {
   }
 
   #generateSessionId(): string {
-    let sessionId = globalThis.localStorage?.getItem('mcp-web-session-id');
-    if (!sessionId) {
-      sessionId = globalThis.crypto.randomUUID();
-      globalThis.localStorage?.setItem('mcp-web-session-id', sessionId);
-    }
-    return sessionId;
+    return globalThis.crypto.randomUUID();
   }
 
   #generateAuthToken(): string {
@@ -384,6 +380,7 @@ export class MCPWeb {
     }
 
     this.#isConnecting = true;
+    this.#authError = null;
     return new Promise((resolve, reject) => {
       try {
         const wsUrl = `${this.#getBridgeWsUrl()}?session=${this.sessionId}`;
@@ -406,7 +403,10 @@ export class MCPWeb {
         this.#ws.onclose = () => {
           this.#connected = false;
           this.#isConnecting = false;
-          this.scheduleReconnect();
+          // Don't reconnect if authentication was rejected
+          if (!this.#authError) {
+            this.scheduleReconnect();
+          }
         };
 
         this.#ws.onerror = (error) => {
@@ -415,11 +415,16 @@ export class MCPWeb {
           reject(error);
         };
 
-        // Resolve when authenticated
+        // Resolve when authenticated, reject on auth failure
         const checkConnection = () => {
           if (this.#connected) {
             this.#isConnecting = false;
             resolve(true);
+          } else if (this.#authError) {
+            this.#isConnecting = false;
+            reject(
+              new Error(this.#authError.error)
+            );
           } else {
             setTimeout(checkConnection, 100);
           }
@@ -442,6 +447,7 @@ export class MCPWeb {
       authToken: this.#authToken,
       origin: globalThis.window?.location?.origin,
       pageTitle: globalThis.document?.title,
+      sessionName: this.#config.sessionName,
       userAgent: globalThis.navigator?.userAgent,
       timestamp: Date.now()
     };
@@ -457,6 +463,18 @@ export class MCPWeb {
         this.registerAllTools();
         this.registerAllResources();
         break;
+
+      case 'authentication-failed': {
+        const failedMessage = message as unknown as {
+          error: string;
+          code: string;
+        };
+        this.#authError = {
+          error: failedMessage.error,
+          code: failedMessage.code,
+        };
+        break;
+      }
 
       case 'tool-call':
         this.handleToolCall(message);

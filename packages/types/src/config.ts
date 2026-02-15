@@ -41,6 +41,8 @@ export const McpWebConfigSchema = z.object({
   maxInFlightQueriesPerToken: z.number().int().positive().optional().describe('Maximum concurrent in-flight queries per token.'),
   /** Maximum session duration in milliseconds. Sessions older than this are automatically closed. */
   sessionMaxDurationMs: z.number().int().positive().optional().describe('Maximum session duration in milliseconds.'),
+  /** Optional human-readable name for the session. Must be unique per auth token. Used to identify specific sessions when multiple are connected. */
+  sessionName: z.string().min(1).optional().describe('Optional human-readable name for the session. Must be unique per auth token. Used to identify specific sessions when multiple are connected.'),
   /** Enable debug logging for MCP requests and responses. */
   debug: z.boolean().optional().default(false).describe('Enable debug logging for MCP requests and responses.'),
 });

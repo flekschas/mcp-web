@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import Game from './components/Game.svelte';
   import ConfigModal from './components/ConfigModal.svelte';
-  import { mcpWeb } from './mcp-tools.js';
+  import { mcpWeb, gameName, releaseGameName } from './mcp-tools.js';
   import { state as gameState } from './state.svelte.js';
   import H1 from './components/H1.svelte';
 
@@ -18,11 +18,15 @@
       connectionStatus = mcpConnection ? 'connected' : 'disconnected';
 
       console.log('MCP connected:', mcpConnection);
-      console.log('Game initialized');
+      console.log(`${gameName} initialized`);
     } catch (error) {
       console.error('Failed to connect to MCP:', error);
       connectionStatus = 'error';
     }
+  });
+
+  onDestroy(() => {
+    releaseGameName();
   });
 
   const gameOver = $derived(gameState.gameState.gameStatus !== 'playing');
@@ -39,7 +43,7 @@
       <H1 />
 
       <div class="flex justify-center items-center gap-2">
-        <p>Play against AI via</p>
+        <p>{gameName} &mdash; Play against AI via</p>
 
         <button
           class="flex justify-center items-center gap-1 rounded outline outline-[#C99DA3]/20 hover:outline-[#C99DA3]/60 hover:bg-[#C99DA3]/10 px-1.5 cursor-pointer"
