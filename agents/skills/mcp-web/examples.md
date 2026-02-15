@@ -263,6 +263,64 @@ mcp.addTool({
 });
 ```
 
+### Pattern 9: Named Sessions for Multi-Tab Apps
+
+When multiple tabs of your app connect simultaneously, use `sessionName` so
+Claude can identify them by human-readable labels instead of UUIDs:
+
+```typescript
+// game-names.ts — localStorage slot allocator
+const STORAGE_KEY = 'game-slots';
+
+export function claimGameName(): { name: string; release: () => void } {
+  const slots: (string | null)[] = JSON.parse(
+    localStorage.getItem(STORAGE_KEY) || '[]'
+  );
+  let index = slots.findIndex((s) => s === null);
+  if (index === -1) index = slots.length;
+  const id = crypto.randomUUID();
+  slots[index] = id;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(slots));
+
+  return {
+    name: `Game ${index + 1}`,
+    release: () => {
+      const current: (string | null)[] = JSON.parse(
+        localStorage.getItem(STORAGE_KEY) || '[]'
+      );
+      const i = current.indexOf(id);
+      if (i !== -1) {
+        current[i] = null;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
+      }
+    },
+  };
+}
+
+// mcp-tools.ts
+import { claimGameName } from './game-names';
+
+const { name, release } = claimGameName();
+export const releaseGameName = release;
+
+export const mcpWeb = new MCPWeb({
+  name: 'Checkers',
+  description: 'Interactive checkers game',
+  sessionName: name,  // e.g. "Game 1", "Game 2"
+});
+
+// App.svelte — release slot on teardown
+import { onDestroy } from 'svelte';
+import { releaseGameName } from './mcp-tools';
+
+onDestroy(() => releaseGameName());
+```
+
+Session names must be unique per auth token. If a second tab tries to claim
+the same name, `connect()` rejects with an error and no reconnection is
+attempted. The slot allocator above prevents this by assigning the first
+available slot.
+
 ## Demo: Checkers Game
 
 The checkers demo (`demos/checkers/`) exemplifies these patterns:

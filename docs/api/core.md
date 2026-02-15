@@ -67,7 +67,7 @@ get sessionId(): any
 
 Unique session identifier for this frontend instance.
 
-The session ID is automatically generated and persisted in localStorage across page reloads.
+The session ID is automatically generated on construction.
 It's used to identify this specific frontend instance in the bridge server.
 
 ```ts

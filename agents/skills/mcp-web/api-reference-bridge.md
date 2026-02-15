@@ -72,6 +72,10 @@ pageTitle?: string
 ```
 
 ```ts
+sessionName?: string
+```
+
+```ts
 userAgent?: string
 ```
 
@@ -99,6 +103,24 @@ sessionId: string
 
 ```ts
 success: boolean
+```
+
+### AuthenticationFailedMessage
+
+*Interface* — `packages/bridge/src/types.ts`
+
+**Properties:**
+
+```ts
+type: 'authentication-failed'
+```
+
+```ts
+error: string
+```
+
+```ts
+code: string
 ```
 
 ### RegisterToolMessage
@@ -394,6 +416,10 @@ pageTitle?: string
 ```
 
 ```ts
+sessionName?: string
+```
+
+```ts
 userAgent?: string
 ```
 
@@ -436,6 +462,7 @@ resources: Map<string, ResourceMetadata>
 
 ```ts
 | AuthenticatedMessage
+  | AuthenticationFailedMessage
   | ToolCallMessage
   | ResourceReadMessage
   | QueryAcceptedMessage

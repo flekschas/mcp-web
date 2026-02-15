@@ -185,6 +185,68 @@ z.object({ description: z.string().optional() })
 z.object({ description: z.string().nullable().default(null) })
 ```
 
+## Multi-Session Support
+
+When multiple instances of your app connect to the same bridge (e.g., multiple browser tabs), each gets a unique session ID. By default, Claude sees them as opaque UUIDs. Use `sessionName` to give sessions human-readable labels:
+
+```typescript
+const mcpWeb = new MCPWeb({
+  name: 'Checkers',
+  description: 'A checkers game',
+  sessionName: 'Game 1',  // Must be unique per auth token
+});
+```
+
+**Key rules:**
+- `sessionName` is optional — unnamed sessions work as before
+- Names must be unique per auth token — the bridge rejects duplicates with a clean `authentication-failed` message, and `connect()` rejects with an `Error`
+- Auth tokens are shared via localStorage across tabs on the same origin, so Claude sees all sessions through one MCP connection
+- Session IDs are always fresh UUIDs (not persisted in localStorage)
+
+**Dynamic name allocation** (e.g., for demos with multiple tabs):
+
+```typescript
+// game-names.ts — localStorage-based slot allocator
+const STORAGE_KEY = 'game-slots';
+
+export function claimGameName(): { name: string; release: () => void } {
+  const slots: (string | null)[] = JSON.parse(
+    localStorage.getItem(STORAGE_KEY) || '[]'
+  );
+  let index = slots.findIndex((s) => s === null);
+  if (index === -1) index = slots.length;
+  const id = crypto.randomUUID();
+  slots[index] = id;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(slots));
+
+  return {
+    name: `Game ${index + 1}`,
+    release: () => {
+      const current: (string | null)[] = JSON.parse(
+        localStorage.getItem(STORAGE_KEY) || '[]'
+      );
+      const i = current.indexOf(id);
+      if (i !== -1) {
+        current[i] = null;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
+      }
+    },
+  };
+}
+
+// mcp-tools.ts
+const { name, release } = claimGameName();
+export const releaseGameName = release;
+
+export const mcpWeb = new MCPWeb({
+  ...MCP_WEB_CONFIG,
+  sessionName: name,
+});
+
+// App.svelte (or equivalent lifecycle)
+onDestroy(() => releaseGameName());
+```
+
 ## Development Workflow
 
 1. **Define schemas** with rich descriptions
