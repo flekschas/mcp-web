@@ -47,6 +47,7 @@ import {
   ToolNameRequiredErrorCode,
   ToolNotAllowedErrorCode,
   ToolNotFoundErrorCode,
+  ToolSchemaConflictErrorCode,
   UnknownMethodErrorCode,
 } from '@mcp-web/types';
 import type {
@@ -606,6 +607,37 @@ export class MCPWebBridge {
     if (!session) {
       console.warn(`Tool registration for unknown session: ${sessionId}`);
       return;
+    }
+
+    const toolName = message.tool.name;
+    const newSchema = JSON.stringify(message.tool.inputSchema ?? {});
+
+    // Check sibling sessions (same auth token) for schema conflicts
+    const siblingSessionIds = this.#tokenSessionIds.get(session.authToken);
+    if (siblingSessionIds) {
+      for (const siblingId of siblingSessionIds) {
+        if (siblingId === sessionId) continue;
+        const sibling = this.#sessions.get(siblingId);
+        if (!sibling) continue;
+        const existingTool = sibling.tools.get(toolName);
+        if (existingTool) {
+          const existingSchema = JSON.stringify(existingTool.inputSchema ?? {});
+          if (existingSchema !== newSchema) {
+            console.warn(
+              `Tool schema conflict: '${toolName}' registered by session ${siblingId} has a different schema. Rejecting registration from session ${sessionId}.`
+            );
+            session.ws.send(
+              JSON.stringify({
+                type: 'tool-registration-error',
+                toolName,
+                error: ToolSchemaConflictErrorCode,
+                message: `Tool '${toolName}' is already registered by another session with a different schema. Tools with the same name must have identical schemas across sessions.`,
+              })
+            );
+            return;
+          }
+        }
+      }
     }
 
     console.log('registering tool for session', sessionId, message);
@@ -1484,14 +1516,42 @@ export class MCPWebBridge {
     };
 
     if (!session && sessions.size > 1) {
+      // Multiple sessions: expose all tools (deduplicated) with session_id required
+      const tools: Tool[] = [listSessionsTool];
+      const seen = new Set<string>();
+
+      for (const s of sessions.values()) {
+        for (const tool of s.tools.values()) {
+          if (seen.has(tool.name)) continue;
+          seen.add(tool.name);
+          tools.push({
+            name: tool.name,
+            description: tool.description,
+            inputSchema: {
+              type: 'object',
+              properties: {
+                session_id: {
+                  type: 'string',
+                  description:
+                    'Session ID (required) — use list_sessions to see available sessions',
+                },
+                ...(tool.inputSchema?.properties || {}),
+              },
+              required: [
+                'session_id',
+                ...(tool.inputSchema?.required || []),
+              ],
+            },
+            // Forward _meta (e.g., _meta.ui.resourceUri for MCP Apps)
+            ...(tool._meta ? { _meta: tool._meta } : {}),
+          });
+        }
+      }
+
       return {
-        tools: [listSessionsTool],
-        isError: true,
-        error: SessionNotSpecifiedErrorCode,
-        error_message: SessionNotSpecifiedErrorDetails,
-        error_is_fatal: false,
-        available_sessions: this.#listSessions(sessions),
-      } satisfies ErroredListToolsResult;
+        tools,
+        _meta: { available_sessions: this.#listSessions(sessions) },
+      } satisfies ListToolsResult;
     }
 
     if (!session) {
@@ -1584,7 +1644,11 @@ export class MCPWebBridge {
       };
     }
 
-    return this.#forwardToolCallToSession(sessionId, toolName, toolInput, queryId);
+    // Strip session_id from tool input before forwarding — it's a routing
+    // parameter injected by the bridge, not an actual tool argument.
+    const { session_id: _, ...forwardedInput } = toolInput || {};
+
+    return this.#forwardToolCallToSession(sessionId, toolName, forwardedInput, queryId);
   }
 
   async #handleResourcesList(

@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url';
 import { MCPWebClient, type MCPWebClientConfig, type TextContent } from '@mcp-web/client';
 import { MCPWeb } from '@mcp-web/core';
 import {
-  isErroredListToolsResult,
   type MCPWebConfig,
   SessionNotSpecifiedErrorCode,
   ToolNotFoundErrorCode,
@@ -184,7 +183,7 @@ test('Tools from differently authenticated clients are isolated', async () => {
 });
 
 test('Tools from different sessions are isolated', async () => {
-  const authToken = 'authToken';
+  const authToken = 'multi-session-tools-test';
   const mcpWeb1 = new MCPWeb({
     ...mcpWebConfig,
     authToken,
@@ -222,29 +221,37 @@ test('Tools from different sessions are isolated', async () => {
     authToken,
   });
 
+  // Without sessionId: should get all deduplicated tools with session_id required
   const toolListResult = await client.listTools();
 
-  // Should get the list_sessions discovery tool
-  expect(toolListResult.tools).toHaveLength(1);
+  // Should get list_sessions + tool1 + tool2 (deduplicated across sessions)
+  expect(toolListResult.tools).toHaveLength(3);
   expect(toolListResult.tools[0].name).toBe('list_sessions');
 
-  // Should have isError flag
-  expect(toolListResult.isError).toBe(true);
+  const toolNames = toolListResult.tools.map(t => t.name);
+  expect(toolNames).toContain('tool1');
+  expect(toolNames).toContain('tool2');
 
-  // Type guard
-  if (!isErroredListToolsResult(toolListResult)) {
-    throw new Error('Expected error result');
-  }
+  // Each tool should have session_id as a required parameter
+  const tool1 = toolListResult.tools.find(t => t.name === 'tool1')!;
+  expect(tool1.inputSchema.properties).toHaveProperty('session_id');
+  expect(tool1.inputSchema.required).toContain('session_id');
 
-  // Should have available_sessions data
-  const available_sessions = toolListResult.available_sessions;
-  expect(available_sessions).toBeDefined();
+  const tool2 = toolListResult.tools.find(t => t.name === 'tool2')!;
+  expect(tool2.inputSchema.properties).toHaveProperty('session_id');
+  expect(tool2.inputSchema.required).toContain('session_id');
+
+  // Should NOT be an error result anymore
+  expect(toolListResult.isError).toBeUndefined();
+
+  // Should have available_sessions in _meta
+  expect(toolListResult._meta).toBeDefined();
+  const available_sessions = (toolListResult._meta as Record<string, unknown>).available_sessions as Array<Record<string, unknown>>;
   expect(available_sessions).toHaveLength(2);
   expect(available_sessions[0].session_id).toBe(mcpWeb1.sessionId);
   expect(available_sessions[1].session_id).toBe(mcpWeb2.sessionId);
-  expect(available_sessions[0].available_tools).toContain('tool1');
-  expect(available_sessions[1].available_tools).toContain('tool2');
 
+  // With specific sessionId: should still get session-specific tools
   const session1Tools = await client.listTools(mcpWeb1.sessionId);
   expect(session1Tools.tools.length).toBe(2);
   expect(session1Tools.tools[0].name).toBe('list_sessions');
@@ -255,6 +262,7 @@ test('Tools from different sessions are isolated', async () => {
   expect(session2Tools.tools[0].name).toBe('list_sessions');
   expect(session2Tools.tools[1].name).toBe('tool2');
 
+  // Calling tools with explicit session ID should work
   const tools1Result = await client.callTool('tool1', { name: 'John' }, mcpWeb1.sessionId);
   expect(tools1Result).toEqual({
     content: [{
@@ -267,6 +275,15 @@ test('Tools from different sessions are isolated', async () => {
     content: [{
       type: 'text',
       text: JSON.stringify({ result: 'Hallo, Jane!' }, null, 2)
+    }],
+  });
+
+  // Calling tools with session_id in the arguments should also work
+  const tools1ViaArgs = await client.callTool('tool1', { name: 'John', session_id: mcpWeb1.sessionId });
+  expect(tools1ViaArgs).toEqual({
+    content: [{
+      type: 'text',
+      text: JSON.stringify({ result: 'Hello, John!' }, null, 2)
     }],
   });
 
@@ -302,6 +319,197 @@ test('Tools from different sessions are isolated', async () => {
   const wrongSessionResult2 = await client.callTool('tool2', { name: 'Jane' }, mcpWeb1.sessionId);
   expect(wrongSessionResult2.isError).toBe(true);
   expect((wrongSessionResult2.content[0] as TextContent).text).toContain(ToolNotFoundErrorCode);
+
+  mcpWeb1.disconnect();
+  mcpWeb2.disconnect();
+});
+
+test('Rejects tools with same name but different schemas across sessions', async () => {
+  const authToken = 'authToken-schema-conflict';
+  const mcpWeb1 = new MCPWeb({
+    ...mcpWebConfig,
+    authToken,
+    autoConnect: false,
+  });
+
+  mcpWeb1.addTool({
+    name: 'shared_tool',
+    description: 'Tool with schema A',
+    inputSchema: z.object({ name: z.string() }),
+    outputSchema: z.object({ result: z.string() }),
+    handler: async ({ name }) => ({ result: name }),
+  });
+
+  await mcpWeb1.connect();
+
+  const mcpWeb2 = new MCPWeb({
+    ...mcpWebConfig,
+    authToken,
+    autoConnect: false,
+  });
+
+  // Register a tool with the same name but DIFFERENT schema
+  mcpWeb2.addTool({
+    name: 'shared_tool',
+    description: 'Tool with schema B',
+    inputSchema: z.object({ count: z.number() }),
+    outputSchema: z.object({ result: z.number() }),
+    handler: async ({ count }) => ({ result: count }),
+  });
+
+  await mcpWeb2.connect();
+
+  // Give the bridge a moment to process the registration rejection
+  await new Promise((resolve) => setTimeout(resolve, 200));
+
+  const client = new MCPWebClient({
+    ...mcpWebClientConfig,
+    authToken,
+  });
+
+  // Session 1 should have shared_tool
+  const session1Tools = await client.listTools(mcpWeb1.sessionId);
+  const session1ToolNames = session1Tools.tools.map((t) => t.name);
+  expect(session1ToolNames).toContain('shared_tool');
+
+  // Session 2 should NOT have shared_tool (registration was rejected)
+  const session2Tools = await client.listTools(mcpWeb2.sessionId);
+  const session2ToolNames = session2Tools.tools.map((t) => t.name);
+  expect(session2ToolNames).not.toContain('shared_tool');
+
+  mcpWeb1.disconnect();
+  mcpWeb2.disconnect();
+});
+
+test('onRegistrationError callback is called on schema conflict', async () => {
+  const authToken = 'authToken-on-error-callback';
+  const mcpWeb1 = new MCPWeb({
+    ...mcpWebConfig,
+    authToken,
+    autoConnect: false,
+  });
+
+  mcpWeb1.addTool({
+    name: 'conflicting_tool',
+    description: 'Tool with schema A',
+    inputSchema: z.object({ name: z.string() }),
+    outputSchema: z.object({ result: z.string() }),
+    handler: async ({ name }) => ({ result: name }),
+  });
+
+  await mcpWeb1.connect();
+
+  const mcpWeb2 = new MCPWeb({
+    ...mcpWebConfig,
+    authToken,
+    autoConnect: false,
+  });
+
+  // Track the error via the callback
+  let registrationError: { toolName: string; code: string; message: string } | null = null;
+
+  // Register a tool with the same name but DIFFERENT schema, with onRegistrationError
+  mcpWeb2.addTool(
+    {
+      name: 'conflicting_tool',
+      description: 'Tool with schema B',
+      inputSchema: z.object({ count: z.number() }),
+      outputSchema: z.object({ result: z.number() }),
+      handler: async ({ count }) => ({ result: count }),
+    },
+    {
+      onRegistrationError: (error) => {
+        registrationError = error;
+      },
+    }
+  );
+
+  await mcpWeb2.connect();
+
+  // Wait for the bridge to process the registration rejection
+  await new Promise((resolve) => setTimeout(resolve, 300));
+
+  // The callback should have been called with error details
+  expect(registrationError).not.toBeNull();
+  expect(registrationError!.toolName).toBe('conflicting_tool');
+  expect(registrationError!.code).toBe('ToolSchemaConflict');
+  expect(registrationError!.message).toContain('different schema');
+
+  // The tool should have been removed from mcpWeb2
+  expect(mcpWeb2.tools.has('conflicting_tool')).toBe(false);
+
+  mcpWeb1.disconnect();
+  mcpWeb2.disconnect();
+});
+
+test('Allows tools with same name and identical schemas across sessions', async () => {
+  const authToken = 'authToken-same-schema';
+  const mcpWeb1 = new MCPWeb({
+    ...mcpWebConfig,
+    authToken,
+    autoConnect: false,
+  });
+
+  mcpWeb1.addTool({
+    name: 'shared_tool',
+    description: 'Shared tool',
+    inputSchema: z.object({ name: z.string() }),
+    outputSchema: z.object({ result: z.string() }),
+    handler: async ({ name }) => ({ result: `Hello, ${name}!` }),
+  });
+
+  await mcpWeb1.connect();
+
+  const mcpWeb2 = new MCPWeb({
+    ...mcpWebConfig,
+    authToken,
+    autoConnect: false,
+  });
+
+  // Register a tool with the same name AND same schema
+  mcpWeb2.addTool({
+    name: 'shared_tool',
+    description: 'Shared tool',
+    inputSchema: z.object({ name: z.string() }),
+    outputSchema: z.object({ result: z.string() }),
+    handler: async ({ name }) => ({ result: `Hallo, ${name}!` }),
+  });
+
+  await mcpWeb2.connect();
+
+  const client = new MCPWebClient({
+    ...mcpWebClientConfig,
+    authToken,
+  });
+
+  // Both sessions should have shared_tool
+  const session1Tools = await client.listTools(mcpWeb1.sessionId);
+  expect(session1Tools.tools.map((t) => t.name)).toContain('shared_tool');
+
+  const session2Tools = await client.listTools(mcpWeb2.sessionId);
+  expect(session2Tools.tools.map((t) => t.name)).toContain('shared_tool');
+
+  // tools/list without sessionId should deduplicate — only one shared_tool
+  const allTools = await client.listTools();
+  const sharedTools = allTools.tools.filter((t) => t.name === 'shared_tool');
+  expect(sharedTools).toHaveLength(1);
+
+  // Calling with session_id should route to the correct session
+  const result1 = await client.callTool('shared_tool', { name: 'World' }, mcpWeb1.sessionId);
+  expect(result1).toEqual({
+    content: [{
+      type: 'text',
+      text: JSON.stringify({ result: 'Hello, World!' }, null, 2)
+    }],
+  });
+
+  const result2 = await client.callTool('shared_tool', { name: 'World' }, mcpWeb2.sessionId);
+  expect(result2).toEqual({
+    content: [{
+      type: 'text',
+      text: JSON.stringify({ result: 'Hallo, World!' }, null, 2)
+    }],
+  });
 
   mcpWeb1.disconnect();
   mcpWeb2.disconnect();

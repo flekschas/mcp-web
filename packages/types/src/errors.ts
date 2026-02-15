@@ -18,6 +18,20 @@ export const QueryLimitExceededErrorCode = 'QueryLimitExceeded';
 export const SessionExpiredErrorCode = 'SessionExpired';
 
 export const SessionNameAlreadyInUseErrorCode = 'SessionNameAlreadyInUse';
+export const ToolSchemaConflictErrorCode = 'ToolSchemaConflict';
+
+/**
+ * Error details passed to the `onRegistrationError` callback when the bridge
+ * rejects a tool registration (e.g., due to a schema conflict with a sibling session).
+ */
+export interface ToolRegistrationError {
+  /** The name of the tool that was rejected. */
+  toolName: string;
+  /** Error code identifying the type of registration failure. */
+  code: string;
+  /** Human-readable description of why the registration was rejected. */
+  message: string;
+}
 
 /**
  * Session information returned in errors

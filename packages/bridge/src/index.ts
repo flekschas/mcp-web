@@ -84,6 +84,7 @@ export type {
   ResourceReadMessage,
   ResourceResponseMessage,
   ToolCallMessage,
+  ToolRegistrationErrorMessage,
   ToolResponseMessage,
   TrackedToolCall,
 } from './types.js';

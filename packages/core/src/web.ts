@@ -1,4 +1,4 @@
-import type { BridgeMessage, RegisterResourceMessage, RegisterToolMessage } from '@mcp-web/bridge';
+import type { BridgeMessage, RegisterResourceMessage, RegisterToolMessage, ToolRegistrationErrorMessage } from '@mcp-web/bridge';
 import type { DecomposedSchema, SplitPlan } from '@mcp-web/decompose-zod-schema';
 import { decomposeSchema } from '@mcp-web/decompose-zod-schema';
 import type {
@@ -12,6 +12,7 @@ import type {
   Query,
   ResourceDefinition,
   ToolDefinition,
+  ToolRegistrationError,
 } from '@mcp-web/types';
 import {
   AppDefinitionSchema,
@@ -85,6 +86,7 @@ export class MCPWeb {
   #isConnecting = false;
   #authError: { error: string; code: string } | null = null;
   #config: MCPWebConfigOutput;
+  #toolRegistrationErrorCallbacks = new Map<string, (error: ToolRegistrationError) => void>();
   #mcpConfig: {
     [serverName: string]: {
       command: 'npx';
@@ -484,6 +486,12 @@ export class MCPWeb {
         this.handleResourceRead(message);
         break;
 
+      case 'tool-registration-error':
+        this.handleToolRegistrationError(
+          message as ToolRegistrationErrorMessage
+        );
+        break;
+
       case 'query_accepted':
       case 'query_progress':
       case 'query_failure':
@@ -658,6 +666,25 @@ export class MCPWeb {
     this.#ws.send(JSON.stringify(response));
   }
 
+  private handleToolRegistrationError(message: ToolRegistrationErrorMessage) {
+    const { toolName, error, message: errorMessage } = message;
+
+    // Remove the tool since the bridge rejected it
+    this.tools.delete(toolName);
+
+    // Call the per-tool callback if registered
+    const callback = this.#toolRegistrationErrorCallbacks.get(toolName);
+    if (callback) {
+      this.#toolRegistrationErrorCallbacks.delete(toolName);
+      callback({ toolName, code: error, message: errorMessage });
+    } else {
+      // No callback registered — log a warning so the error isn't silently lost
+      console.warn(
+        `Tool registration rejected by bridge: '${toolName}' — ${errorMessage}`
+      );
+    }
+  }
+
   private scheduleReconnect() {
     if (!this.#ws) return;
     setTimeout(() => {
@@ -775,7 +802,10 @@ export class MCPWeb {
   addTool<
     TInput extends z.ZodObject | undefined = undefined,
     TOutput extends z.ZodType | undefined = undefined
-  >(tool: CreatedTool<TInput, TOutput>): ToolDefinition;
+  >(tool: CreatedTool<TInput, TOutput>, options?: {
+    /** Called if the bridge rejects the tool registration (e.g., schema conflict with a sibling session). */
+    onRegistrationError?: (error: ToolRegistrationError) => void;
+  }): ToolDefinition;
 
   // Overload: Zod
   addTool<
@@ -794,6 +824,9 @@ export class MCPWeb {
           : () => void | Promise<void>;
     inputSchema?: TInput;
     outputSchema?: TOutput;
+  }, options?: {
+    /** Called if the bridge rejects the tool registration (e.g., schema conflict with a sibling session). */
+    onRegistrationError?: (error: ToolRegistrationError) => void;
   }): ToolDefinition;
 
   // Overload: JSON Schema
@@ -804,12 +837,17 @@ export class MCPWeb {
     inputSchema?: { type: string; [key: string]: unknown };
     outputSchema?: { type: string; [key: string]: unknown };
     _meta?: Record<string, unknown>;
+  }, options?: {
+    /** Called if the bridge rejects the tool registration (e.g., schema conflict with a sibling session). */
+    onRegistrationError?: (error: ToolRegistrationError) => void;
   }): ToolDefinition;
 
-  addTool(tool: ToolDefinition | CreatedTool): ToolDefinition {
+  addTool(tool: ToolDefinition | CreatedTool, options?: {
+    onRegistrationError?: (error: ToolRegistrationError) => void;
+  }): ToolDefinition {
     // Handle CreatedTool
     if (isCreatedTool(tool)) {
-      return this.addTool(tool.definition);
+      return this.addTool(tool.definition, options);
     }
     const validationResult = ToolDefinitionSchema.safeParse(tool);
     if (!validationResult.success) {
@@ -844,6 +882,14 @@ export class MCPWeb {
 
     this.tools.set(processedTool.name, processedTool);
 
+    // Store registration error callback if provided
+    if (options?.onRegistrationError) {
+      this.#toolRegistrationErrorCallbacks.set(
+        processedTool.name,
+        options.onRegistrationError
+      );
+    }
+
     // Register immediately if connected
     if (this.#connected) {
       this.registerTool(processedTool);
@@ -868,6 +914,7 @@ export class MCPWeb {
    */
   removeTool(name: string) {
     this.tools.delete(name);
+    this.#toolRegistrationErrorCallbacks.delete(name);
   }
 
   /**

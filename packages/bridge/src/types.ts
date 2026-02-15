@@ -81,6 +81,13 @@ export interface ToolCallMessage {
   queryId?: string; // Added for query context
 }
 
+export interface ToolRegistrationErrorMessage {
+  type: 'tool-registration-error';
+  toolName: string;
+  error: string;
+  message: string;
+}
+
 export interface ToolResponseMessage {
   type: 'tool-response';
   requestId: string;
@@ -103,6 +110,7 @@ export type BridgeMessage =
   | AuthenticatedMessage
   | AuthenticationFailedMessage
   | ToolCallMessage
+  | ToolRegistrationErrorMessage
   | ResourceReadMessage
   | QueryAcceptedMessage
   | QueryProgressMessage

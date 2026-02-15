@@ -32,4 +32,4 @@ export type {
 
 // Re-export app-related types from @mcp-web/types for convenience
 export { isCreatedApp } from '@mcp-web/types';
-export type { AppDefinition, CreatedApp } from '@mcp-web/types';
+export type { AppDefinition, CreatedApp, ToolRegistrationError } from '@mcp-web/types';

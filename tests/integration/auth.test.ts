@@ -113,6 +113,8 @@ test('Bridge accepts authToken-authorized MCP requests', async () => {
       text: JSON.stringify({ result: 'Hello, world!' }, null, 2)
     }],
   });
+
+  mcpWeb.disconnect();
 });
 
 test('Bridge accepts query-contextualized MCP requests', async () => {
