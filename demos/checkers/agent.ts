@@ -16,7 +16,7 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
 import { MCPWebClient } from '@mcp-web/client';
 import { type Query, QuerySchema, type Tool } from '@mcp-web/types';
-import { Output, ToolLoopAgent, tool, ToolSet, type JSONSchema7, jsonSchema, stepCountIs } from 'ai';
+import { ToolLoopAgent, tool, ToolSet, type JSONSchema7, jsonSchema, stepCountIs, hasToolCall } from 'ai';
 import type { LanguageModelV3 } from '@ai-sdk/provider';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
@@ -206,8 +206,23 @@ async function generateAnswer<T extends Record<string, unknown>>({
   const aiSdkTools = mcpToAiSdkToolset(tools, mcpClient);
 
   // Remove response tool from available tools if present
-  if (query.responseTool) {
-    delete aiSdkTools[query.responseTool.name];
+  const responseToolName = query.responseTool?.name;
+  if (responseToolName) {
+    delete aiSdkTools[responseToolName];
+  }
+
+  // Re-add the response tool as a schema-only tool (no execute function).
+  // When the model calls a tool without an execute function, the agent loop
+  // stops automatically. This replaces Output.object() which is incompatible
+  // with tool calling ("tools" is incompatible with "response_format").
+  if (responseToolName && query.responseTool?.inputSchema) {
+    aiSdkTools[responseToolName] = tool({
+      description:
+        query.responseTool.description ||
+        'Provide your structured response using this tool',
+      inputSchema: jsonSchema(query.responseTool.inputSchema as JSONSchema7),
+      // No execute function — calling this tool stops the agent loop
+    });
   }
 
   // Remove tools whose results are already provided in context
@@ -221,25 +236,36 @@ async function generateAnswer<T extends Record<string, unknown>>({
     ${queryContextToXmlTemplate(query)}
 
     If you need additional information not present in the context, use the available tools to retrieve it.
+    ${responseToolName ? `When you have determined your answer, you MUST call the "${responseToolName}" tool with your structured response.` : ''}
   `)
 
   const agent = new ToolLoopAgent({
     model,
     tools: aiSdkTools,
     instructions,
-    ...(query.responseTool?.inputSchema && {
-      output: Output.object({
-        schema: jsonSchema(query.responseTool.inputSchema as JSONSchema7),
-      }),
-    }),
-    stopWhen: stepCountIs(maxSteps),
+    stopWhen: [
+      stepCountIs(maxSteps),
+      ...(responseToolName ? [hasToolCall(responseToolName)] : []),
+    ],
   });
 
   const result = await agent.generate({ prompt: query.prompt });
 
+  // Extract structured output from the static tool call (tool calls without
+  // an execute function are not executed and end up in staticToolCalls)
+  let object: T | undefined;
+  if (responseToolName) {
+    const responseCall = result.staticToolCalls.find(
+      (tc) => tc.toolName === responseToolName
+    );
+    if (responseCall) {
+      object = responseCall.input as T;
+    }
+  }
+
   return {
     text: result.text,
-    object: result.output as T | undefined,
+    object,
   };
 }
 
