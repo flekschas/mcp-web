@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* Dark mode variant for class-based toggling */
-@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
 
 /* Theme tokens */
 @theme {
@@ -50,10 +50,14 @@
   --color-accent-subtle-hover: var(--color-background-tertiary, rgba(26, 26, 26, 0.15));
 }
 
-/* Dark mode - inverted theme */
-.dark {
-  --color-bg: var(--color-background-primary, var(--color-dark));
-  --color-bg-alt: var(--color-background-secondary, var(--color-dark-alt));
+/* Dark mode - inverted theme
+   In dark mode the host's "primary" background is the conversation surface
+   (lighter) while "secondary" is the deeper chrome color. We map secondary
+   → app bg so the embedded app recedes behind the host conversation area,
+   and primary → cards/buttons so elevated surfaces match the host surface. */
+.dark, [data-theme="dark"] {
+  --color-bg: var(--color-background-secondary, var(--color-dark));
+  --color-bg-alt: var(--color-background-tertiary, var(--color-dark-alt));
   --color-text: var(--color-text-primary, var(--color-light));
   --color-text-muted: var(--color-text-secondary, #999999);
   --color-border: var(--color-border-primary, var(--color-border-light));
@@ -73,7 +77,7 @@
   --shadow-card: 0 2px 0 rgba(0, 0, 0, 0.3);
 
   /* Subtle button/card background colors for dark mode */
-  --color-accent-subtle: var(--color-background-secondary, rgba(255, 255, 255, 0.1));
+  --color-accent-subtle: var(--color-background-primary, rgba(255, 255, 255, 0.1));
   --color-accent-subtle-hover: var(--color-background-tertiary, rgba(255, 255, 255, 0.15));
 }
 
