@@ -162,8 +162,7 @@ function generateArrayTools(
       handler: async (input: { value: unknown }) => {
         const array = get() as unknown[];
         const parsed = elementSchema.parse(input.value);
-        array.push(parsed);
-        set(array);
+        set([...array, parsed]);
         return { success: true, value: parsed };
       },
     });
@@ -179,11 +178,10 @@ function generateArrayTools(
         const array = get() as unknown[];
         const parsed = elementSchema.parse(input.value);
         if (input.index !== undefined) {
-          array.splice(input.index, 0, parsed);
+          set([...array.slice(0, input.index), parsed, ...array.slice(input.index)]);
         } else {
-          array.push(parsed);
+          set([...array, parsed]);
         }
-        set(array);
         return { success: true, value: parsed };
       },
     });
@@ -209,8 +207,9 @@ function generateArrayTools(
         }
         const merged = deepMerge(array[index], input.value);
         const validated = elementSchema.parse(merged);
-        array[index] = validated;
-        set(array);
+        const newArray = [...array];
+        newArray[index] = validated;
+        set(newArray);
         return { success: true, value: validated };
       },
     });
@@ -229,8 +228,9 @@ function generateArrayTools(
         }
         const merged = deepMerge(array[input.index], input.value);
         const validated = elementSchema.parse(merged);
-        array[input.index] = validated;
-        set(array);
+        const newArray = [...array];
+        newArray[input.index] = validated;
+        set(newArray);
         return { success: true, value: validated };
       },
     });
@@ -255,8 +255,7 @@ function generateArrayTools(
             (item as Record<string, unknown>)[keyField] === input.id
           );
           if (index !== -1) {
-            array.splice(index, 1);
-            set(array);
+            set([...array.slice(0, index), ...array.slice(index + 1)]);
           }
         }
         return { success: true };
@@ -276,8 +275,7 @@ function generateArrayTools(
           set([]);
         } else if (input.index !== undefined) {
           if (input.index < array.length) {
-            array.splice(input.index, 1);
-            set(array);
+            set([...array.slice(0, input.index), ...array.slice(input.index + 1)]);
           }
         }
         return { success: true };
@@ -345,15 +343,13 @@ function generateRecordTools(
       if (valueUnwrapped instanceof z.ZodObject && record[input.key] !== undefined) {
         const merged = deepMerge(record[input.key], input.value);
         const validated = valueSchema.parse(merged);
-        record[input.key] = validated;
-        set(record);
+        set({ ...record, [input.key]: validated });
         return { success: true, value: validated };
       }
 
       // Otherwise, full replacement (upsert)
       const validated = valueSchema.parse(input.value);
-      record[input.key] = validated;
-      set(record);
+      set({ ...record, [input.key]: validated });
       return { success: true, value: validated };
     },
   });
@@ -371,8 +367,8 @@ function generateRecordTools(
       if (input.all) {
         set({});
       } else if (input.key) {
-        delete record[input.key];
-        set(record);
+        const { [input.key]: _, ...rest } = record;
+        set(rest);
       }
       return { success: true };
     },
@@ -484,8 +480,7 @@ function generateMixedObjectTools(
       get: () => (get() as Record<string, unknown>)[key],
       set: (value: unknown) => {
         const current = get() as Record<string, unknown>;
-        current[key] = value;
-        set(current);
+        set({ ...current, [key]: value });
       },
       schema: field,
     };

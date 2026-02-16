@@ -175,11 +175,10 @@ export function createStateTools<T>(
           set: (value: unknown) => {
             const current = get() as Record<string, unknown>;
             if (decomposed.targetPaths.length === 1) {
-              current[decomposed.targetPaths[0]] = value;
+              set({ ...current, [decomposed.targetPaths[0]]: value } as T);
             } else {
-              Object.assign(current, value);
+              set({ ...current, ...(value as Record<string, unknown>) } as T);
             }
-            set(current as T);
           },
           schema: decomposed.schema as z.ZodTypeAny,
         });
