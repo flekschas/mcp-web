@@ -20,7 +20,7 @@ export function TodoForm() {
 
     const newTodo = TodoSchema.parse({
       title: title.trim(),
-      project_id: view,
+      project_id: view.type === 'project' ? view.id : null,
     });
 
     setTodos(prev => [...prev, newTodo]);
