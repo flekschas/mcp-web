@@ -156,7 +156,10 @@ This method is idempotent - calling it multiple times while already connected or
 connecting will return the same promise.
 
 ```ts
-addTool<TInput, TOutput>(tool: CreatedTool<TInput, TOutput>): ToolDefinition
+addTool<TInput, TOutput>(tool: CreatedTool<TInput, TOutput>, options?: {
+    /** Called if the bridge rejects the tool registration (e.g., schema conflict with a sibling session). */
+    onRegistrationError?: (error: ToolRegistrationError) => void;
+  }): ToolDefinition
 ```
 
 Registers a tool that AI agents can call.
@@ -180,6 +183,9 @@ addTool<TInput, TOutput>(tool: {
           : () => void | Promise<void>;
     inputSchema?: TInput;
     outputSchema?: TOutput;
+  }, options?: {
+    /** Called if the bridge rejects the tool registration (e.g., schema conflict with a sibling session). */
+    onRegistrationError?: (error: ToolRegistrationError) => void;
   }): ToolDefinition
 ```
 
@@ -191,11 +197,16 @@ addTool(tool: {
     inputSchema?: { type: string; [key: string]: unknown };
     outputSchema?: { type: string; [key: string]: unknown };
     _meta?: Record<string, unknown>;
+  }, options?: {
+    /** Called if the bridge rejects the tool registration (e.g., schema conflict with a sibling session). */
+    onRegistrationError?: (error: ToolRegistrationError) => void;
   }): ToolDefinition
 ```
 
 ```ts
-addTool(tool: ToolDefinition | CreatedTool): ToolDefinition
+addTool(tool: ToolDefinition | CreatedTool, options?: {
+    onRegistrationError?: (error: ToolRegistrationError) => void;
+  }): ToolDefinition
 ```
 
 ```ts

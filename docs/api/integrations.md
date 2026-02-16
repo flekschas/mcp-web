@@ -60,6 +60,20 @@ mcpWeb: MCPWeb
 
 Existing MCPWeb instance to provide to children.
 
+### UseMCPToolsOptions
+
+*Interface* — `packages/integrations/react/src/use-mcp-tools.ts`
+
+Options for the useMCPTools hook.
+
+**Properties:**
+
+```ts
+onRegistrationError?: (error: ToolRegistrationError) => void
+```
+
+Called if the bridge rejects any tool registration (e.g., schema conflict with a sibling session).
+
 ### MCPWebProviderProps
 
 *Type* — `packages/integrations/react/src/mcp-web-provider.ts`

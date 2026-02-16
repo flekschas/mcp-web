@@ -245,6 +245,28 @@ toolInput?: Record<string, unknown>
 queryId?: string
 ```
 
+### ToolRegistrationErrorMessage
+
+*Interface* — `packages/bridge/src/types.ts`
+
+**Properties:**
+
+```ts
+type: 'tool-registration-error'
+```
+
+```ts
+toolName: string
+```
+
+```ts
+error: string
+```
+
+```ts
+message: string
+```
+
 ### ToolResponseMessage
 
 *Interface* — `packages/bridge/src/types.ts`
@@ -464,6 +486,7 @@ resources: Map<string, ResourceMetadata>
 | AuthenticatedMessage
   | AuthenticationFailedMessage
   | ToolCallMessage
+  | ToolRegistrationErrorMessage
   | ResourceReadMessage
   | QueryAcceptedMessage
   | QueryProgressMessage
