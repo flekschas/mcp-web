@@ -1,4 +1,3 @@
-@ -1,442 +0,0 @@
 # MCP-Web Examples
 
 Detailed examples and patterns for building MCP-Web applications.
@@ -82,13 +81,11 @@ mcp.addTool({
     if (payment.amount < order.total) {
       return { error: 'Insufficient amount' };
     }
-
     // Multi-step operation
     const result = await processPayment(payment);
     order.status = 'paid';
     order.paymentId = result.id;
     inventory.reserve(order.items);
-
     return { success: true, orderId: order.id };
   },
   inputSchema: PaymentSchema,
@@ -109,7 +106,7 @@ export async function askAIForMove() {
   const query = mcp.query({
     prompt: 'Analyze the board and make your move',
     context: [getGameStateToolDefinition],  // Tool value is pre-computed
-    responseTool: makeMoveToolDefinition,   // AI must call this tool
+    responseTool: makeMoveToolDefinition,    // AI must call this tool
   });
 
   // Use query.stream for fine-grained event handling
@@ -156,8 +153,7 @@ setTimeout(() => abortController.abort(), 30000);  // Auto-cancel after 30s
 
 ### Pattern 5: Grouped State with `groupState`
 
-Group semantically related atomic state variables into a single tool set.
-Useful when using declarative reactive state (atoms, refs, signals).
+Group semantically related atomic state variables into a single tool set. Useful when using declarative reactive state (atoms, refs, signals).
 
 ```typescript
 import { groupState } from '@mcp-web/core';
@@ -178,7 +174,7 @@ const [getSettings, setSettings, cleanup] = mcp.addStateTools({
 });
 
 // The generated setter accepts partial updates:
-// set_settings({ sortBy: 'priority' })  // Only updates sortBy
+// set_settings({ sortBy: 'priority' })     // Only updates sortBy
 // set_settings({ sortBy: 'date', theme: 'dark' })  // Updates both
 ```
 
@@ -194,9 +190,9 @@ const [getGameState, setters, cleanup] = mcp.addStateTools({
   get: () => state,
   set: (value) => { Object.assign(state, value); },
   schemaSplit: [
-    'currentPlayer',               // Individual setter
-    ['score.red', 'score.black'],  // Grouped setter
-    'settings',                    // Nested object setter
+    'currentPlayer',                    // Individual setter
+    ['score.red', 'score.black'],       // Grouped setter
+    'settings',                         // Nested object setter
   ],
 });
 
@@ -205,7 +201,6 @@ const [getGameState, setters, cleanup] = mcp.addStateTools({
 // set_game_state_current_player({ value: 'red' })
 // set_game_state_score({ value: { red: 5, black: 3 } })
 // set_game_state_settings({ value: { ... } })
-
 // setters is an array of ToolDefinition[]
 ```
 
@@ -219,7 +214,6 @@ const ColorRangeSchema = z.object({
     z.number(),
     z.literal('auto')
   ]).describe('Min value or "auto" for 1st percentile'),
-
   max: z.union([
     z.number(),
     z.literal('auto')
@@ -227,8 +221,8 @@ const ColorRangeSchema = z.object({
 });
 
 // Usage
-set_color_range({ min: 0, max: 100 })         // Explicit values
-set_color_range({ min: 'auto', max: 'auto' }) // Auto-compute
+set_color_range({ min: 0, max: 100 })           // Explicit values
+set_color_range({ min: 'auto', max: 'auto' })   // Auto-compute
 ```
 
 ### Pattern 8: Game Action with Context Return
@@ -244,13 +238,11 @@ mcp.addTool({
     if (!isValidMove(move)) {
       return { error: 'Invalid move' };
     }
-
     // Update multiple states atomically
     state.board = applyMove(state.board, move);
     state.moveHistory.push(move);
     state.currentPlayer = switchPlayer();
     state.gameStatus = checkGameStatus();
-
     // Return useful context
     return {
       success: true,
@@ -265,8 +257,7 @@ mcp.addTool({
 
 ### Pattern 9: Named Sessions for Multi-Tab Apps
 
-When multiple tabs of your app connect simultaneously, use `sessionName` so
-Claude can identify them by human-readable labels instead of UUIDs:
+When multiple tabs of your app connect simultaneously, use `sessionName` so Claude can identify them by human-readable labels instead of UUIDs:
 
 ```typescript
 // game-names.ts — localStorage slot allocator
@@ -278,10 +269,11 @@ export function claimGameName(): { name: string; release: () => void } {
   );
   let index = slots.findIndex((s) => s === null);
   if (index === -1) index = slots.length;
+  
   const id = crypto.randomUUID();
   slots[index] = id;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(slots));
-
+  
   return {
     name: `Game ${index + 1}`,
     release: () => {
@@ -302,7 +294,6 @@ import { claimGameName } from './game-names';
 
 const { name, release } = claimGameName();
 export const releaseGameName = release;
-
 export const mcpWeb = new MCPWeb({
   name: 'Checkers',
   description: 'Interactive checkers game',
@@ -316,10 +307,47 @@ import { releaseGameName } from './mcp-tools';
 onDestroy(() => releaseGameName());
 ```
 
-Session names must be unique per auth token. If a second tab tries to claim
-the same name, `connect()` rejects with an error and no reconnection is
-attempted. The slot allocator above prevents this by assigning the first
-available slot.
+Session names must be unique per auth token. If a second tab tries to claim the same name, `connect()` rejects with an error and no reconnection is attempted. The slot allocator above prevents this by assigning the first available slot.
+
+### Pattern 10: Handling Tool Registration Errors
+
+When multiple sessions run simultaneously, tool registration can fail due to schema conflicts (e.g., sibling session registered same tool name with different schema). Handle these gracefully:
+
+```typescript
+import type { ToolRegistrationError } from '@mcp-web/core';
+
+// Basic error handling
+mcpWeb.addTool({
+  name: 'custom_action',
+  description: 'Custom action that might conflict',
+  handler: (input) => { /* ... */ },
+}, {
+  onRegistrationError: (error: ToolRegistrationError) => {
+    console.warn(`Tool "${error.toolName}" registration failed:`, error.message);
+  }
+});
+
+// With created tools
+const myTool = createTool({
+  name: 'compute_score',
+  description: 'Calculate game score',
+  handler: () => { /* ... */ },
+});
+
+mcpWeb.addTool(myTool, {
+  onRegistrationError: (error) => {
+    // Tool not available in this session - app continues working
+    console.error('Registration conflict:', error.error);
+  }
+});
+
+// React hook usage
+useMCPTools([myTool], {
+  onRegistrationError: (error) => {
+    toast.error(`Tool ${error.toolName} unavailable: ${error.message}`);
+  }
+});
+```
 
 ## Demo: Checkers Game
 
@@ -393,14 +421,11 @@ export const makeMoveToolDefinition = mcpWeb.addTool({
       m.to.row === move.to.row &&
       m.to.col === move.to.col
     );
-    
     if (!isValid) {
       return { error: 'Invalid move - not in valid moves list' };
     }
-    
     const newState = makeMove(state.gameState, move);
     Object.assign(state.gameState, newState);
-    
     return {
       numCapturedPieces: /* captured count */,
       gameStatus: state.gameState.gameStatus,

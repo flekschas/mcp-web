@@ -175,6 +175,7 @@ const TodoSchema = z.object({
 - **Derived values** → reactive computation (don't expose to AI)
 
 ### Optional Values
+
 Use `nullable()` instead of `optional()` (JSON doesn't support undefined):
 
 ```typescript
@@ -203,6 +204,21 @@ const mcpWeb = new MCPWeb({
 - Auth tokens are shared via localStorage across tabs on the same origin, so Claude sees all sessions through one MCP connection
 - Session IDs are always fresh UUIDs (not persisted in localStorage)
 
+**Tool Registration Errors**: When multiple sessions register tools, schema conflicts can occur if sibling sessions define the same tool name with different schemas. Handle these with the `onRegistrationError` callback:
+
+```typescript
+mcpWeb.addTool({
+  name: 'custom_action',
+  description: 'Custom action tool',
+  handler: (input) => { /* ... */ },
+}, {
+  onRegistrationError: (error) => {
+    console.warn(`Tool registration failed: ${error.message}`);
+    // This session's tool won't be available to AI, but the app continues working
+  }
+});
+```
+
 **Dynamic name allocation** (e.g., for demos with multiple tabs):
 
 ```typescript
@@ -215,10 +231,11 @@ export function claimGameName(): { name: string; release: () => void } {
   );
   let index = slots.findIndex((s) => s === null);
   if (index === -1) index = slots.length;
+  
   const id = crypto.randomUUID();
   slots[index] = id;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(slots));
-
+  
   return {
     name: `Game ${index + 1}`,
     release: () => {
@@ -237,7 +254,6 @@ export function claimGameName(): { name: string; release: () => void } {
 // mcp-tools.ts
 const { name, release } = claimGameName();
 export const releaseGameName = release;
-
 export const mcpWeb = new MCPWeb({
   ...MCP_WEB_CONFIG,
   sessionName: name,
@@ -281,6 +297,7 @@ new MCPWebBridge(MCP_WEB_CONFIG);
 - Use `nullable()` instead of `optional()`
 - Keep schemas in `schemas.ts`, types in `types.ts` (separate files)
 - Co-locate related code in single files when under ~100 lines each
+- Handle tool registration errors in multi-session scenarios with `onRegistrationError`
 
 ❌ **Don't:**
 - Expose derived values as state tools
