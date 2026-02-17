@@ -7,23 +7,15 @@ Enable AI agents to control frontend web apps directly via [MCP](https://modelco
 
 **[Documentation](https://mcp-web.dev)** · [Get Started](https://mcp-web.dev/get-started) · [Demos](https://mcp-web.dev/demos/todo)
 
-Imagine asking AI to "select all outliers in this scatter plot" and watching the points highlight in real-time, or "mark all overdue tasks as high priority" in your project board. MCP-Web makes your frontend AI-controllable while keeping the user in the driver's seat.
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://storage.googleapis.com/mcp-web/overview-dark.svg">
-  <img src="https://storage.googleapis.com/mcp-web/overview-light.svg" alt="MCP-Web Overview" width="100%">
-</picture>
-
-With MCP-Web, your frontend becomes the main control surface for both humans and AI. Humans control state through the UI while AI controls the same state through MCP tools. This design makes human-AI parity straightforward: both have the same capabilities, so you can automate tasks with natural language and take over with direct interaction whenever you want.
+MCP-Web makes the frontend the main control surface for both humans and AI, ensuring human-AI parity. You can automate clicks with natural language and take over with direct interaction at any time.
 
 ## Key Features
 
-- 🤖 **Enable AI to control** your frontend web apps directly via MCP
-- 🛠️ **Dynamically expose state and actions** as type-safe tools
+- 🛠️ **Dynamically expose state and actions** as type-safe MCP tools
 - ✨ **Auto-generate efficient tools** from schemas with built-in helpers
+- 📊 **Build visual tools from components** with [MCP Apps](https://mcp-web.dev/visual-tools) that render UI inline in AI chat
 - 🔄 **Trigger AI queries from your frontend** using the same tools
 - 🪟 **Interact with multiple browser sessions** independently
-- 📊 **Build visual tools** with [MCP Apps](https://mcp-web.dev/visual-tools) that render UI inline in AI chat
 - 🎯 **Works with any framework**: React, Vue, Svelte, vanilla JS
 
 ## Quick Start
@@ -123,12 +115,21 @@ Add this to your Claude Desktop config file:
 
 ## How It Works
 
+With MCP-Web, your frontend becomes the main control surface for both humans and AI. Humans control state through the UI while AI controls the same state through MCP tools.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://storage.googleapis.com/mcp-web/overview-dark.svg">
+  <img src="https://storage.googleapis.com/mcp-web/overview-light.svg" alt="MCP-Web Overview" width="320px">
+</picture>
+
+This design makes human-AI parity straightforward: both have the same capabilities, so you can automate tasks with natural language and take over with direct interaction whenever you want.
+
+On a technical level, your frontend registers tools with **core**, which connects to the **bridge** server. AI agents connect to the bridge directly via Remote MCP (recommended), or through a local **client** via STDIO.
+
 ```
 Frontend App  ↔  @mcp-web/core  ↔  @mcp-web/bridge  ↔  AI App/Agent
          ╰─ runs ─╯       ╰── WS/SSE ──╯     ╰─ Remote MCP ─╯
 ```
-
-Your frontend registers tools with **core**, which connects to the **bridge** server. AI agents connect to the bridge directly via Remote MCP (recommended), or through a local **client** via STDIO.
 
 ## Packages
 
