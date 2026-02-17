@@ -1,7 +1,7 @@
 {
   "name": "mcp-web",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MCP integration for frontend web apps: expose state and actions as tools",
   "type": "module",
   "scripts": {
@@ -20,7 +20,8 @@
     "test:bridge": "bun test packages/bridge/src",
     "test:decompose": "bun test packages/decompose-zod-schema/src",
     "test:integration": "bun test --max-concurrency=1 tests",
-    "test:watch": "bun test --watch packages"
+    "test:watch": "bun test --watch packages",
+    "bump": "tsx scripts/bump-version.ts"
   },
   "keywords": [
     "mcp",
