@@ -171,8 +171,20 @@ export function createDemoServer(config: DemoServerConfig, importMetaUrl: string
         );
       }
 
-      // 4. Handle MCP HTTP endpoints (/mcp/*)
-      if (url.pathname.startsWith('/mcp')) {
+      // 4. Handle MCP HTTP requests at any path
+      // MCP requests are identified by their characteristics rather than a path prefix,
+      // so that remoteMcpConfig URLs (which point at the root) work without a /mcp path.
+      // - POST: JSON-RPC requests (tools/list, tools/call, initialize, etc.)
+      // - DELETE: MCP session termination (has Mcp-Session-Id header)
+      // - OPTIONS: CORS preflight
+      // - GET with Accept: text/event-stream: SSE stream for server-initiated notifications
+      const isMcpRequest =
+        req.method === 'POST' ||
+        req.method === 'DELETE' ||
+        req.method === 'OPTIONS' ||
+        (req.method === 'GET' && req.headers.get('accept')?.includes('text/event-stream'));
+
+      if (isMcpRequest || url.pathname.startsWith('/query')) {
         const wrappedReq = wrapRequest(req);
         const httpResponse = await handlers.onHttpRequest(wrappedReq);
 
