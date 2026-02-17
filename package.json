@@ -1,5 +1,6 @@
 {
   "name": "mcp-web",
+  "private": true,
   "version": "0.1.0",
   "description": "MCP integration for frontend web apps: expose state and actions as tools",
   "type": "module",
