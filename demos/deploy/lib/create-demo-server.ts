@@ -178,11 +178,14 @@ export function createDemoServer(config: DemoServerConfig, importMetaUrl: string
       // - DELETE: MCP session termination (has Mcp-Session-Id header)
       // - OPTIONS: CORS preflight
       // - GET with Accept: text/event-stream: SSE stream for server-initiated notifications
+      // - GET with Accept: application/json: Server info (name, version, icon)
+      const acceptHeader = req.headers.get('accept') || '';
       const isMcpRequest =
         req.method === 'POST' ||
         req.method === 'DELETE' ||
         req.method === 'OPTIONS' ||
-        (req.method === 'GET' && req.headers.get('accept')?.includes('text/event-stream'));
+        (req.method === 'GET' && acceptHeader.includes('text/event-stream')) ||
+        (req.method === 'GET' && acceptHeader.includes('application/json'));
 
       if (isMcpRequest || url.pathname.startsWith('/query')) {
         const wrappedReq = wrapRequest(req);
