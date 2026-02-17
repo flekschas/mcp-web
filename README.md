@@ -124,12 +124,12 @@ With MCP-Web, your frontend becomes the main control surface for both humans and
 
 This design makes human-AI parity straightforward: both have the same capabilities, so you can automate tasks with natural language and take over with direct interaction whenever you want.
 
-On a technical level, your frontend registers tools with **core**, which connects to the **bridge** server. AI agents connect to the bridge directly via Remote MCP (recommended), or through a local **client** via STDIO.
-
 ```
 Frontend App  ↔  @mcp-web/core  ↔  @mcp-web/bridge  ↔  AI App/Agent
          ╰─ runs ─╯       ╰── WS/SSE ──╯     ╰─ Remote MCP ─╯
 ```
+
+On a technical level, your frontend registers tools with **core**, which connects to the **bridge** server. AI agents connect to the bridge directly via Remote MCP (recommended), or through a local **client** via STDIO.
 
 ## Packages
 
