@@ -28,5 +28,10 @@
     "@types/node": "catalog:",
     "esbuild": "catalog:",
     "typescript": "catalog:"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/flekschas/mcp-web",
+    "directory": "packages/client"
   }
 }

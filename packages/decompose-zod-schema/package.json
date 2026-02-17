@@ -42,5 +42,10 @@
     "partial-updates"
   ],
   "author": "MCP Frontend Integration System",
-  "license": "MIT"
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/flekschas/mcp-web",
+    "directory": "packages/decompose-zod-schema"
+  }
 }
