@@ -69,7 +69,7 @@ import { toJSONSchema, toToolMetadataJson } from './utils.js';
  *   name: 'Checkers Game',
  *   description: 'Interactive checkers game controllable by AI agents',
  *   bridgeUrl: 'localhost:3001',
- *   icon: 'https://example.com/icon.png',
+ *   icon: 'https://example.com/icon.svg',
  *   agentUrl: 'localhost:3003',
  *   autoConnect: true,
  * });
