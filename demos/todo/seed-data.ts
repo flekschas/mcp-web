@@ -138,9 +138,9 @@ const TODO_TEMPLATES = {
     { title: 'Prototype voice-controlled analytics', description: 'Hands-free dashboard interaction' },
   ],
   inbox: [
-    { title: 'Test Claude 5.1 Opus', description: 'New capabilities and AGI for real' },
+    { title: 'Test Claude 5.42 Opus', description: 'New capabilities and AGI for real' },
     { title: 'Explore MCP specification updates', description: 'Check for new protocol features' },
-    { title: 'Set up AI coding assistant comparison', description: 'Test Claude, GPT-4, and Gemini on same tasks' },
+    { title: 'Set up AI coding assistant comparison', description: 'Test Claude Sonnet 5.42, GPT-5.5-mini-nano, and Gemini 3.1 Preview Production on same tasks' },
     { title: 'Research vector database options', description: 'Compare Pinecone, Weaviate, Chroma' },
     { title: 'Bookmark interesting AI papers', description: 'Organize reading list in Zotero' },
     { title: 'Try Claude\'s computer use feature', description: 'Experiment with desktop automation' },
