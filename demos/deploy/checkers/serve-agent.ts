@@ -14,9 +14,9 @@
 import { createApp, type AgentConfig } from '../../checkers/agent.ts';
 
 const agentConfig: AgentConfig = {
-  bridgeUrl: Deno.env.get('BRIDGE_URL') ?? 'https://checkers.demos.mcp-web.dev',
+  bridgeUrl: Deno.env.get('BRIDGE_URL') ?? 'https://checkers.demo.mcp-web.dev',
   allowedOrigins: Deno.env.get('ALLOWED_ORIGINS')?.split(',') ?? [
-    'https://checkers.demos.mcp-web.dev',
+    'https://checkers.demo.mcp-web.dev',
   ],
   anthropicApiKey: Deno.env.get('ANTHROPIC_API_KEY'),
   openaiApiKey: Deno.env.get('OPENAI_API_KEY'),

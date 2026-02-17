@@ -11,10 +11,10 @@ demos (HiGlass, Todo, Checkers) to Deno Deploy Classic.
 Each demo is deployed as a fully isolated instance with its own bridge server:
 
 ```
-higlass.demos.mcp-web.dev  → HiGlass bridge + frontend
-todo.demos.mcp-web.dev     → Todo bridge + frontend
-checkers.demos.mcp-web.dev → Checkers bridge + frontend
-checkers-agent.demos.mcp-web.dev → Checkers AI agent
+higlass.demo.mcp-web.dev  → HiGlass bridge + frontend
+todo.demo.mcp-web.dev     → Todo bridge + frontend
+checkers.demo.mcp-web.dev → Checkers bridge + frontend
+checkers-agent.demo.mcp-web.dev → Checkers AI agent
 ```
 
 ## Directory Structure
@@ -128,10 +128,10 @@ pnpm bridge       # Starts bridge server (separate terminal)
 3. **Configure custom domains:**
    - In each project, go to Settings → Domains
    - Add custom domains:
-     - `mcp-web-higlass` → `higlass.demos.mcp-web.dev`
-     - `mcp-web-todo` → `todo.demos.mcp-web.dev`
-     - `mcp-web-checkers` → `checkers.demos.mcp-web.dev`
-     - `mcp-web-checkers-agent` → `checkers-agent.demos.mcp-web.dev`
+     - `mcp-web-higlass` → `higlass.demo.mcp-web.dev`
+     - `mcp-web-todo` → `todo.demo.mcp-web.dev`
+     - `mcp-web-checkers` → `checkers.demo.mcp-web.dev`
+     - `mcp-web-checkers-agent` → `checkers-agent.demo.mcp-web.dev`
 
 4. **Configure DNS (at your DNS provider):**
    ```
@@ -148,12 +148,12 @@ pnpm bridge       # Starts bridge server (separate terminal)
      - `GOOGLE_API_KEY` (optional)
      - `OPENAI_API_KEY` (optional)
      - `MODEL_PROVIDER` (optional, e.g., `anthropic`)
-     - `BRIDGE_URL` = `https://checkers.demos.mcp-web.dev`
-     - `ALLOWED_ORIGINS` = `https://checkers.demos.mcp-web.dev`
+     - `BRIDGE_URL` = `https://checkers.demo.mcp-web.dev`
+     - `ALLOWED_ORIGINS` = `https://checkers.demo.mcp-web.dev`
 
    - Go to `mcp-web-checkers` → Settings → Environment Variables
    - Add:
-     - `AGENT_URL` = `https://checkers-agent.demos.mcp-web.dev`
+     - `AGENT_URL` = `https://checkers-agent.demo.mcp-web.dev`
 
 ### Automated Deployment
 
@@ -195,10 +195,10 @@ The bundled `.js` files are self-contained—no npm imports to resolve at runtim
 Each deployment exposes a `/health` endpoint:
 
 ```bash
-curl https://higlass.demos.mcp-web.dev/health
-curl https://todo.demos.mcp-web.dev/health
-curl https://checkers.demos.mcp-web.dev/health
-curl https://checkers-agent.demos.mcp-web.dev/health
+curl https://higlass.demo.mcp-web.dev/health
+curl https://todo.demo.mcp-web.dev/health
+curl https://checkers.demo.mcp-web.dev/health
+curl https://checkers-agent.demo.mcp-web.dev/health
 ```
 
 ### Logs
@@ -230,7 +230,7 @@ Check browser console for WebSocket connection errors:
 1. Check environment variables are set correctly
 2. Verify API keys are valid
 3. Check agent logs in Deno Deploy dashboard
-4. Test health endpoint: `curl https://checkers-agent.demos.mcp-web.dev/health`
+4. Test health endpoint: `curl https://checkers-agent.demo.mcp-web.dev/health`
 
 ### Build failures
 
