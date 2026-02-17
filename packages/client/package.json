@@ -4,8 +4,11 @@
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "@mcp-web/client": "./dist/index.js"
+    "@mcp-web/client": "./dist/standalone.js"
   },
+  "files": [
+    "dist/"
+  ],
   "exports": {
     ".": "./dist/index.js"
   },

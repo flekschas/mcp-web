@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { MCPWebClient } from './client.js';
 import { MCPWebClientConfigSchema } from './schemas.js';
 
@@ -10,12 +12,13 @@ export type * from './types.js';
 
 // Only run as CLI if this is the main module in Node.js
 // Guard against running in Deno or when bundled
+// Uses realpathSync on both sides to handle symlinks (e.g. npx, pnpm)
 // @ts-expect-error - Deno global exists in Deno runtime
 const isDeno = typeof Deno !== 'undefined';
 const isNodeCLI = !isDeno &&
   typeof process !== 'undefined' &&
-  process.argv &&
-  import.meta.url === `file://${process.argv[1]}`;
+  process.argv?.[1] &&
+  realpathSync(fileURLToPath(import.meta.url)) === realpathSync(process.argv[1]);
 
 if (isNodeCLI) {
   // Handle graceful shutdown

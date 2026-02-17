@@ -7,9 +7,6 @@ await build({
   target: 'node22',
   format: 'esm',
   outfile: 'dist/standalone.js',
-  banner: {
-    js: '#!/usr/bin/env node',
-  },
   minify: false,
   sourcemap: false,
 });
