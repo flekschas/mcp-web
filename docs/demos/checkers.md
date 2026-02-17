@@ -8,7 +8,7 @@ to make moves for you.
 
 <video autoplay loop muted playsinline width="1256" data-name="checkers">
   <source
-    src="https://storage.googleapis.com/mcp-web/checkers-light.mp4"
+    src="https://storage.googleapis.com/mcp-web/checkers-1080p.mp4"
     type="video/mp4"
   />
 </video>
@@ -27,8 +27,3 @@ to analyze positions and suggest moves.
 
 - `src/agent-query.ts`: Shows how to trigger AI queries from the frontend
    when the player makes a move.
-
-<script setup>
-  import { videoColorModeSrcSwitcher } from '../utils';
-  videoColorModeSrcSwitcher();
-</script>

@@ -6,7 +6,7 @@ app fully AI controllable by exposing its state as tools using a single function
 
 <video autoplay loop muted playsinline width="1256" data-name="todo">
   <source
-    src="https://storage.googleapis.com/mcp-web/todo-light.mp4"
+    src="https://storage.googleapis.com/mcp-web/todo-1080p.mp4"
     type="video/mp4"
   />
 </video>
@@ -26,8 +26,3 @@ using a `<Statistics />` component that we turn into an MCP App with our
 
 - `src/mcp-apps.ts`: This file contains everything you need to turn the
    `<Statistics />` component into an MCP App.
-
-<script setup>
-  import { videoColorModeSrcSwitcher } from '../utils';
-  videoColorModeSrcSwitcher();
-</script>

@@ -6,7 +6,7 @@ the existing state with [Jotai](https://jotai.org/) to make it AI-controllable.
 
 <video autoplay loop muted playsinline width="1256" data-name="higlass">
   <source
-    src="https://storage.googleapis.com/mcp-web/higlass-light.mp4"
+    src="https://storage.googleapis.com/mcp-web/higlass-1080p.mp4"
     type="video/mp4"
   />
 </video>
@@ -27,7 +27,3 @@ schemas by decomposing them into manageable tool definitions.
 - `src/state.ts`: Wraps the HiGlass view state with Jotai atoms for reactive
    state management that MCP-Web can observe and control.
 
-<script setup>
-  import { videoColorModeSrcSwitcher } from '../utils';
-  videoColorModeSrcSwitcher();
-</script>

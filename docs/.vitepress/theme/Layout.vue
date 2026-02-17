@@ -309,10 +309,11 @@ const colors = computed(() => isDarkMode.value ? darkColors.value : lightColors.
         muted
         playsinline
         data-name="teaser"
-        poster="https://storage.googleapis.com/jupyter-scatter/dev/images/teaser-dark.jpg"
+        poster="https://storage.googleapis.com/mcp-web/teaser-720p.jpg"
+        class="teaser"
       >
         <source
-          src="https://storage.googleapis.com/jupyter-scatter/dev/videos/teaser-dark.mp4"
+          src="https://storage.googleapis.com/mcp-web/teaser-720p.mp4"
           type="video/mp4"
         />
       </video>
@@ -370,5 +371,9 @@ const colors = computed(() => isDarkMode.value ? darkColors.value : lightColors.
 
 :deep(.VPLocalNav) {
   background: transparent !important;
+}
+
+video.teaser {
+  border-radius: 0.5rem;
 }
 </style>
