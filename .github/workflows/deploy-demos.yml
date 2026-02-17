@@ -96,7 +96,7 @@ jobs:
         run: deno install -gArf jsr:@deno/deployctl
 
       - name: Deploy to Deno Deploy
-        run: deployctl deploy --project=mcp-web-higlass --entrypoint=demos/deploy/higlass/server.bundle.js --include=demos/deploy/higlass/server.bundle.js,demos/deploy/higlass/static
+        run: deployctl deploy --prod --project=mcp-web-higlass --entrypoint=demos/deploy/higlass/server.bundle.js --include=demos/deploy/higlass/server.bundle.js,demos/deploy/higlass/static
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
 
@@ -134,7 +134,7 @@ jobs:
         run: deno install -gArf jsr:@deno/deployctl
 
       - name: Deploy to Deno Deploy
-        run: deployctl deploy --project=mcp-web-todo --entrypoint=demos/deploy/todo/server.bundle.js --include=demos/deploy/todo/server.bundle.js,demos/deploy/todo/static
+        run: deployctl deploy --prod --project=mcp-web-todo --entrypoint=demos/deploy/todo/server.bundle.js --include=demos/deploy/todo/server.bundle.js,demos/deploy/todo/static
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
 
@@ -172,7 +172,7 @@ jobs:
         run: deno install -gArf jsr:@deno/deployctl
 
       - name: Deploy Bridge to Deno Deploy
-        run: deployctl deploy --project=mcp-web-checkers --entrypoint=demos/deploy/checkers/server.bundle.js --include=demos/deploy/checkers/server.bundle.js,demos/deploy/checkers/static
+        run: deployctl deploy --prod --project=mcp-web-checkers --entrypoint=demos/deploy/checkers/server.bundle.js --include=demos/deploy/checkers/server.bundle.js,demos/deploy/checkers/static
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
 
@@ -205,6 +205,6 @@ jobs:
         run: deno install -gArf jsr:@deno/deployctl
 
       - name: Deploy Agent to Deno Deploy
-        run: deployctl deploy --project=mcp-web-checkers-agent --entrypoint=demos/deploy/checkers/agent.bundle.js --include=demos/deploy/checkers/agent.bundle.js
+        run: deployctl deploy --prod --project=mcp-web-checkers-agent --entrypoint=demos/deploy/checkers/agent.bundle.js --include=demos/deploy/checkers/agent.bundle.js
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
