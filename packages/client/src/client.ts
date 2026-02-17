@@ -234,12 +234,17 @@ export class MCPWebClient {
         }
       }
 
+      // Log the error for debugging — without this, tool failures are invisible
+      // because they are converted to isError results that the host may not display.
+      const errorDetail = error instanceof Error ? error.message : String(error);
+      console.error(`[MCPWebClient] Tool execution failed: ${errorDetail}`);
+
       // All other errors get returned as CallToolResult with isError: true
       return {
         content: [
           {
             type: 'text',
-            text: `Tool execution failed: ${error instanceof Error ? error.message : String(error)}`
+            text: `Tool execution failed: ${errorDetail}`
           }
         ],
         isError: true
@@ -714,6 +719,7 @@ export class MCPWebClient {
 
       const response = await fetch(url, {
         method: 'GET',
+        headers: { Accept: 'application/json' },
         signal: controller.signal,
       });
 
@@ -730,7 +736,10 @@ export class MCPWebClient {
             : defaults.version,
         ...(typeof data.icon === 'string' && { icon: data.icon }),
       };
-    } catch {
+    } catch (error) {
+      console.error(
+        `[MCPWebClient] Failed to fetch bridge info: ${error instanceof Error ? error.message : error}`
+      );
       return defaults;
     }
   }
@@ -764,7 +773,9 @@ export class MCPWebClient {
       {
         name: bridgeInfo.name,
         version: bridgeInfo.version,
-        ...(bridgeInfo.icon && { icon: bridgeInfo.icon }),
+        ...(bridgeInfo.icon && {
+          icons: [{ src: bridgeInfo.icon }],
+        }),
       },
       {
         capabilities: {

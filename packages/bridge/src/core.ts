@@ -886,7 +886,7 @@ export class MCPWebBridge {
         name: this.#config.name,
         description: this.#config.description,
         version: this.#getVersion(),
-        ...(icon && { icon }),
+        ...(icon && { icon, icons: [{ src: icon }] }),
       });
     }
 
@@ -1051,9 +1051,11 @@ export class MCPWebBridge {
   // ============================================
 
   async #handleMCPRequest(req: HttpRequest): Promise<HttpResponse> {
+    let requestId: string | number = 0;
     try {
       const body = await req.text();
       const mcpRequest: McpRequest = JSON.parse(body);
+      requestId = mcpRequest.id;
 
       // Debug logging
       if (this.#config.debug) {
@@ -1186,7 +1188,7 @@ export class MCPWebBridge {
       return this.#mcpSuccessResponse(mcpRequest.id, result);
     } catch (error) {
       console.error('MCP request error:', error);
-      return this.#mcpErrorResponse(0, -32603, InternalErrorCode);
+      return this.#mcpErrorResponse(requestId, -32603, InternalErrorCode);
     }
   }
 
@@ -1446,7 +1448,7 @@ export class MCPWebBridge {
         name: this.#config.name,
         description: this.#config.description,
         version: this.#getVersion(),
-        ...(icon && { icon }),
+        ...(icon && { icon, icons: [{ src: icon }] }),
       },
     };
 
@@ -1856,8 +1858,15 @@ export class MCPWebBridge {
 
             resolve(toolResult);
           }
-        } catch {
-          // Ignore invalid JSON
+        } catch (parseError) {
+          // Non-JSON messages are expected (e.g., heartbeats), but log
+          // a warning for debugging malformed tool responses.
+          if (typeof data === 'string' && data.includes('tool-response')) {
+            console.warn(
+              `[MCPWebBridge] Failed to parse tool response:`,
+              parseError instanceof Error ? parseError.message : parseError
+            );
+          }
         }
       };
 
@@ -1937,8 +1946,15 @@ export class MCPWebBridge {
               });
             }
           }
-        } catch {
-          // Ignore invalid JSON
+        } catch (parseError) {
+          // Non-JSON messages are expected (e.g., heartbeats), but log
+          // a warning for debugging malformed resource responses.
+          if (typeof data === 'string' && data.includes('resource-response')) {
+            console.warn(
+              `[MCPWebBridge] Failed to parse resource response:`,
+              parseError instanceof Error ? parseError.message : parseError
+            );
+          }
         }
       };
 
