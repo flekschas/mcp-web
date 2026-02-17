@@ -462,3 +462,8 @@
   display: inline-block;
   vertical-align: middle;
 }
+
+/* Only show footer on home page */
+:root:not(.is-home) .VPFooter.VPFooter {
+  display: none;
+}

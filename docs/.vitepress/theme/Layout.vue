@@ -174,10 +174,11 @@ onMounted(() => {
     sidebarCtx = sidebarCanvas.getContext('2d');
   }
 
-  // Create and insert sidebar overlay canvas
-  const vpFooter = document.querySelector('#footer-message').parentElement;
-  vpFooter.style.position = 'relative';
+  // Create and insert footer overlay canvas
+  const vpFooterMessage = document.querySelector('#footer-message');
+  const vpFooter = vpFooterMessage?.parentElement;
   if (vpFooter) {
+    vpFooter.style.position = 'relative';
     footerCanvas = document.createElement('canvas');
     footerCanvas.className = 'noise-overlay';
     footerCanvas.style.cssText = `
