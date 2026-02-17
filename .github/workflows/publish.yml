@@ -1,0 +1,55 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  id-token: write # Required for npm trusted publishing (OIDC)
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: '.nvmrc'
+          registry-url: 'https://registry.npmjs.org'
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Test
+        run: pnpm test
+        timeout-minutes: 5
+
+      # Publishes all non-private packages in the workspace.
+      #
+      # Authentication uses OIDC trusted publishing — the npm CLI auto-detects
+      # the GitHub OIDC environment when id-token permission is granted.
+      # No tokens or secrets needed. Provenance attestations are generated
+      # automatically.
+      #
+      # Prerequisites (one-time setup):
+      # 1. Publish all packages once from your local machine:
+      #      npm login && pnpm -r publish --access public --no-git-checks
+      # 2. Configure trusted publishing for each @mcp-web/* package on
+      #    npmjs.com → Package Settings → Trusted Publisher:
+      #      - Organization or user: flekschas
+      #      - Repository: mcp-web
+      #      - Workflow filename: publish.yml
+      - name: Publish all packages
+        run: pnpm -r publish --access public --no-git-checks
