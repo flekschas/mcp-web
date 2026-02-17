@@ -1,7 +1,7 @@
 {
   "name": "@mcp-web/demos/checkers",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "scripts": {
     "dev": "concurrently \"pnpm run dev:app\" \"pnpm run dev:agent\" \"pnpm run dev:bridge\"",

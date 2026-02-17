@@ -1,6 +1,6 @@
 {
   "name": "@mcp-web/decompose-zod-schema",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Utility for decomposing large Zod schemas into smaller, manageable sub-schemas with partial update support",
   "type": "module",
   "main": "dist/index.js",
