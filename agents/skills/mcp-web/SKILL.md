@@ -185,6 +185,39 @@ z.object({ description: z.string().optional() })
 z.object({ description: z.string().nullable().default(null) })
 ```
 
+## Connection State
+
+Monitor connection status to handle reconnection or display UI feedback.
+
+### Core Library
+
+```typescript
+// Check current state
+mcpWeb.connected   // boolean - fully connected and authenticated
+mcpWeb.connecting  // boolean - during connection/authentication handshake
+
+// Subscribe to changes (returns unsubscribe function)
+const unsubscribe = mcpWeb.onConnectionStateChange(() => {
+  console.log('Connection:', mcpWeb.connected);
+  console.log('Connecting:', mcpWeb.connecting);
+});
+
+// Cleanup on unmount
+unsubscribe();
+```
+
+### React Integration
+
+```typescript
+const { isConnected, isConnecting } = useMCPWeb();
+
+// Show loading indicator during connection
+if (isConnecting) return <Spinner />;
+
+// Show offline warning when disconnected
+if (!isConnected) return <OfflineBanner />;
+```
+
 ## Multi-Session Support
 
 When multiple instances of your app connect to the same bridge (e.g., multiple browser tabs), each gets a unique session ID. By default, Claude sees them as opaque UUIDs. Use `sessionName` to give sessions human-readable labels:
@@ -281,6 +314,7 @@ new MCPWebBridge(MCP_WEB_CONFIG);
 - Use `nullable()` instead of `optional()`
 - Keep schemas in `schemas.ts`, types in `types.ts` (separate files)
 - Co-locate related code in single files when under ~100 lines each
+- Use `onConnectionStateChange()` to react to connection changes
 
 ❌ **Don't:**
 - Expose derived values as state tools
