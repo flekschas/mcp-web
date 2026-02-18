@@ -1,0 +1,31 @@
+# Render Blueprint for MCP-Web HiGlass demo
+# https://docs.render.com/blueprint-spec
+services:
+  - type: web
+    name: mcp-web-higlass
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: |
+      pnpm install &&
+      pnpm build &&
+      cd demos/higlass &&
+      cp ../deploy/higlass/mcp-web.config.ts ./mcp-web.config.ts &&
+      pnpm build &&
+      cd ../.. &&
+      pnpm bundle:servers &&
+      cp -r demos/higlass/dist demos/deploy/higlass/static
+    startCommand: node demos/deploy/higlass/server.node.bundle.js
+    healthCheckPath: /health
+    domains:
+      - higlass.demo.mcp-web.dev
+    buildFilter:
+      paths:
+        - demos/higlass/**
+        - demos/deploy/higlass/**
+        - demos/deploy/lib/**
+        - packages/**
+        - scripts/bundle-servers.ts
+    envVars:
+      - key: NODE_VERSION
+        value: '24'

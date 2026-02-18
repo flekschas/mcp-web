@@ -1,0 +1,41 @@
+# Render Blueprint for MCP-Web Checkers AI Agent
+# https://docs.render.com/blueprint-spec
+services:
+  - type: web
+    name: mcp-web-checkers-agent
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: |
+      pnpm install &&
+      pnpm build &&
+      pnpm bundle:servers
+    startCommand: node demos/deploy/checkers/agent.node.bundle.js
+    healthCheckPath: /health
+    domains:
+      - checkers-agent.demo.mcp-web.dev
+    buildFilter:
+      paths:
+        - demos/checkers/**
+        - demos/deploy/checkers/**
+        - packages/**
+        - scripts/bundle-servers.ts
+    envVars:
+      - key: NODE_VERSION
+        value: '24'
+      - key: BRIDGE_URL
+        value: 'https://checkers.demo.mcp-web.dev'
+      - key: ALLOWED_ORIGINS
+        value: 'https://checkers.demo.mcp-web.dev'
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: CEREBRAS_API_KEY
+        sync: false
+      - key: MODEL_PROVIDER
+        sync: false
+      - key: MODEL_NAME
+        sync: false

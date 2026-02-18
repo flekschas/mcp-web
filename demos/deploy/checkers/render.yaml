@@ -1,0 +1,31 @@
+# Render Blueprint for MCP-Web Checkers demo (bridge server)
+# https://docs.render.com/blueprint-spec
+services:
+  - type: web
+    name: mcp-web-checkers
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: |
+      pnpm install &&
+      pnpm build &&
+      cd demos/checkers &&
+      cp ../deploy/checkers/mcp-web.config.ts ./mcp-web.config.ts &&
+      pnpm build &&
+      cd ../.. &&
+      pnpm bundle:servers &&
+      cp -r demos/checkers/dist demos/deploy/checkers/static
+    startCommand: node demos/deploy/checkers/server.node.bundle.js
+    healthCheckPath: /health
+    domains:
+      - checkers.demo.mcp-web.dev
+    buildFilter:
+      paths:
+        - demos/checkers/**
+        - demos/deploy/checkers/**
+        - demos/deploy/lib/**
+        - packages/**
+        - scripts/bundle-servers.ts
+    envVars:
+      - key: NODE_VERSION
+        value: '24'
