@@ -1,6 +1,6 @@
 {
   "name": "@mcp-web/types",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Shared types and schemas for MCP Web packages",
   "type": "module",
   "main": "./dist/index.js",

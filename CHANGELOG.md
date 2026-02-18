@@ -1,3 +1,24 @@
+## v0.1.3
+
+`@mcp-web/bridge`:
+
+- feat: return a synthetic `get_connection_status` tool when no browser session is connected, so MCP clients can discover the bridge before any frontend has authenticated
+- fix: remove default bridge URL requirement from config — bridge URL must now be explicitly provided
+
+`@mcp-web/client`:
+
+- feat: re-poll `tools/list` after browser connects, so the client picks up real tools registered by the frontend
+- fix: avoid false CLI detection in bundled builds — the `isNodeCLI` guard now checks for `MCP_SERVER_URL` to prevent the standalone CLI code from running when `@mcp-web/client` is bundled into other entry points via esbuild
+
+`@mcp-web/core`:
+
+- fix: correct WebSocket connection URL construction
+- feat: expose `onConnectionStateChange` callback for tracking connection lifecycle
+
+`@mcp-web/react`:
+
+- feat: improved connection status tracking in `useConnectedMCPWeb` hook
+
 ## v0.1.2
 
 `@mcp-web/client`:
