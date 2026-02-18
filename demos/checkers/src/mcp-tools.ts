@@ -1,10 +1,17 @@
 import { MCPWeb } from '@mcp-web/core';
 import { z } from 'zod';
-import config from '../mcp-web.config.js';
+import baseConfig from '../mcp-web.config.js';
 import { claimGameName } from './game-names.js';
 import { makeMove } from './game-logic.js';
 import { GameStateSchema, MoveSchema } from './schemas.js';
 import { state } from './state.svelte.js';
+
+// In dev mode, use the config's bridgeUrl (e.g., localhost:3001).
+// In production, omit it so MCPWeb defaults to window.location.host.
+const config = {
+  ...baseConfig,
+  ...(!import.meta.env.DEV && { bridgeUrl: undefined }),
+};
 
 const { name: gameName, release: releaseGameName } = claimGameName();
 

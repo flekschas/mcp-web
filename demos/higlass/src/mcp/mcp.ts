@@ -1,5 +1,12 @@
 import { MCPWeb } from '@mcp-web/core';
-import config from '../../mcp-web.config';
+import baseConfig from '../../mcp-web.config';
+
+// In dev mode, use the config's bridgeUrl (e.g., localhost:3011).
+// In production, omit it so MCPWeb defaults to window.location.host.
+const config = {
+  ...baseConfig,
+  ...(!import.meta.env.DEV && { bridgeUrl: undefined }),
+};
 
 // Create MCP instance with persistent auth token
 // The auth token will be automatically persisted in localStorage

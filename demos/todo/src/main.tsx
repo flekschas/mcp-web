@@ -1,11 +1,19 @@
 import { MCPWebProvider } from '@mcp-web/react';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import config from '../mcp-web.config.ts';
+import baseConfig from '../mcp-web.config.ts';
 import App from './App.tsx';
 import './index.css';
 import { clearDemoData, initializeSeedData } from '../seed-data';
 import type { View } from './types';
+
+// In dev mode, use the config's bridgeUrl (e.g., localhost:3001).
+// In production, omit it so MCPWeb defaults to window.location.host,
+// which works when the bridge and frontend share the same origin.
+const config = {
+  ...baseConfig,
+  ...(!import.meta.env.DEV && { bridgeUrl: undefined }),
+};
 
 // Migrate old view format to new discriminated union format
 function migrateViewFormat() {
