@@ -12,8 +12,6 @@ services:
       pnpm bundle:servers
     startCommand: node demos/deploy/checkers/agent.node.bundle.js
     healthCheckPath: /health
-    domains:
-      - checkers-agent.demo.mcp-web.dev
     buildFilter:
       paths:
         - demos/checkers/**
@@ -24,9 +22,9 @@ services:
       - key: NODE_VERSION
         value: '24'
       - key: BRIDGE_URL
-        value: 'https://checkers.demo.mcp-web.dev'
+        value: 'https://mcp-web-checkers.onrender.com'
       - key: ALLOWED_ORIGINS
-        value: 'https://checkers.demo.mcp-web.dev'
+        value: 'https://mcp-web-checkers.onrender.com'
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: OPENAI_API_KEY

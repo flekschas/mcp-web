@@ -17,8 +17,6 @@ services:
       cp -r demos/checkers/dist demos/deploy/checkers/static
     startCommand: node demos/deploy/checkers/server.node.bundle.js
     healthCheckPath: /health
-    domains:
-      - checkers.demo.mcp-web.dev
     buildFilter:
       paths:
         - demos/checkers/**
