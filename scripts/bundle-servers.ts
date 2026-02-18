@@ -14,11 +14,14 @@
  *   tsx scripts/bundle-servers.ts
  *
  * Outputs:
- *   - demos/deploy/higlass/server.bundle.js    (Deno)
- *   - demos/deploy/todo/server.bundle.js       (Deno)
- *   - demos/deploy/todo/server.node.bundle.js  (Node.js)
- *   - demos/deploy/checkers/server.bundle.js   (Deno)
- *   - demos/deploy/checkers/agent.bundle.js    (Deno)
+ *   - demos/deploy/higlass/server.bundle.js        (Deno)
+ *   - demos/deploy/higlass/server.node.bundle.js   (Node.js)
+ *   - demos/deploy/todo/server.bundle.js           (Deno)
+ *   - demos/deploy/todo/server.node.bundle.js      (Node.js)
+ *   - demos/deploy/checkers/server.bundle.js       (Deno)
+ *   - demos/deploy/checkers/server.node.bundle.js  (Node.js)
+ *   - demos/deploy/checkers/agent.bundle.js        (Deno)
+ *   - demos/deploy/checkers/agent.node.bundle.js   (Node.js)
  */
 
 import * as esbuild from 'esbuild';
@@ -34,6 +37,8 @@ interface ServerEntry {
   entry: string;
   out: string;
   target: ServerTarget;
+  /** Extra node_modules directories to search for dependencies */
+  extraNodePaths?: string[];
 }
 
 const SERVERS: ServerEntry[] = [
@@ -44,6 +49,9 @@ const SERVERS: ServerEntry[] = [
   { entry: 'demos/deploy/checkers/serve-agent.ts', out: 'demos/deploy/checkers/agent.bundle.js', target: 'deno' },
   // Node.js targets (for Render, Railway, etc.)
   { entry: 'demos/deploy/todo/main-node.ts', out: 'demos/deploy/todo/server.node.bundle.js', target: 'node' },
+  { entry: 'demos/deploy/higlass/main-node.ts', out: 'demos/deploy/higlass/server.node.bundle.js', target: 'node' },
+  { entry: 'demos/deploy/checkers/main-node.ts', out: 'demos/deploy/checkers/server.node.bundle.js', target: 'node' },
+  { entry: 'demos/deploy/checkers/serve-agent-node.ts', out: 'demos/deploy/checkers/agent.node.bundle.js', target: 'node', extraNodePaths: ['demos/checkers/node_modules'] },
 ];
 
 /**
@@ -159,6 +167,7 @@ async function main() {
       nodePaths: isDeno ? [] : [
         join(ROOT_DIR, 'packages/bridge/node_modules'),
         join(ROOT_DIR, 'node_modules'),
+        ...(server.extraNodePaths ?? []).map((p) => join(ROOT_DIR, p)),
       ],
       banner: {
         js: [

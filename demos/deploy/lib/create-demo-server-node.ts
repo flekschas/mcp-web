@@ -295,7 +295,6 @@ export function createDemoServerNode(
         ws.on('message', (data) => {
           const str = data.toString();
           handlers.onWebSocketMessage(sessionId, wrapped, str);
-          wrapped.dispatchMessage(str);
         });
 
         ws.on('close', () => {

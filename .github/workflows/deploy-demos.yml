@@ -10,12 +10,9 @@ on:
   workflow_dispatch:
     inputs:
       demo:
-        description: 'Demo to deploy (all, higlass, todo, checkers, checkers-agent)'
+        description: 'Demo to build (all, higlass, todo, checkers)'
         required: false
         default: 'all'
-
-env:
-  DENO_VERSION: 2.x
 
 jobs:
   build:
@@ -62,115 +59,6 @@ jobs:
           path: demos/deploy/${{ matrix.demo }}/*.bundle.js
           retention-days: 1
 
-  deploy-higlass:
-    needs: build
-    if: |
-      github.event.inputs.demo == 'all' ||
-      github.event.inputs.demo == 'higlass' ||
-      github.event.inputs.demo == ''
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Download frontend artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: higlass-dist
-          path: demos/deploy/higlass/static
-
-      - name: Download server bundle
-        uses: actions/download-artifact@v4
-        with:
-          name: higlass-bundles
-          path: demos/deploy/higlass
-
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: ${{ env.DENO_VERSION }}
-
-      - name: Install deployctl
-        run: deno install -gArf jsr:@deno/deployctl
-
-      - name: Deploy to Deno Deploy
-        run: deployctl deploy --prod --project=mcp-web-higlass --entrypoint=demos/deploy/higlass/server.bundle.js --include=demos/deploy/higlass/server.bundle.js,demos/deploy/higlass/static
-        env:
-          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
-
-  # Todo demo deploys to Render automatically via render.yaml Blueprint.
+  # All demos deploy to Render automatically via demos/deploy/render.yaml Blueprint.
   # Render watches the main branch and auto-builds/deploys on push.
-  # No GitHub Actions deploy step needed for todo.
-
-  deploy-checkers:
-    needs: build
-    if: |
-      github.event.inputs.demo == 'all' ||
-      github.event.inputs.demo == 'checkers' ||
-      github.event.inputs.demo == ''
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Download frontend artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: checkers-dist
-          path: demos/deploy/checkers/static
-
-      - name: Download server bundle
-        uses: actions/download-artifact@v4
-        with:
-          name: checkers-bundles
-          path: demos/deploy/checkers
-
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: ${{ env.DENO_VERSION }}
-
-      - name: Install deployctl
-        run: deno install -gArf jsr:@deno/deployctl
-
-      - name: Deploy Bridge to Deno Deploy
-        run: deployctl deploy --prod --project=mcp-web-checkers --entrypoint=demos/deploy/checkers/server.bundle.js --include=demos/deploy/checkers/server.bundle.js,demos/deploy/checkers/static
-        env:
-          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
-
-  deploy-checkers-agent:
-    needs: build
-    if: |
-      github.event.inputs.demo == 'all' ||
-      github.event.inputs.demo == 'checkers' ||
-      github.event.inputs.demo == 'checkers-agent' ||
-      github.event.inputs.demo == ''
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Download server bundle
-        uses: actions/download-artifact@v4
-        with:
-          name: checkers-bundles
-          path: demos/deploy/checkers
-
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: ${{ env.DENO_VERSION }}
-
-      - name: Install deployctl
-        run: deno install -gArf jsr:@deno/deployctl
-
-      - name: Deploy Agent to Deno Deploy
-        run: deployctl deploy --prod --project=mcp-web-checkers-agent --entrypoint=demos/deploy/checkers/agent.bundle.js --include=demos/deploy/checkers/agent.bundle.js
-        env:
-          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+  # No GitHub Actions deploy steps needed.
