@@ -1,0 +1,35 @@
+# Render Blueprint for MCP-Web demo deployments
+# https://docs.render.com/blueprint-spec
+#
+# This replaces Deno Deploy for demos that need single-process guarantees
+# (WebSocket sessions and HTTP MCP requests must hit the same process).
+
+services:
+  - type: web
+    name: mcp-web-todo
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: |
+      pnpm install &&
+      pnpm build &&
+      cd demos/todo &&
+      cp ../deploy/todo/mcp-web.config.ts ./mcp-web.config.ts &&
+      pnpm build &&
+      cd ../.. &&
+      pnpm bundle:servers &&
+      cp -r demos/todo/dist demos/deploy/todo/static
+    startCommand: node demos/deploy/todo/server.node.bundle.js
+    healthCheckPath: /health
+    domains:
+      - todo.demo.mcp-web.dev
+    buildFilter:
+      paths:
+        - demos/todo/**
+        - demos/deploy/todo/**
+        - demos/deploy/lib/**
+        - packages/**
+        - scripts/bundle-servers.ts
+    envVars:
+      - key: NODE_VERSION
+        value: '24'

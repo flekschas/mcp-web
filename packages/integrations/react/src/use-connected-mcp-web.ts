@@ -22,8 +22,8 @@ export function useConnectedMCPWeb(mcpInstance: MCPWeb): MCPWebContextValue {
   const cleanedUpRef = useRef(false);
 
   // Subscribe to connection state changes from the MCPWeb instance.
-  // This keeps React state in sync when the instance reconnects internally
-  // (e.g. scheduleReconnect after a WebSocket drop).
+  // This is the single source of truth — all state updates flow through here
+  // (and the initial connect effect below for the first mount).
   useEffect(() => {
     const unsubscribe = mcpInstance.onConnectionStateChange(() => {
       setIsConnecting(mcpInstance.connecting);
@@ -36,25 +36,11 @@ export function useConnectedMCPWeb(mcpInstance: MCPWeb): MCPWebContextValue {
     // Reset the cleanup flag on mount
     cleanedUpRef.current = false;
 
-    if (!mcpInstance.connected) {
-      setIsConnecting(true);
-      mcpInstance.connect().then(() => {
-        // Only update state if we haven't been cleaned up
-        if (!cleanedUpRef.current) {
-          setIsConnecting(false);
-          setIsConnected(true);
-        }
-      }).catch(() => {
-        if (!cleanedUpRef.current) {
-          // Sync with actual instance state — it may already be
-          // scheduling a reconnect (isConnecting = true).
-          setIsConnecting(mcpInstance.connecting);
-          setIsConnected(mcpInstance.connected);
-        }
+    if (!mcpInstance.connected && !mcpInstance.connecting) {
+      mcpInstance.connect().catch(() => {
+        // Connection failed — state listener already handles updates.
+        // Nothing to do here.
       });
-    } else {
-      setIsConnecting(false);
-      setIsConnected(true);
     }
 
     return () => {

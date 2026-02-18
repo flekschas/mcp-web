@@ -1,4 +1,4 @@
-name: Deploy Demos to Deno Deploy
+name: Deploy Demos
 
 on:
   push:
@@ -100,43 +100,9 @@ jobs:
         env:
           DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
 
-  deploy-todo:
-    needs: build
-    if: |
-      github.event.inputs.demo == 'all' ||
-      github.event.inputs.demo == 'todo' ||
-      github.event.inputs.demo == ''
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Download frontend artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: todo-dist
-          path: demos/deploy/todo/static
-
-      - name: Download server bundle
-        uses: actions/download-artifact@v4
-        with:
-          name: todo-bundles
-          path: demos/deploy/todo
-
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: ${{ env.DENO_VERSION }}
-
-      - name: Install deployctl
-        run: deno install -gArf jsr:@deno/deployctl
-
-      - name: Deploy to Deno Deploy
-        run: deployctl deploy --prod --project=mcp-web-todo --entrypoint=demos/deploy/todo/server.bundle.js --include=demos/deploy/todo/server.bundle.js,demos/deploy/todo/static
-        env:
-          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+  # Todo demo deploys to Render automatically via render.yaml Blueprint.
+  # Render watches the main branch and auto-builds/deploys on push.
+  # No GitHub Actions deploy step needed for todo.
 
   deploy-checkers:
     needs: build
