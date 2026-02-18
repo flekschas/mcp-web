@@ -7,28 +7,53 @@ import type { MCPWebContextValue } from "./mcp-web-context";
  * Connects on mount and disconnects on unmount.
  * Returns reactive connection state for triggering re-renders.
  *
+ * Subscribes to MCPWeb's connection state changes so that reconnection
+ * attempts (e.g. after a WebSocket drop) are reflected in React state.
+ *
  * Handles React StrictMode's double-mount behavior by using a ref to track
  * whether we should actually disconnect on cleanup.
  *
  * @internal
  */
 export function useConnectedMCPWeb(mcpInstance: MCPWeb): MCPWebContextValue {
+  const [isConnecting, setIsConnecting] = useState(mcpInstance.connecting);
   const [isConnected, setIsConnected] = useState(mcpInstance.connected);
   // Track if the effect has been cleaned up to handle StrictMode double-mount
   const cleanedUpRef = useRef(false);
+
+  // Subscribe to connection state changes from the MCPWeb instance.
+  // This keeps React state in sync when the instance reconnects internally
+  // (e.g. scheduleReconnect after a WebSocket drop).
+  useEffect(() => {
+    const unsubscribe = mcpInstance.onConnectionStateChange(() => {
+      setIsConnecting(mcpInstance.connecting);
+      setIsConnected(mcpInstance.connected);
+    });
+    return unsubscribe;
+  }, [mcpInstance]);
 
   useEffect(() => {
     // Reset the cleanup flag on mount
     cleanedUpRef.current = false;
 
     if (!mcpInstance.connected) {
+      setIsConnecting(true);
       mcpInstance.connect().then(() => {
         // Only update state if we haven't been cleaned up
         if (!cleanedUpRef.current) {
+          setIsConnecting(false);
           setIsConnected(true);
+        }
+      }).catch(() => {
+        if (!cleanedUpRef.current) {
+          // Sync with actual instance state — it may already be
+          // scheduling a reconnect (isConnecting = true).
+          setIsConnecting(mcpInstance.connecting);
+          setIsConnected(mcpInstance.connected);
         }
       });
     } else {
+      setIsConnecting(false);
       setIsConnected(true);
     }
 
@@ -45,5 +70,5 @@ export function useConnectedMCPWeb(mcpInstance: MCPWeb): MCPWebContextValue {
     };
   }, [mcpInstance]);
 
-  return { mcpWeb: mcpInstance, isConnected };
+  return { mcpWeb: mcpInstance, isConnecting, isConnected };
 }

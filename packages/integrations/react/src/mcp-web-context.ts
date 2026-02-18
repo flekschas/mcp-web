@@ -7,6 +7,8 @@ import { createContext } from "react";
 export interface MCPWebContextValue {
   /** The MCPWeb instance for registering tools and making queries. */
   mcpWeb: MCPWeb;
+  /** Whether the MCPWeb instance is currently attempting to connect. */
+  isConnecting: boolean;
   /** Whether the MCPWeb instance is connected to the bridge server. */
   isConnected: boolean;
 }

@@ -1,4 +1,11 @@
-import { CheckIcon, InboxIcon, PlusCircleIcon, XMarkIcon, ChartBarSquareIcon } from '@heroicons/react/20/solid';
+import {
+  CheckIcon,
+  InboxIcon,
+  MinusIcon,
+  PlusCircleIcon,
+  ChartBarSquareIcon,
+  XMarkIcon,
+} from '@heroicons/react/20/solid';
 import { useMCPWeb } from '@mcp-web/react';
 import { useAtom, useAtomValue } from 'jotai';
 import { useState } from 'react';
@@ -9,7 +16,7 @@ import { ProjectForm } from './ProjectForm';
 import { ProjectItem } from './ProjectItem';
 
 export function Sidebar() {
-  const { isConnected } = useMCPWeb();
+  const { isConnected, isConnecting } = useMCPWeb();
   const [view, setView] = useAtom(viewAtom);
   const [projects, setProjects] = useAtom(projectsAtom);
   const inboxCount = useAtomValue(inboxCountAtom);
@@ -19,8 +26,6 @@ export function Sidebar() {
   const [newProjectTitle, setNewProjectTitle] = useState('');
   const [newProjectPattern, setNewProjectPattern] = useState('pattern-dots');
   const [showConfigModal, setShowConfigModal] = useState(false);
-
-  const connectionStatus = isConnected ? 'connected' : 'disconnected';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,8 +75,9 @@ export function Sidebar() {
             className="flex items-center gap-1 rounded outline-2 outline-current/20 hover:outline-current/60 hover:bg-current/10 px-1.5 py-0.5 cursor-pointer text-xs"
             onClick={toggleConfigModal}
           >
-            {connectionStatus === 'connected' && <CheckIcon className="w-4 h-4" />}
-            {connectionStatus === 'disconnected' && <XMarkIcon className="w-4 h-4" />}
+            {isConnected && <CheckIcon className="w-4 h-4" />}
+            {isConnecting && <MinusIcon className="w-4 h-4" />}
+            {!isConnected && !isConnecting && <XMarkIcon className="w-4 h-4" />}
             MCP
           </button>
         </div>

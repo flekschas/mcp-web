@@ -86,6 +86,23 @@ export class MCPWeb {
   #connected = false;
   #isConnecting = false;
   #authError: { error: string; code: string } | null = null;
+  #connectionStateListeners = new Set<() => void>();
+
+  /** Update connected state and notify listeners on change */
+  #setConnected(value: boolean) {
+    if (this.#connected !== value) {
+      this.#connected = value;
+      this.#notifyConnectionStateChange();
+    }
+  }
+
+  /** Update connecting state and notify listeners on change */
+  #setIsConnecting(value: boolean) {
+    if (this.#isConnecting !== value) {
+      this.#isConnecting = value;
+      this.#notifyConnectionStateChange();
+    }
+  }
   #config: MCPWebConfigOutput;
   #toolRegistrationErrorCallbacks = new Map<string, (error: ToolRegistrationError) => void>();
   #mcpConfig: {
@@ -383,7 +400,7 @@ export class MCPWeb {
       });
     }
 
-    this.#isConnecting = true;
+    this.#setIsConnecting(true);
     this.#authError = null;
     return new Promise((resolve, reject) => {
       try {
@@ -405,8 +422,8 @@ export class MCPWeb {
         };
 
         this.#ws.onclose = () => {
-          this.#connected = false;
-          this.#isConnecting = false;
+          this.#setConnected(false);
+          this.#setIsConnecting(false);
           // Don't reconnect if authentication was rejected
           if (!this.#authError) {
             this.scheduleReconnect();
@@ -415,17 +432,17 @@ export class MCPWeb {
 
         this.#ws.onerror = (error) => {
           console.error('WebSocket error:', error);
-          this.#isConnecting = false;
+          this.#setIsConnecting(false);
           reject(error);
         };
 
         // Resolve when authenticated, reject on auth failure
         const checkConnection = () => {
           if (this.#connected) {
-            this.#isConnecting = false;
+            this.#setIsConnecting(false);
             resolve(true);
           } else if (this.#authError) {
-            this.#isConnecting = false;
+            this.#setIsConnecting(false);
             reject(
               new Error(this.#authError.error)
             );
@@ -436,7 +453,7 @@ export class MCPWeb {
         setTimeout(checkConnection, 100);
 
       } catch (error) {
-        this.#isConnecting = false;
+        this.#setIsConnecting(false);
         reject(error);
       }
     });
@@ -462,7 +479,7 @@ export class MCPWeb {
   private handleMessage(message: BridgeMessage) {
     switch (message.type) {
       case 'authenticated':
-        this.#connected = true;
+        this.#setConnected(true);
 
         this.registerAllTools();
         this.registerAllResources();
@@ -689,9 +706,14 @@ export class MCPWeb {
 
   private scheduleReconnect() {
     if (!this.#ws) return;
+    // Signal that we intend to reconnect so consumers (e.g. React hooks)
+    // can show a "connecting" state instead of "disconnected".
+    this.#setIsConnecting(true);
     setTimeout(() => {
       if (!this.#connected && this.#ws) {
         this.connect().catch(console.error);
+      } else {
+        this.#setIsConnecting(false);
       }
     }, 5000);
   }
@@ -1433,6 +1455,49 @@ export class MCPWeb {
   }
 
   /**
+   * Whether the instance is currently attempting to connect to the bridge.
+   *
+   * Returns `true` during the connection/authentication handshake,
+   * before `connected` becomes `true` or the connection fails.
+   *
+   * @returns `true` if a connection attempt is in progress
+   */
+  get connecting(): boolean {
+    return this.#isConnecting;
+  }
+
+  /**
+   * Subscribe to connection state changes.
+   *
+   * The listener is called whenever `connected` or `connecting` changes.
+   * Returns an unsubscribe function.
+   *
+   * @param listener - Callback invoked on state change
+   * @returns Unsubscribe function
+   *
+   * @example
+   * ```typescript
+   * const unsubscribe = mcp.onConnectionStateChange(() => {
+   *   console.log('connected:', mcp.connected, 'connecting:', mcp.connecting);
+   * });
+   * // Later:
+   * unsubscribe();
+   * ```
+   */
+  onConnectionStateChange(listener: () => void): () => void {
+    this.#connectionStateListeners.add(listener);
+    return () => {
+      this.#connectionStateListeners.delete(listener);
+    };
+  }
+
+  #notifyConnectionStateChange() {
+    for (const listener of this.#connectionStateListeners) {
+      listener();
+    }
+  }
+
+  /**
    * Disconnects from the bridge server.
    *
    * Closes the WebSocket connection and cleans up event handlers.
@@ -1455,7 +1520,7 @@ export class MCPWeb {
       this.#ws.close();
       this.#ws = null;
     }
-    this.#connected = false;
+    this.#setConnected(false);
   }
 
   /**
