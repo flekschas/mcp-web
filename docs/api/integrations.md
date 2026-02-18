@@ -15,6 +15,12 @@ mcpWeb: MCPWeb
 The MCPWeb instance for registering tools and making queries.
 
 ```ts
+isConnecting: boolean
+```
+
+Whether the MCPWeb instance is currently attempting to connect.
+
+```ts
 isConnected: boolean
 ```
 
@@ -116,6 +122,9 @@ MCPWebProvider({ children, ...props }: MCPWebProviderProps): void
 Internal hook for managing MCPWeb connection lifecycle.
 Connects on mount and disconnects on unmount.
 Returns reactive connection state for triggering re-renders.
+
+Subscribes to MCPWeb's connection state changes so that reconnection
+attempts (e.g. after a WebSocket drop) are reflected in React state.
 
 Handles React StrictMode's double-mount behavior by using a ref to track
 whether we should actually disconnect on cleanup.

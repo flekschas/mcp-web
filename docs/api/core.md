@@ -140,6 +140,15 @@ get connected(): boolean
 
 Whether the client is currently connected to the bridge server.
 
+```ts
+get connecting(): boolean
+```
+
+Whether the instance is currently attempting to connect to the bridge.
+
+Returns `true` during the connection/authentication handshake,
+before `connected` becomes `true` or the connection fails.
+
 **Methods:**
 
 ```ts
@@ -319,6 +328,15 @@ addStateTools<T>(optionsOrCreated: {
     expand?: boolean;
   } | CreatedStateTools<T>): [ToolDefinition, ToolDefinition | ToolDefinition[], () => void]
 ```
+
+```ts
+onConnectionStateChange(listener: () => void): () => void
+```
+
+Subscribe to connection state changes.
+
+The listener is called whenever `connected` or `connecting` changes.
+Returns an unsubscribe function.
 
 ```ts
 disconnect(): void
