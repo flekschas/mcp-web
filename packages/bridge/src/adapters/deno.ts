@@ -63,15 +63,8 @@ export interface MCPWebBridgeDenoConfig extends Omit<MCPWebConfig, 'bridgeUrl'> 
 /**
  * Wraps a Deno WebSocket in our runtime-agnostic interface.
  */
-function wrapDenoWebSocket(socket: WebSocket): WebSocketConnection {
+function wrapDenoWebSocket(socket: WebSocket): WebSocketConnection & { dispatchMessage(data: string): void } {
   const messageHandlers = new Set<(data: string) => void>();
-
-  socket.onmessage = (event) => {
-    const data = typeof event.data === 'string' ? event.data : event.data.toString();
-    for (const handler of messageHandlers) {
-      handler(data);
-    }
-  };
 
   return {
     send(data: string): void {
@@ -104,6 +97,16 @@ function wrapDenoWebSocket(socket: WebSocket): WebSocketConnection {
 
     offMessage(handler: (data: string) => void): void {
       messageHandlers.delete(handler);
+    },
+
+    /**
+     * Dispatch a raw message to all registered messageHandlers.
+     * Called by the outer socket.onmessage to consolidate dispatch.
+     */
+    dispatchMessage(data: string): void {
+      for (const handler of messageHandlers) {
+        handler(data);
+      }
     },
   };
 }
@@ -191,6 +194,7 @@ export class MCPWebBridgeDeno {
           socket.onmessage = (event: MessageEvent) => {
             const data = typeof event.data === 'string' ? event.data : event.data.toString();
             handlers.onWebSocketMessage(sessionId, wrapped, data);
+            wrapped.dispatchMessage(data);
           };
 
           socket.onclose = () => {

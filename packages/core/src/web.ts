@@ -79,6 +79,7 @@ export class MCPWeb {
   #ws: WebSocket | null = null;
   #sessionId: string;
   #authToken: string;
+  #bridgeUrl: string;
   #tools = new Map<string, ProcessedToolDefinition>();
   #resources = new Map<string, ResourceDefinition>();
   #apps = new Map<string, ProcessedAppDefinition>();
@@ -112,13 +113,14 @@ export class MCPWeb {
    * const mcp = new MCPWeb({
    *   name: 'My Todo App',
    *   description: 'A todo application that AI agents can control',
-   *   bridgeUrl: 'localhost:3001',
-   *   autoConnect: true,
    * });
    * ```
    */
   constructor(config: MCPWebConfig) {
     this.#config = McpWebConfigSchema.parse(config);
+    this.#bridgeUrl = this.#config.bridgeUrl
+      ?? globalThis.window?.location?.host
+      ?? 'localhost:3001';
     this.#sessionId = this.#generateSessionId();
     this.#authToken = this.#resolveAuthToken(this.#config);
 
@@ -127,7 +129,7 @@ export class MCPWeb {
         command: 'npx',
         args: ['@mcp-web/client'],
         env: {
-          MCP_SERVER_URL: `${this.#getHttpProtocol()}//${this.#config.bridgeUrl}`,
+          MCP_SERVER_URL: `${this.#getHttpProtocol()}//${this.#bridgeUrl}`,
           AUTH_TOKEN: this.#authToken
         }
       }
@@ -254,14 +256,14 @@ export class MCPWeb {
   get remoteMcpConfig() {
     return {
       [this.#config.name]: {
-        url: `${this.#getHttpProtocol()}//${this.#config.bridgeUrl}?token=${this.#authToken}`,
+        url: `${this.#getHttpProtocol()}//${this.#bridgeUrl}?token=${this.#authToken}`,
       },
     };
   }
 
 
   #getBridgeWsUrl(): string {
-    return `${this.#getWsProtocol()}//${this.#config.bridgeUrl}`;
+    return `${this.#getWsProtocol()}//${this.#bridgeUrl}`;
   }
 
   #getWsProtocol(): 'ws:' | 'wss:' {

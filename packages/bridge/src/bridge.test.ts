@@ -28,7 +28,7 @@ test('Bridge config schema strips protocol from bridgeUrl', () => {
   }
 });
 
-test('Bridge config schema uses default bridgeUrl', () => {
+test('Bridge config schema uses no default bridgeUrl', () => {
   const result = McpWebConfigSchema.safeParse({
     name: 'Test Bridge',
     description: 'Test description',
@@ -36,7 +36,7 @@ test('Bridge config schema uses default bridgeUrl', () => {
 
   expect(result.success).toBe(true);
   if (result.success) {
-    expect(result.data.bridgeUrl === 'localhost:3001').toBe(true);
+    expect(result.data.bridgeUrl).toBeUndefined();
   }
 });
 

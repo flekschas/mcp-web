@@ -1144,7 +1144,12 @@ export class MCPWebBridge {
       }
 
       if (sessions.size === 0) {
-        return this.#mcpErrorResponse(mcpRequest.id, -32600, NoSessionsFoundErrorCode);
+        // No browser sessions connected — return synthetic fallback responses
+        // instead of an error. This is critical because Claude Desktop disables
+        // servers that return errors for tools/list (the toggle stays off).
+        // By returning at least one tool, we keep the server enabled and give
+        // the AI a way to check connection status.
+        return this.#handleNoSessionsFallback(mcpRequest);
       }
 
       let result: unknown;
@@ -1233,6 +1238,107 @@ export class MCPWebBridge {
       error: { code, message, data },
     };
     return jsonResponse(200, response);
+  }
+
+  /**
+   * Returns synthetic fallback responses when no browser sessions are connected.
+   *
+   * Claude Desktop disables MCP servers that return errors for tools/list or
+   * that return zero tools. By returning a synthetic `get_connection_status` tool
+   * and `status://connection` resource, we keep the server toggle enabled and
+   * give the AI a way to understand why no real tools are available.
+   *
+   * This applies to both Remote MCP (Streamable HTTP) and STDIO transport
+   * (the client has its own equivalent fallback for the STDIO path).
+   */
+  #handleNoSessionsFallback(mcpRequest: McpRequest): HttpResponse {
+    let result: unknown;
+
+    switch (mcpRequest.method) {
+      case 'tools/list':
+        result = {
+          tools: [{
+            name: 'get_connection_status',
+            description:
+              'Check the connection status of this MCP-Web server. Returns whether any browser sessions are currently connected. If no sessions are connected, you should tell the user to open the web app in their browser.',
+            inputSchema: {
+              type: 'object',
+              properties: {},
+              required: [],
+            },
+          }],
+        };
+        break;
+
+      case 'tools/call': {
+        const toolName = mcpRequest.params?.name;
+
+        if (toolName === 'get_connection_status') {
+          result = {
+            content: [{
+              type: 'text',
+              text: 'No browser sessions are currently connected to this MCP-Web server. Please ask the user to open the web app in their browser. Once connected, tools from the web app will become available automatically.',
+            }],
+          };
+        } else {
+          result = {
+            content: [{
+              type: 'text',
+              text: 'No browser sessions connected. Please open the web app in a browser first.',
+            }],
+            isError: true,
+          };
+        }
+        break;
+      }
+
+      case 'resources/list':
+        result = {
+          resources: [{
+            uri: 'status://connection',
+            name: 'Connection Status',
+            description:
+              'No browser sessions connected. Open the web app in a browser to enable tools.',
+            mimeType: 'text/plain',
+          }],
+        };
+        break;
+
+      case 'resources/read': {
+        const uri = mcpRequest.params?.uri;
+
+        if (uri === 'status://connection') {
+          result = {
+            contents: [{
+              uri: 'status://connection',
+              mimeType: 'text/plain',
+              text: 'No browser sessions are currently connected. Please open the web app in a browser to enable tools and resources.',
+            }],
+          };
+        } else {
+          return this.#mcpErrorResponse(
+            mcpRequest.id,
+            -32600,
+            NoSessionsFoundErrorCode
+          );
+        }
+        break;
+      }
+
+      case 'prompts/list':
+        result = { prompts: [] };
+        break;
+
+      default:
+        // For any other method, still return the original error
+        return this.#mcpErrorResponse(
+          mcpRequest.id,
+          -32600,
+          NoSessionsFoundErrorCode
+        );
+    }
+
+    return this.#mcpSuccessResponse(mcpRequest.id, result);
   }
 
   /**

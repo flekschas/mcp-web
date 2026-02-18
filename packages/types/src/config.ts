@@ -16,9 +16,8 @@ export const McpWebConfigSchema = z.object({
   bridgeUrl: z
     .string()
     .optional()
-    .default('localhost:3001')
-    .transform((url) => url.replace(/^(wss?|https?):\/\//, ''))
-    .describe('The bridge server address as host:port (e.g., \'localhost:3001\' or \'bridge.example.com\'). Protocol is determined automatically.'),
+    .transform((url) => url?.replace(/^(wss?|https?):\/\//, ''))
+    .describe('The bridge server address as host:port (e.g., \'localhost:3001\' or \'bridge.example.com\'). Protocol is determined automatically. Defaults to window.location.host in browser contexts, or localhost:3001 otherwise.'),
   /** Either a URL or a data URI (e.g., "data:image/svg+xml;base64,..." or "data:image/png;base64,..."). This is shown in the AI App. */
   icon: z.string().optional().describe('Either a URL or a data URI (e.g., "data:image/svg+xml;base64,..." or "data:image/png;base64,..."). This is shown in the AI App.'),
   /** The agent server address with optional path (e.g., 'localhost:3000' or 'localhost:3000/api/v1/query'). Protocol is determined automatically. Required for query support. */

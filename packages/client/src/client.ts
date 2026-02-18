@@ -9,6 +9,7 @@ import {
   InvalidAuthenticationErrorCode,
   type McpRequestMetaParams,
   MissingAuthenticationErrorCode,
+  NoSessionsFoundErrorCode,
   type Query,
   QueryDoneErrorCode,
   QueryNotActiveErrorCode,
@@ -129,6 +130,16 @@ export class MCPWebClient {
     try {
       const { name, arguments: args, _meta } = request.params as any;
 
+      // Handle the synthetic connection status tool (client-side, no bridge call needed)
+      if (name === 'get_connection_status') {
+        return {
+          content: [{
+            type: 'text',
+            text: 'No browser sessions are currently connected to this MCP-Web server. Please ask the user to open the web app in their browser. Once connected, tools from the web app will become available automatically.',
+          }],
+        };
+      }
+
       const response = await this.makeRequest('tools/call', {
         name,
         arguments: args || {},
@@ -234,17 +245,23 @@ export class MCPWebClient {
         }
       }
 
+      // Provide a helpful message when no browser sessions are connected
+      const errorDetail = error instanceof Error ? error.message : String(error);
+      const isNoSessions = error instanceof Error && error.message === NoSessionsFoundErrorCode;
+      const displayMessage = isNoSessions
+        ? 'No browser sessions connected. Please open the web app in a browser first.'
+        : `Tool execution failed: ${errorDetail}`;
+
       // Log the error for debugging — without this, tool failures are invisible
       // because they are converted to isError results that the host may not display.
-      const errorDetail = error instanceof Error ? error.message : String(error);
-      console.error(`[MCPWebClient] Tool execution failed: ${errorDetail}`);
+      console.error(`[MCPWebClient] ${displayMessage}`);
 
       // All other errors get returned as CallToolResult with isError: true
       return {
         content: [
           {
             type: 'text',
-            text: `Tool execution failed: ${errorDetail}`
+            text: displayMessage
           }
         ],
         isError: true
@@ -253,37 +270,88 @@ export class MCPWebClient {
   }
 
   private async makeListToolsRequest(sessionId?: string): Promise<ListToolsResult | ErroredListToolsResult> {
-    const response = await this.makeRequest<ListToolsResult | ErroredListToolsResult | FatalError>('tools/list', this.getParams(sessionId));
+    try {
+      const response = await this.makeRequest<ListToolsResult | ErroredListToolsResult | FatalError>('tools/list', this.getParams(sessionId));
 
-    if (isFatalError(response)) {
-      throw new Error(response.error_message);
+      if (isFatalError(response)) {
+        throw new Error(response.error_message);
+      }
+
+      return response;
+    } catch (error) {
+      // No browser sessions connected — return a status tool so Claude Desktop
+      // keeps the server toggle enabled (it disables servers with zero tools)
+      if (error instanceof Error && error.message === NoSessionsFoundErrorCode) {
+        return {
+          tools: [{
+            name: 'get_connection_status',
+            description: 'Check the connection status of this MCP-Web server. Returns whether any browser sessions are currently connected. If no sessions are connected, you should tell the user to open the web app in their browser.',
+            inputSchema: {
+              type: 'object' as const,
+              properties: {},
+              required: [],
+            },
+          }],
+        };
+      }
+      throw error;
     }
-
-    return response;
   }
 
   private async makeListResourcesRequest(sessionId?: string): Promise<ListResourcesResult | ErroredListResourcesResult> {
-    const response = await this.makeRequest<ListResourcesResult | ErroredListResourcesResult | FatalError>('resources/list', this.getParams(sessionId));
+    try {
+      const response = await this.makeRequest<ListResourcesResult | ErroredListResourcesResult | FatalError>('resources/list', this.getParams(sessionId));
 
-    if (isFatalError(response)) {
-      throw new Error(response.error_message);
+      if (isFatalError(response)) {
+        throw new Error(response.error_message);
+      }
+
+      return response;
+    } catch (error) {
+      if (error instanceof Error && error.message === NoSessionsFoundErrorCode) {
+        return {
+          resources: [{
+            uri: 'status://connection',
+            name: 'Connection Status',
+            description: 'No browser sessions connected. Open the web app in a browser to enable tools.',
+            mimeType: 'text/plain',
+          }],
+        };
+      }
+      throw error;
     }
-
-    return response;
   }
 
   private async makeListPromptsRequest(sessionId?: string): Promise<ListPromptsResult | ErroredListPromptsResult> {
-    const response = await this.makeRequest<ListPromptsResult | ErroredListPromptsResult | FatalError>('prompts/list', this.getParams(sessionId));
+    try {
+      const response = await this.makeRequest<ListPromptsResult | ErroredListPromptsResult | FatalError>('prompts/list', this.getParams(sessionId));
 
-    if (isFatalError(response)) {
-      throw new Error(response.error_message);
+      if (isFatalError(response)) {
+        throw new Error(response.error_message);
+      }
+
+      return response;
+    } catch (error) {
+      if (error instanceof Error && error.message === NoSessionsFoundErrorCode) {
+        return { prompts: [] };
+      }
+      throw error;
     }
-
-    return response;
   }
 
   private async makeReadResourceRequest(request: ReadResourceRequest): Promise<ReadResourceResult> {
     const { uri, _meta } = request.params;
+
+    // Handle the synthetic connection status resource
+    if (uri === 'status://connection') {
+      return {
+        contents: [{
+          uri: 'status://connection',
+          mimeType: 'text/plain',
+          text: 'No browser sessions are currently connected. Please open the web app in a browser to enable tools and resources.',
+        }],
+      };
+    }
 
     const response = await this.makeRequest<ReadResourceResult | FatalError>('resources/read', {
       uri,

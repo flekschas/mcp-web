@@ -28,14 +28,6 @@ export interface DemoServerConfig {
 function wrapWebSocket(socket: WebSocket) {
   const messageHandlers = new Set<(data: string) => void>();
 
-  socket.onmessage = (event) => {
-    const data =
-      typeof event.data === 'string' ? event.data : event.data.toString();
-    for (const handler of messageHandlers) {
-      handler(data);
-    }
-  };
-
   return {
     send(data: string): void {
       if (socket.readyState === WebSocket.OPEN) {
@@ -62,6 +54,15 @@ function wrapWebSocket(socket: WebSocket) {
     },
     offMessage(handler: (data: string) => void): void {
       messageHandlers.delete(handler);
+    },
+    /**
+     * Dispatch a raw message to all registered messageHandlers.
+     * Called by the outer socket.onmessage to consolidate dispatch.
+     */
+    dispatchMessage(data: string): void {
+      for (const handler of messageHandlers) {
+        handler(data);
+      }
     },
   };
 }
@@ -135,6 +136,7 @@ export function createDemoServer(config: DemoServerConfig, importMetaUrl: string
           const data =
             typeof event.data === 'string' ? event.data : event.data.toString();
           handlers.onWebSocketMessage(sessionId, wrapped, data);
+          wrapped.dispatchMessage(data);
         };
 
         socket.onclose = () => {

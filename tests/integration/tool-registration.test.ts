@@ -217,8 +217,11 @@ test('Tools are removed after mcpWeb instance disconnects', async () => {
   await new Promise(resolve => setTimeout(resolve, 100));
 
   // Verify tools are no longer available
-  // The bridge should reject requests since session is disconnected
-  expect(client.listTools()).rejects.toThrow();
+  // With NoSessionsFound graceful handling, the client returns a synthetic
+  // status tool instead of throwing (so Claude Desktop keeps the server toggle enabled)
+  const toolsAfter = await client.listTools();
+  expect(toolsAfter.tools.length).toBe(1);
+  expect(toolsAfter.tools[0].name).toBe('get_connection_status');
 });
 
 test('Mixed registration order - tools are all available', async () => {
