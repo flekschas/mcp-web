@@ -66,6 +66,7 @@ export default defineConfig({
             { text: 'MCP-Web Architecture', link: '/architecture' },
             { text: 'Declarative & Reactive State', link: '/declarative-reactive-state' },
             { text: 'Designing State Tools', link: '/designing-state-tools' },
+            { text: 'MCP-Web vs WebMCP vs AG-UI', link: '/comparison' },
           ]
         },
         {

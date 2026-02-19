@@ -19,6 +19,10 @@ With MCP-Web you can:
 - 🪟 **Interact with multiple browser sessions** independently
 - 🎯 **Works with any framework**: React, Vue, Svelte, vanilla JS
 
+::: info MCP-Web vs WebMCP vs AG-UI
+If you're rightfully confused by how [MCP-Web compares to WebMCP and AG-UI, see our short guide](./comparison).
+:::
+
 ## Why Use MCP-Web
 
 MCP-Web is ideal when you want to:
