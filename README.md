@@ -141,7 +141,6 @@ On a technical level, your frontend registers tools with **core**, which connect
 | [@mcp-web/app](packages/app) | Build tooling for MCP Apps (visual tools rendered in AI chat) |
 | [@mcp-web/react](packages/integrations/react) | React hooks for state management |
 | [@mcp-web/tools](packages/tools) | Reusable tool implementations (screenshots, etc.) |
-| [@mcp-web/mcpb](packages/mcpb) | Generate `.mcpb` bundles for one-click Claude Desktop installation |
 | [@mcp-web/types](packages/types) | Shared TypeScript type definitions |
 | [@mcp-web/decompose-zod-schema](packages/decompose-zod-schema) | Zod schema decomposition utilities |
 

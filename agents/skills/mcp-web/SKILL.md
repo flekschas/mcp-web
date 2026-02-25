@@ -301,4 +301,3 @@ new MCPWebBridge(MCP_WEB_CONFIG);
   - `@mcp-web/integrations`: [api-reference-integrations.md](api-reference-integrations.md)
   - `@mcp-web/tools`: [api-reference-tools.md](api-reference-tools.md)
   - `@mcp-web/decompose-zod-schema`: [api-reference-decompose-zod-schema.md](api-reference-decompose-zod-schema.md)
-  - `@mcp-web/mcpb`: [api-reference-mcpb.md](api-reference-mcpb.md)
