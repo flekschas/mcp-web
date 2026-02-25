@@ -55,7 +55,6 @@ const packages: Array<[string, string, string]> = [
 		"MCP-Web React Integration API",
 	],
 	["packages/tools/src", "tools", "MCP-Web Tools API"],
-	["packages/mcpb/src", "mcpb", "MCP-Web MCPB Bundle API"],
 ];
 
 // Generate docs for each package

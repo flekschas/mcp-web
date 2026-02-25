@@ -12,4 +12,3 @@ likely the one you want to take a look at first.
 | [`@mcp-web/apps`](./app.md)                                  | Addon for building MCP apps                       |
 | [`@mcp-web/react`](./integrations.md)                        | React hooks and components for state management   |
 | [`@mcp-web/decompose-zod-schema`](./decompose-zod-schema.md) | Zod schema decomposition utilities                |
-| [`@mcp-web/mcpb`](./mcpb.md)                                 | Generate .mcpb bundles for one-click installation |

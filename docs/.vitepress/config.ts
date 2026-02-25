@@ -97,7 +97,6 @@ export default defineConfig({
             { text: 'Tools', link: '/api/tools' },
             { text: 'Integrations', link: '/api/integrations' },
             { text: 'Decompose Zod Schema', link: '/api/decompose-zod-schema' },
-            { text: 'MCPB', link: '/api/mcpb' },
           ]
         },
       ]
