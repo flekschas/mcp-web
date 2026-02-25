@@ -2,8 +2,8 @@ import type { DecomposedSchema, SplitPlan } from '@mcp-web/decompose-zod-schema'
 import { decomposeSchema } from '@mcp-web/decompose-zod-schema';
 import type { ToolDefinitionZod } from '@mcp-web/types';
 import { ZodObject, type z } from 'zod';
-import { generateBasicStateTools } from './tool-generators/index.js';
-import { generateToolsForSchema } from './tool-generators/index.js';
+import { generateBasicStateTools } from './zod-schema-to-tools/index.js';
+import { generateToolsForSchema } from './zod-schema-to-tools/index.js';
 
 /**
  * Configuration for creating state tools.

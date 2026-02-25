@@ -2,7 +2,9 @@
 
 export { QueryResponse } from './query.js';
 // Export schema helper functions for expanded tools
-export { id, system } from './tool-generators/index.js';
+export { id, system } from './zod-schema-to-tools/index.js';
+export { zodSchemasToTools } from './zod-schemas-to-tools.js';
+export type { ZodSchemasToToolsOptions } from './zod-schemas-to-tools.js';
 // Export state grouping helper
 export { groupState } from './group-state.js';
 export type { StateTriple, StateTriples, GroupedState } from './group-state.js';

@@ -10,6 +10,10 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
+    "./code": {
+      "import": "./dist/code/index.js",
+      "types": "./dist/code/index.d.ts"
+    },
     "./python": {
       "import": "./dist/python/index.js",
       "types": "./dist/python/index.d.ts"
@@ -29,6 +33,7 @@
   },
   "dependencies": {
     "@mcp-web/types": "workspace:*",
+    "acorn": "^8.14.0",
     "html-to-image": "^1.11.13",
     "uuid": "^11.0.7",
     "zod": "catalog:"

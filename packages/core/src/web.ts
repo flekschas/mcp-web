@@ -30,7 +30,7 @@ import { type CreatedStateTools, isCreatedStateTools } from './create-state-tool
 import { type CreatedTool, isCreatedTool } from './create-tool.js';
 import { QueryResponse } from './query.js';
 import { QueryRequestSchema, QueryResponseResultSchema } from './schemas.js';
-import { generateBasicStateTools, generateToolsForSchema } from './tool-generators/index.js';
+import { generateBasicStateTools, generateToolsForSchema } from './zod-schema-to-tools/index.js';
 import type { QueryRequest, QueryResponseResult } from './types.js';
 import { toJSONSchema, toToolMetadataJson } from './utils.js';
 
