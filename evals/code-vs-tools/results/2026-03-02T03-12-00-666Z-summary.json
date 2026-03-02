@@ -1,0 +1,42 @@
+{
+  "meta": {
+    "timestamp": "2026-03-02T03:12:00.901Z",
+    "totalRuns": 8,
+    "models": [
+      "kimi-k2.5"
+    ],
+    "conditions": [
+      "normal-tools",
+      "code-tool"
+    ],
+    "apps": [
+      "project-manager"
+    ]
+  },
+  "byModelCondition": {
+    "kimi-k2.5:normal-tools": {
+      "model": "kimi-k2.5",
+      "condition": "normal-tools",
+      "n": 4,
+      "meanSuccessScore": 0,
+      "exactMatchRate": 0,
+      "meanWallClockMs": 0.15833349999991242,
+      "meanToolCalls": 0,
+      "meanInnerToolCalls": 0,
+      "meanTotalTokens": 0,
+      "errorRate": 1
+    },
+    "kimi-k2.5:code-tool": {
+      "model": "kimi-k2.5",
+      "condition": "code-tool",
+      "n": 4,
+      "meanSuccessScore": 0,
+      "exactMatchRate": 0,
+      "meanWallClockMs": 0.06434349999994993,
+      "meanToolCalls": 0,
+      "meanInnerToolCalls": 0,
+      "meanTotalTokens": 0,
+      "errorRate": 1
+    }
+  }
+}
