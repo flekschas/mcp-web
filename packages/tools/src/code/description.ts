@@ -62,18 +62,18 @@ function jsonSchemaToTypeString(
     const lines = Object.entries(properties).map(([key, prop]) => {
       const optional = !required.includes(key);
       const typeStr = jsonSchemaToTypeString(prop, indent + 1);
-      const desc = prop.description
-        ? ` // ${prop.description as string}`
-        : '';
-      return `${pad}  ${key}${optional ? '?' : ''}: ${typeStr};${desc}`;
+      return `${pad}  ${key}${optional ? '?' : ''}: ${typeStr}`;
     });
 
-    return `{\n${lines.join('\n')}\n${pad}}`;
+    return `{ ${lines.join('; ')} }`;
   }
 
   // additionalProperties pattern (Record-like)
   if (schema.additionalProperties) {
-    const valueSchema = schema.additionalProperties as Record<string, unknown>;
+    const valueSchema = schema.additionalProperties as Record<
+      string,
+      unknown
+    >;
     if (typeof valueSchema === 'object') {
       return `Record<string, ${jsonSchemaToTypeString(valueSchema, indent)}>`;
     }
@@ -83,21 +83,77 @@ function jsonSchemaToTypeString(
 }
 
 /**
- * Generates a function signature for a single tool.
+ * Checks if a type string is complex enough to warrant a named alias.
  */
-function toolToSignature(tool: ToolDefinitionZod): string {
-  const lines: string[] = [];
+function isComplexType(typeStr: string): boolean {
+  return typeStr.includes('{') || typeStr.length > 60;
+}
 
-  // Add description as JSDoc comment
+/**
+ * Extracts @param descriptions from a JSON Schema's properties.
+ */
+function extractParamDocs(
+  schema: Record<string, unknown>,
+): string[] {
+  const properties = schema.properties as
+    | Record<string, Record<string, unknown>>
+    | undefined;
+  if (!properties) return [];
+
+  const lines: string[] = [];
+  for (const [key, prop] of Object.entries(properties)) {
+    if (prop.description) {
+      lines.push(` * @param params.${key} - ${prop.description as string}`);
+    }
+  }
+  return lines;
+}
+
+/**
+ * Generates a type alias name from a tool name.
+ * e.g., "add_todos" -> "AddTodosInput"
+ */
+function toTypeName(toolName: string, suffix: string): string {
+  return (
+    toolName
+      .split('_')
+      .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+      .join('') + suffix
+  );
+}
+
+/**
+ * Generates a function signature and any needed type aliases for a tool.
+ */
+function toolToSignature(tool: ToolDefinitionZod): {
+  aliases: string[];
+  signature: string;
+} {
+  const aliases: string[] = [];
+  const jsdocLines: string[] = [];
+
   if (tool.description) {
-    lines.push(`/** ${tool.description} */`);
+    jsdocLines.push(` * ${tool.description}`);
   }
 
   let paramsStr = '';
   if (tool.inputSchema) {
     try {
-      const jsonSchema = z.toJSONSchema(tool.inputSchema as z.ZodSchema);
-      paramsStr = `params: ${jsonSchemaToTypeString(jsonSchema as Record<string, unknown>)}`;
+      const jsonSchema = z.toJSONSchema(
+        tool.inputSchema as z.ZodSchema,
+      );
+      const schema = jsonSchema as Record<string, unknown>;
+      const typeStr = jsonSchemaToTypeString(schema);
+
+      if (isComplexType(typeStr)) {
+        const aliasName = toTypeName(tool.name, 'Input');
+        aliases.push(`type ${aliasName} = ${typeStr};`);
+        paramsStr = `params: ${aliasName}`;
+      } else {
+        paramsStr = `params: ${typeStr}`;
+      }
+
+      jsdocLines.push(...extractParamDocs(schema));
     } catch {
       paramsStr = 'params: unknown';
     }
@@ -106,18 +162,32 @@ function toolToSignature(tool: ToolDefinitionZod): string {
   let returnStr = 'unknown';
   if (tool.outputSchema) {
     try {
-      const jsonSchema = z.toJSONSchema(tool.outputSchema as z.ZodSchema);
-      returnStr = jsonSchemaToTypeString(jsonSchema as Record<string, unknown>);
+      const jsonSchema = z.toJSONSchema(
+        tool.outputSchema as z.ZodSchema,
+      );
+      const typeStr = jsonSchemaToTypeString(
+        jsonSchema as Record<string, unknown>,
+      );
+
+      if (isComplexType(typeStr)) {
+        const aliasName = toTypeName(tool.name, 'Output');
+        aliases.push(`type ${aliasName} = ${typeStr};`);
+        returnStr = aliasName;
+      } else {
+        returnStr = typeStr;
+      }
     } catch {
       // keep unknown
     }
   }
 
-  lines.push(
-    `async function ${tool.name}(${paramsStr}): Promise<${returnStr}>`,
-  );
+  let jsdoc = '';
+  if (jsdocLines.length > 0) {
+    jsdoc = `/**\n${jsdocLines.join('\n')}\n */\n`;
+  }
 
-  return lines.join('\n');
+  const signature = `${jsdoc}async function ${tool.name}(${paramsStr}): Promise<${returnStr}>`;
+  return { aliases, signature };
 }
 
 /**
@@ -126,17 +196,31 @@ function toolToSignature(tool: ToolDefinitionZod): string {
 export function generateCodeToolDescription(
   tools: ToolDefinitionZod[],
 ): string {
-  const signatures = tools.map(toolToSignature).join('\n\n');
+  const allAliases: string[] = [];
+  const allSignatures: string[] = [];
+
+  for (const tool of tools) {
+    const { aliases, signature } = toolToSignature(tool);
+    allAliases.push(...aliases);
+    allSignatures.push(signature);
+  }
+
+  const typesBlock = [
+    ...(allAliases.length > 0 ? [...allAliases, ''] : []),
+    ...allSignatures,
+  ].join('\n\n');
 
   return [
-    'Execute JavaScript code in a sandboxed environment.',
-    'Available functions (all async, called as globals):',
+    'Execute code to achieve a goal.',
     '',
-    '```typescript',
-    signatures,
-    '```',
+    'Available functions:',
+    typesBlock,
     '',
+    'Write plain JavaScript (not TypeScript).',
+    'Code runs in a sandboxed iframe (allow-scripts only). Use the provided functions to interact with the app.',
     'Top-level await is supported.',
-    'The last expression is returned as the result.',
+    'The value of the last expression is the result, e.g.:',
+    '  const items = await get_items()',
+    '  items.filter(i => i.active)  // ← returned',
   ].join('\n');
 }

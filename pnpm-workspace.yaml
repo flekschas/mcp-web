@@ -5,6 +5,7 @@ packages:
   - demos/*/bridge
   - demos/*/shared
   - docs
+  - evals/*
   - packages/*
   - packages/integrations/*
   - tests

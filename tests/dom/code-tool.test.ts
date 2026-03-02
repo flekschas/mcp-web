@@ -27,7 +27,9 @@ test('returns validation error for invalid JavaScript', async ({ page }) => {
   expect(result.error).toContain('Validation error');
 });
 
-test('propagates tool handler errors', async ({ page }) => {
+test('propagates tool handler errors with function name and args', async ({
+  page,
+}) => {
   const result = await page.evaluate(async () => {
     return window.__test.execute(`
       await fail({ message: 'something broke' })
@@ -35,7 +37,10 @@ test('propagates tool handler errors', async ({ page }) => {
   });
 
   expect(result.error).toBeDefined();
+  // Error should include function name, args, and original message
+  expect(result.error).toContain('fail(');
   expect(result.error).toContain('something broke');
+  expect(result.error).toContain('failed:');
 });
 
 test('times out on long-running execution', async ({ page }) => {

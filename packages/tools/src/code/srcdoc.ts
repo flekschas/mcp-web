@@ -14,7 +14,14 @@ export function generateSrcdoc(functionNames: string[]): string {
         `globalThis[${JSON.stringify(name)}] = async function(params) {
       const callId = crypto.randomUUID();
       return new Promise((resolve, reject) => {
-        pendingCalls.set(callId, { resolve, reject });
+        pendingCalls.set(callId, {
+          resolve,
+          reject: (err) => {
+            let argsStr;
+            try { argsStr = JSON.stringify(params); } catch { argsStr = String(params); }
+            reject(new Error(${JSON.stringify(name)} + '(' + argsStr + ') failed: ' + err.message));
+          }
+        });
         parent.postMessage({
           type: 'function_call',
           id: currentExecutionId,
