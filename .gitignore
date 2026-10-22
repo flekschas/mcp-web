@@ -35,4 +35,9 @@ deploy/*/static/
 demos/deploy/**/server.bundle.js
 demos/deploy/**/agent.bundle.js
 
-.env
+# PNPM
+.pnpm-store
+
+# Environment variables
+.env*
+!.env.example

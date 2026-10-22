@@ -38,7 +38,7 @@
     "dev": "tsc --watch",
     "build": "tsc",
     "clean": "rm -rf dist",
-    "test": "bun test"
+    "test": "bun test ./src"
   },
   "dependencies": {
     "@mcp-web/bridge": "workspace:*",

@@ -17,18 +17,15 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true
+      "recommended": true,
+      "suspicious": {
+        "noUnknownAtRules": "off"
+      }
     }
   },
   "css": {
     "linter": {
-      "enabled": true,
-      "rules": {
-        "recommended": true,
-        "nursery": {
-          "unknownAtRules": "off"
-        }
-      }
+      "enabled": true
     }
   }
 }
