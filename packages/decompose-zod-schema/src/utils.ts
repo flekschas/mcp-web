@@ -1,4 +1,14 @@
-import { ZodEnum, ZodObject, type ZodType, z } from 'zod';
+import {
+  ZodArray,
+  ZodDefault,
+  ZodEnum,
+  ZodNullable,
+  ZodObject,
+  ZodOptional,
+  ZodRecord,
+  type ZodType,
+  z,
+} from 'zod';
 import type { Split } from './types.js';
 
 // Path utilities - simple and dependency-free
@@ -40,33 +50,10 @@ export const evenChunk = <T>(array: T[], maxChunkSize: number): T[][] => {
   return chunks;
 };
 
-// Parse split notation including enum splits, array splits, and record splits
+// Parse split notation for enum splits
 export const parseEnumSplit = (
   item: Split,
-): { path: string; chunkSize?: number; start?: number; end?: number; isArraySplit?: boolean; isRecordSplit?: boolean } => {
-  // Handle nested array split notation: 'views[].tracks.top[]'
-  // This matches patterns where we have array splits within array splits
-  const nestedArrayMatch = item.match(/^(.+)\[\]\.(.+)\[\]$/);
-  if (nestedArrayMatch) {
-    const [, basePath, subPath] = nestedArrayMatch;
-    // For validation, we need to check if the base path exists as an array
-    // and if the subPath exists within the array element schema
-    return { path: `${basePath}.${subPath}`, isArraySplit: true };
-  }
-
-  // Handle simple array split notation: 'views[]'
-  const arrayMatch = item.match(/^(.+)\[\]$/);
-  if (arrayMatch) {
-    const [, path] = arrayMatch;
-    return { path, isArraySplit: true };
-  }
-
-  // Handle record split notation: 'configs{}'
-  const recordMatch = item.match(/^(.+)\{\}$/);
-  if (recordMatch) {
-    const [, path] = recordMatch;
-    return { path, isRecordSplit: true };
-  }
+): { path: string; chunkSize?: number; start?: number; end?: number } => {
   // Handle chunk size notation: 'category[50]'
   const chunkMatch = item.match(/^(.+)\[(\d+)\]$/);
   if (chunkMatch) {
@@ -106,7 +93,7 @@ export const parseEnumSplit = (
   return { path: item };
 };
 
-// Extract schema at a given path
+// Extract schema at a given path (only traverses ZodObject shapes)
 export const getSchemaAtPath = (
   schema: ZodObject<Record<string, ZodType>>,
   path: string,
@@ -125,6 +112,107 @@ export const getSchemaAtPath = (
   }
 
   return current;
+};
+
+/**
+ * Metadata about a segment encountered during deep path traversal.
+ */
+export interface DeepPathSegment {
+  /** The property key at this path segment */
+  key: string;
+  /** Whether this segment is an array, record, or regular object property */
+  collectionType: 'array' | 'record' | 'none';
+}
+
+/**
+ * Result of deep path traversal.
+ */
+export interface DeepPathResult {
+  /** The schema at the target path */
+  schema: ZodType;
+  /** Information about each segment in the path */
+  segments: DeepPathSegment[];
+}
+
+/**
+ * Unwrap optional, nullable, and default wrappers from a schema.
+ */
+const unwrapZodSchema = (schema: ZodType): ZodType => {
+  let current = schema;
+  // biome-ignore lint/correctness/noConstantCondition: intentional unwrap loop
+  while (true) {
+    if (current instanceof ZodOptional) {
+      current = current.unwrap() as ZodType;
+    } else if (current instanceof ZodNullable) {
+      current = current.unwrap() as ZodType;
+    } else if (current instanceof ZodDefault) {
+      current = current.removeDefault() as ZodType;
+    } else {
+      return current;
+    }
+  }
+};
+
+/**
+ * Traverse a dot-path through a schema, following through array elements
+ * and record values. This allows resolving paths like 'views.tracks.top'
+ * where 'views' is an array.
+ *
+ * Returns the schema at the target path and metadata about each segment
+ * (including whether it's a collection that needs indexing).
+ */
+export const getSchemaAtDeepPath = (
+  schema: ZodObject<Record<string, ZodType>>,
+  path: string,
+): DeepPathResult | undefined => {
+  const parts = path.split('.');
+  let current: ZodType = schema;
+  const segments: DeepPathSegment[] = [];
+
+  for (const part of parts) {
+    const unwrapped = unwrapZodSchema(current);
+
+    if (unwrapped instanceof ZodObject) {
+      const shape = unwrapped.shape as Record<string, ZodType>;
+      const next = shape[part];
+      if (!next) return undefined;
+      segments.push({ key: part, collectionType: 'none' });
+      current = next;
+    } else if (unwrapped instanceof ZodArray) {
+      // Traverse into the array's element schema
+      const element = unwrapZodSchema(unwrapped.element as ZodType);
+      if (!(element instanceof ZodObject)) return undefined;
+      const shape = element.shape as Record<string, ZodType>;
+      const next = shape[part];
+      if (!next) return undefined;
+      // Mark the PREVIOUS segment as an array (it was the array property)
+      if (segments.length > 0) {
+        segments[segments.length - 1].collectionType = 'array';
+      }
+      segments.push({ key: part, collectionType: 'none' });
+      current = next;
+    } else if (unwrapped instanceof ZodRecord) {
+      // Traverse into the record's value schema
+      const valueDef = (unwrapped._def as unknown as { valueType?: ZodType })
+        .valueType;
+      if (!valueDef) return undefined;
+      const valueUnwrapped = unwrapZodSchema(valueDef);
+      if (!(valueUnwrapped instanceof ZodObject)) return undefined;
+      const shape = valueUnwrapped.shape as Record<string, ZodType>;
+      const next = shape[part];
+      if (!next) return undefined;
+      // Mark the PREVIOUS segment as a record
+      if (segments.length > 0) {
+        segments[segments.length - 1].collectionType = 'record';
+      }
+      segments.push({ key: part, collectionType: 'none' });
+      current = next;
+    } else {
+      return undefined;
+    }
+  }
+
+  return { schema: current, segments };
 };
 
 // Create a schema with only specified paths
@@ -148,9 +236,8 @@ export const extractSchemaForPaths = (
       const enumOptions = schema.options as string[];
 
       if (parsedPath.chunkSize) {
-        // For chunk size, we don't handle it in extractSchemaForPaths - that's done in manual-decompose
+        // For chunk size, we don't handle it in extractSchemaForPaths
         // This should not happen in normal usage as chunks generate multiple schemas
-        // Skip this path and continue with regular schema extraction
       } else if (parsedPath.start !== undefined) {
         // Handle slice notation with optional end
         const end =

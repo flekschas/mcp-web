@@ -15,7 +15,7 @@ to manually constructing arrays.
 addSplit(path: string): this
 ```
 
-Adds a simple path split.
+Adds a path split. Works for all property types — objects, arrays, records, and nested paths through collections. Collection types are auto-detected from the schema.
 
 ```ts
 addEnumSplit(path: string, chunkSize: number): this
@@ -46,18 +46,6 @@ addEntireEnumSlice(path: string): this
 ```
 
 Adds a slice for the entire enum (equivalent to just the path).
-
-```ts
-addArraySplit(path: string): this
-```
-
-Adds an array split for item-by-item operations.
-
-```ts
-addRecordSplit(path: string): this
-```
-
-Adds a record split for key-value operations.
 
 ```ts
 addConditionalEnumSplit(path: string, maxSize: number, schema: ZodObject<Record<string, ZodType>>): this
@@ -160,32 +148,6 @@ targetPaths: string[]
 
 Original paths from the source schema included in this segment.
 
-### ArraySplit
-
-*Interface* — `packages/decompose-zod-schema/src/types.ts`
-
-Parsed array split information.
-
-**Properties:**
-
-```ts
-path: string
-```
-
-Base path to the array property.
-
-```ts
-isArrayElement: boolean
-```
-
-Whether this represents array element operations.
-
-```ts
-excludedSubArrays: string[]
-```
-
-Paths to exclude from the split.
-
 ### DecompositionOptions
 
 *Interface* — `packages/decompose-zod-schema/src/types.ts`
@@ -283,10 +245,10 @@ Split specification for decomposing schemas.
 Supports various notations:
 - Simple path: `'user'` - Extract the 'user' property
 - Nested path: `'profile.bio'` - Extract nested property
+- Collection path: `'todos'` - Array/record type auto-detected from schema
+- Deep path: `'views.tracks.top'` - Path through array elements
 - Enum chunking: `'category[50]'` - Split enum into chunks of 50
 - Enum slice: `'category[0:50]'` - Extract enum options 0-49
-- Array split: `'items[]'` - Split array for item operations
-- Record split: `'records{}'` - Split record for key-value operations
 
 ### SplitPlan
 
@@ -362,14 +324,12 @@ unknown
 *Variable* — `packages/decompose-zod-schema/src/schemas.ts`
 
 A split can be of the following types:
-- string // Simple path like 'user' or 'profile.bio'
+- string // Simple path like 'user', 'profile.bio', or 'todos' (collection types auto-detected)
 - `${string}[${number}]` // Enum split into equal max. sized subarrays 'category[50]'
 - `${string}[${number}:${number}]` // Enum slice like 'category[0:50]'
 - `${string}[${number}:]` // Enum slice from index to end like 'category[50:]'
 - `${string}[:${number}]` // Enum slice from start to index like 'category[:50]'
 - `${string}[:]` // Entire enum (equivalent to just the path)
-- `${string}[]` // Array split - transforms z.array(T) to z.object({ index: number, value: T })
-- `${string}{}`; // Record split - transforms z.record(K, V) to z.object({ key: K, value: V })
 
 ### defaultStrategyRegistry
 

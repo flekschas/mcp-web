@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 // Import the decompose functions
 import { applyPartialUpdate, decomposeSchema, validatePlan } from './index.ts';
-import { parseEnumSplit } from './utils.ts';
+import { getSchemaAtDeepPath, parseEnumSplit } from './utils.ts';
 import { validateSliceCompleteness } from './validate.ts';
 
 test('decomposeSchema - basic object decomposition', () => {
@@ -94,9 +94,6 @@ test('decomposeSchema - nested object decomposition', () => {
   // Should have nested paths for nested objects
   expect(hasNestedPaths).toBe(true);
 
-  // Test that we have the expected structure but skip complex safeParse validation
-  // since nested schemas may have complex internal structures that are harder to test directly
-
   // Verify that we can find schemas for each target path
   const userNameSchema = decomposed.find(d => d.targetPaths.includes('user.name'));
   const bioSchema = decomposed.find(d => d.targetPaths.includes('user.profile.bio'));
@@ -107,7 +104,6 @@ test('decomposeSchema - nested object decomposition', () => {
   expect(bioSchema).toBeDefined();
   expect(themeSchema).toBeDefined();
 
-  // Test structure exists
   if (userNameSchema) {
     expect(userNameSchema.schema).toBeDefined();
     expect(userNameSchema.name).toBeDefined();
@@ -150,10 +146,9 @@ test('decomposeSchema - large enum splitting', () => {
 
   // Test that decomposed enum schemas work correctly with safeParse
   enumSchemas.forEach((enumSchema) => {
-    // Note: We test more carefully by using actual options from each chunk
     const categoryField = enumSchema.schema.shape?.category;
     if (categoryField?.options) {
-      const validOption = categoryField.options[0]; // Use first option from this chunk
+      const validOption = categoryField.options[0];
       const testData = {
         category: validOption,
         name: 'Test Name'
@@ -272,12 +267,6 @@ test('schema validity - decomposed schemas produce valid data', () => {
 
   // Apply updates using each decomposed schema and verify the result is still valid
   decomposed.forEach((decomposedItem) => {
-    // For decomposed schemas, we need to construct data that matches the schema structure
-    // Instead of trying to extract from the original nested data, let's use the decomposed schema
-    // to validate against the test data directly
-
-    // If the decomposed schema can't validate the full test data (which is expected),
-    // we'll just verify that we can apply partial updates correctly
     const sampleUpdate: Record<string, unknown> = {};
     decomposedItem.targetPaths.forEach((path) => {
       if (path === 'user.name') sampleUpdate.name = 'Test User Updated';
@@ -288,7 +277,6 @@ test('schema validity - decomposed schemas produce valid data', () => {
     });
 
     if (Object.keys(sampleUpdate).length > 0) {
-      // Apply partial update and verify the result is still valid with original schema
       const updatedData = applyPartialUpdate(
         testData,
         decomposedItem.targetPaths,
@@ -344,14 +332,12 @@ test('roundtrip test - multiple partial updates should preserve validity', () =>
 
   // Apply multiple partial updates
   decomposed.forEach((decomposedItem, index) => {
-    // Create some test updates for each decomposed schema
     const updates: Record<string, unknown> = {};
 
     decomposedItem.targetPaths.forEach((path) => {
       const pathParts = path.split('.');
       const finalKey = pathParts[pathParts.length - 1];
 
-      // Generate different test values based on the key
       switch (finalKey) {
         case 'firstName':
           updates[finalKey] = `UpdatedFirst${index}`;
@@ -380,7 +366,6 @@ test('roundtrip test - multiple partial updates should preserve validity', () =>
       }
     });
 
-    // Apply the partial update
     if (Object.keys(updates).length > 0) {
       currentData = applyPartialUpdate(
         currentData,
@@ -388,14 +373,13 @@ test('roundtrip test - multiple partial updates should preserve validity', () =>
         updates,
       ) as typeof currentData;
 
-      // Verify data is still valid after each update
       const updateResult = schema.safeParse(currentData);
       expect(updateResult.success).toBe(true);
     }
   });
 });
 
-// New tests for slice notation functionality
+// Slice notation tests
 
 test('parseEnumSplit - handles all slice notation formats', () => {
   // Regular path
@@ -434,6 +418,14 @@ test('parseEnumSplit - handles all slice notation formats', () => {
     start: 0,
     end: undefined,
   });
+});
+
+test('parseEnumSplit - regular paths have no special flags', () => {
+  const result = parseEnumSplit('metadata');
+  expect(result).toEqual({ path: 'metadata' });
+
+  const nestedResult = parseEnumSplit('user.profile.bio');
+  expect(nestedResult).toEqual({ path: 'user.profile.bio' });
 });
 
 test('validateSliceCompleteness - valid complete slices', () => {
@@ -489,7 +481,6 @@ test('decomposeSchema - manual slice notation', () => {
     name: z.string(),
   });
 
-  // Test complete slice decomposition
   const plan = [
     'name',
     'category[0:100]',
@@ -501,11 +492,9 @@ test('decomposeSchema - manual slice notation', () => {
 
   expect(decomposed.length).toBe(4);
 
-  // Verify slice schemas contain correct enum options
   const categorySchemas = decomposed.filter((d) => d.name.includes('category'));
   expect(categorySchemas.length).toBe(3);
 
-  // Check that all category slices have the correct enum values and test with safeParse
   categorySchemas.forEach((categorySchema) => {
     const schemaShape = (categorySchema.schema as z.ZodObject).shape;
     const enumSchema = schemaShape.category;
@@ -513,14 +502,12 @@ test('decomposeSchema - manual slice notation', () => {
     const enumOptions = enumSchema.options;
     expect(enumOptions.length > 0).toBe(true);
 
-    // Test safeParse with valid option from this slice
     const validOption = enumOptions[0];
     expect(categorySchema.schema.safeParse({
       category: validOption,
       name: 'Test Item'
     }).success).toBe(true);
 
-    // Test safeParse with invalid option (from outside this slice)
     const invalidOption = 'not-in-this-slice';
     expect(categorySchema.schema.safeParse({
       category: invalidOption,
@@ -528,7 +515,6 @@ test('decomposeSchema - manual slice notation', () => {
     }).success).toBe(false);
   });
 
-  // Test the name schema
   const nameSchema = decomposed.find(d => d.name === 'name');
   expect(nameSchema).toBeDefined();
   expect(nameSchema.schema.safeParse({
@@ -546,7 +532,6 @@ test('decomposeSchema - shorthand slice notation', () => {
     description: z.string(),
   });
 
-  // Test shorthand notation
   const plan = [
     'description',
     'items[:50]', // First 50 items
@@ -557,27 +542,22 @@ test('decomposeSchema - shorthand slice notation', () => {
 
   expect(decomposed.length).toBe(3);
 
-  // Verify the shorthand slices work correctly
   const itemSchemas = decomposed.filter((d) => d.name.includes('items'));
   expect(itemSchemas.length).toBe(2);
 
-  // First slice should have 50 items
   const firstSlice = itemSchemas.find((d) => d.name.includes('0'));
   expect(firstSlice).toBeDefined();
   const firstSchemaShape = (firstSlice.schema as z.ZodObject).shape;
   const firstEnum = firstSchemaShape.items;
   expect(firstEnum.options.length).toBe(50);
 
-  // Second slice should have 50 items (100 - 50)
   const secondSlice = itemSchemas.find((d) => d.name.includes('end'));
   expect(secondSlice).toBeDefined();
   const secondSchemaShape = (secondSlice.schema as z.ZodObject).shape;
   const secondEnum = secondSchemaShape.items;
   expect(secondEnum.options.length).toBe(50);
 
-  // Test safeParse validation for shorthand slices
-  // Test first slice (items[:50])
-  const firstValidOption = firstEnum.options[0]; // Should be 'item0'
+  const firstValidOption = firstEnum.options[0];
   expect(firstSlice.schema.safeParse({
     items: firstValidOption,
     description: 'First slice test'
@@ -588,8 +568,7 @@ test('decomposeSchema - shorthand slice notation', () => {
     description: 'First slice test'
   }).success).toBe(false);
 
-  // Test second slice (items[50:])
-  const secondValidOption = secondEnum.options[0]; // Should be 'item50'
+  const secondValidOption = secondEnum.options[0];
   expect(secondSlice.schema.safeParse({
     items: secondValidOption,
     description: 'Second slice test'
@@ -600,7 +579,6 @@ test('decomposeSchema - shorthand slice notation', () => {
     description: 'Second slice test'
   }).success).toBe(false);
 
-  // Test the description schema
   const descriptionSchema = decomposed.find(d => d.name === 'description');
   expect(descriptionSchema).toBeDefined();
   expect(descriptionSchema.schema.safeParse({
@@ -647,7 +625,7 @@ test('validatePlan - validates slice bounds', () => {
   });
 
   // Out of bounds end index
-  const outOfBoundsPlan = ['category[0:100]']; // Enum only has 50 options
+  const outOfBoundsPlan = ['category[0:100]'];
   const errors = validatePlan(outOfBoundsPlan, schema);
   expect(errors.length > 0).toBe(true);
   expect(errors.some((error) => error.includes('exceeds enum length'))).toBe(true);
@@ -681,29 +659,27 @@ test('decomposeSchema - mixed chunk and slice notation', () => {
     name: z.string(),
   });
 
-  // Mix of chunk (auto-split) and manual slices
   const plan = [
     'name',
-    'largeCat[50]', // Auto-chunk into groups of 50
-    'smallCat[0:3]', // Manual slice first 3
-    'smallCat[3:]', // Manual slice remaining
+    'largeCat[50]',
+    'smallCat[0:3]',
+    'smallCat[3:]',
   ];
 
   const decomposed = decomposeSchema(schema, plan);
 
-  // Should have name + multiple largeCat chunks + 2 smallCat slices
   expect(decomposed.length >= 4).toBe(true);
 
-  // Check that we have multiple largeCat chunks (since 300 options > 50 chunk size)
   const largeCatChunks = decomposed.filter((d) => d.name.includes('largeCat'));
   expect(largeCatChunks.length > 1).toBe(true);
 
-  // Check that we have exactly 2 smallCat slices
   const smallCatSlices = decomposed.filter((d) => d.name.includes('smallCat'));
   expect(smallCatSlices.length).toBe(2);
 });
 
-test('decomposeSchema - array[] split notation', () => {
+// Array and record path tests (no bracket notation — auto-detected from schema)
+
+test('decomposeSchema - array path extracts raw array schema', () => {
   const schema = z.object({
     users: z.array(z.object({
       name: z.string(),
@@ -713,19 +689,7 @@ test('decomposeSchema - array[] split notation', () => {
     title: z.string()
   });
 
-  // Test that the schema is valid
-  expect(schema.safeParse({
-    users: [
-      {
-        name: 'John Doe',
-        email: 'john.doe@example.com',
-        age: 30,
-      }
-    ],
-    title: 'Hello, world!'
-  }).success).toBe(true);
-
-  const plan = ['title', 'users[]'];
+  const plan = ['title', 'users'];
   const decomposed = decomposeSchema(schema, plan);
 
   expect(decomposed.length).toBe(2);
@@ -738,37 +702,21 @@ test('decomposeSchema - array[] split notation', () => {
     title: 'Hello, world!'
   }).success).toBe(true);
 
-  // Check users array split schema
-  const usersSchema = decomposed.find(d => d.name === 'users-item');
+  // Check users schema — should contain the raw array, NOT { index, value }
+  const usersSchema = decomposed.find(d => d.targetPaths.includes('users'));
   expect(usersSchema).toBeDefined();
-  expect(usersSchema.targetPaths).toEqual(['users[]']);
-  expect(usersSchema.schema.safeParse({
-    index: 0,
-    value: {
-      name: 'John Doe',
-      email: 'john.doe@example.com',
-      age: 30,
-    }
-  }).success).toBe(true);
 
-  // Verify the array split creates { index: number, value: T } structure
   const usersSchemaShape = (usersSchema.schema as z.ZodObject).shape;
-  expect(usersSchemaShape.index).toBeDefined();
-  expect(usersSchemaShape.value).toBeDefined();
+  // Should have 'users' key wrapping the array
+  expect(usersSchemaShape.users).toBeDefined();
+  expect(usersSchemaShape.users instanceof z.ZodArray).toBe(true);
 
-  // Check that index is a number
-  expect(usersSchemaShape.index instanceof z.ZodNumber).toBe(true);
-
-  // Check that value has the original array element structure
-  const valueSchema = usersSchemaShape.value as z.ZodObject;
-  expect(valueSchema instanceof z.ZodObject).toBe(true);
-  const valueShape = valueSchema.shape;
-  expect(valueShape.name).toBeDefined();
-  expect(valueShape.email).toBeDefined();
-  expect(valueShape.age).toBeDefined();
+  // Should NOT have { index, value } structure
+  expect(usersSchemaShape.index).toBeUndefined();
+  expect(usersSchemaShape.value).toBeUndefined();
 });
 
-test('decomposeSchema - record{} split notation', () => {
+test('decomposeSchema - record path extracts raw record schema', () => {
   const schema = z.object({
     configs: z.record(z.string(), z.object({
       enabled: z.boolean(),
@@ -777,7 +725,7 @@ test('decomposeSchema - record{} split notation', () => {
     metadata: z.string()
   });
 
-  const plan = ['metadata', 'configs{}'];
+  const plan = ['metadata', 'configs'];
   const decomposed = decomposeSchema(schema, plan);
 
   expect(decomposed.length).toBe(2);
@@ -787,131 +735,21 @@ test('decomposeSchema - record{} split notation', () => {
   expect(metadataSchema).toBeDefined();
   expect(metadataSchema.targetPaths).toEqual(['metadata']);
 
-  // Check configs record split schema
-  const configsSchema = decomposed.find(d => d.name === 'configs-entry');
+  // Check configs schema — should contain the raw record, NOT { key, value }
+  const configsSchema = decomposed.find(d => d.targetPaths.includes('configs'));
   expect(configsSchema).toBeDefined();
-  expect(configsSchema.targetPaths).toEqual(['configs{}']);
 
-  // Verify the record split creates { key: K, value: V } structure
   const configsSchemaShape = (configsSchema.schema as z.ZodObject).shape;
-  expect(configsSchemaShape.key).toBeDefined();
-  expect(configsSchemaShape.value).toBeDefined();
+  // Should have 'configs' key wrapping the record
+  expect(configsSchemaShape.configs).toBeDefined();
+  expect(configsSchemaShape.configs instanceof z.ZodRecord).toBe(true);
 
-  // Check that key is a string (default for z.record)
-  expect(configsSchemaShape.key instanceof z.ZodString).toBe(true);
-
-  // Check that value has the original record value structure
-  const valueSchema = configsSchemaShape.value as z.ZodObject;
-  expect(valueSchema instanceof z.ZodObject).toBe(true);
-  const valueShape = valueSchema.shape;
-  expect(valueShape.enabled).toBeDefined();
-  expect(valueShape.value).toBeDefined();
-
-  // Test safeParse validation for record split
-  expect(metadataSchema.schema.safeParse({
-    metadata: 'Test metadata string'
-  }).success).toBe(true);
-
-  expect(metadataSchema.schema.safeParse({
-    metadata: 123
-  }).success).toBe(false);
-
-  // Test the record entry schema
-  expect(configsSchema.schema.safeParse({
-    key: 'database',
-    value: {
-      enabled: true,
-      value: 'localhost:5432'
-    }
-  }).success).toBe(true);
-
-  // Test invalid record entry
-  expect(configsSchema.schema.safeParse({
-    key: 'database',
-    value: {
-      enabled: 'invalid',
-      value: 'localhost:5432'
-    }
-  }).success).toBe(false);
+  // Should NOT have { key, value } structure
+  expect(configsSchemaShape.key).toBeUndefined();
+  expect(configsSchemaShape.value).toBeUndefined();
 });
 
-test('decomposeSchema - record{} with enum key split notation', () => {
-  const categoryEnum = z.enum(['user', 'admin', 'guest']);
-  const schema = z.object({
-    permissions: z.record(categoryEnum, z.object({
-      read: z.boolean(),
-      write: z.boolean()
-    })),
-    name: z.string()
-  });
-
-  const plan = ['name', 'permissions{}'];
-  const decomposed = decomposeSchema(schema, plan);
-
-  expect(decomposed.length).toBe(2);
-
-  // Check permissions record split schema
-  const permissionsSchema = decomposed.find(d => d.name === 'permissions-entry');
-  expect(permissionsSchema).toBeDefined();
-
-  // Verify the record split creates { key: CategoryEnum, value: V } structure
-  const permissionsSchemaShape = (permissionsSchema.schema as z.ZodObject).shape;
-  expect(permissionsSchemaShape.key).toBeDefined();
-  expect(permissionsSchemaShape.value).toBeDefined();
-
-  // Check that key is the enum type
-  expect(permissionsSchemaShape.key instanceof z.ZodEnum).toBe(true);
-  const keyEnum = permissionsSchemaShape.key;
-  expect(keyEnum.options).toEqual(['user', 'admin', 'guest']);
-
-  // Check that value has the original record value structure
-  const valueSchema = permissionsSchemaShape.value as z.ZodObject;
-  expect(valueSchema instanceof z.ZodObject).toBe(true);
-  const valueShape = valueSchema.shape;
-  expect(valueShape.read).toBeDefined();
-  expect(valueShape.write).toBeDefined();
-
-  // Test safeParse validation for enum record split
-  const nameSchema = decomposed.find(d => d.name === 'name');
-  if (nameSchema) {
-    expect(nameSchema.schema.safeParse({
-      name: 'User Management System'
-    }).success).toBe(true);
-
-    expect(nameSchema.schema.safeParse({
-      name: 42
-    }).success).toBe(false);
-  }
-
-  // Test the permissions entry schema with valid enum key
-  expect(permissionsSchema.schema.safeParse({
-    key: 'admin',
-    value: {
-      read: true,
-      write: true
-    }
-  }).success).toBe(true);
-
-  // Test with invalid enum key
-  expect(permissionsSchema.schema.safeParse({
-    key: 'invalid-role',
-    value: {
-      read: true,
-      write: true
-    }
-  }).success).toBe(false);
-
-  // Test with invalid value structure
-  expect(permissionsSchema.schema.safeParse({
-    key: 'user',
-    value: {
-      read: 'yes',
-      write: true
-    }
-  }).success).toBe(false);
-});
-
-test('decomposeSchema - mixed array and record splits', () => {
+test('decomposeSchema - mixed array and record paths', () => {
   const schema = z.object({
     users: z.array(z.object({
       name: z.string(),
@@ -927,52 +765,153 @@ test('decomposeSchema - mixed array and record splits', () => {
     })
   });
 
-  const plan = ['metadata', 'users[]', 'settings{}'];
+  const plan = ['metadata', 'users', 'settings'];
   const decomposed = decomposeSchema(schema, plan);
 
   expect(decomposed.length).toBe(3);
 
   // Check all three schemas exist
-  const metadataSchema = decomposed.find(d => d.name === 'metadata');
-  const usersSchema = decomposed.find(d => d.name === 'users-item');
-  const settingsSchema = decomposed.find(d => d.name === 'settings-entry');
+  const metadataSchema = decomposed.find(d => d.targetPaths.includes('metadata'));
+  const usersSchema = decomposed.find(d => d.targetPaths.includes('users'));
+  const settingsSchema = decomposed.find(d => d.targetPaths.includes('settings'));
 
   expect(metadataSchema).toBeDefined();
   expect(usersSchema).toBeDefined();
   expect(settingsSchema).toBeDefined();
 
-  // Verify target paths
-  expect(metadataSchema.targetPaths).toEqual(['metadata']);
-  expect(usersSchema.targetPaths).toEqual(['users[]']);
-  expect(settingsSchema.targetPaths).toEqual(['settings{}']);
+  // Verify schemas contain raw types
+  const usersShape = (usersSchema.schema as z.ZodObject).shape;
+  expect(usersShape.users instanceof z.ZodArray).toBe(true);
+
+  const settingsShape = (settingsSchema.schema as z.ZodObject).shape;
+  expect(settingsShape.settings instanceof z.ZodRecord).toBe(true);
 });
 
-test('parseEnumSplit - handles array and record split notation', () => {
-  // Test array split parsing
-  const arrayResult = parseEnumSplit('users[]');
-  expect(arrayResult.path).toBe('users');
-  expect(arrayResult.isArraySplit).toBe(true);
-  expect(arrayResult.isRecordSplit).toBeUndefined();
+// Deep path tests (paths through array elements)
 
-  // Test record split parsing
-  const recordResult = parseEnumSplit('configs{}');
-  expect(recordResult.path).toBe('configs');
-  expect(recordResult.isRecordSplit).toBe(true);
-  expect(recordResult.isArraySplit).toBeUndefined();
+test('getSchemaAtDeepPath - traverses through arrays', () => {
+  const schema = z.object({
+    views: z.array(z.object({
+      name: z.string(),
+      tracks: z.object({
+        top: z.array(z.object({
+          type: z.string(),
+          height: z.number(),
+        })),
+      }),
+    })),
+  });
 
-  // Test regular path parsing (should not match array/record patterns)
-  const regularResult = parseEnumSplit('metadata');
-  expect(regularResult.path).toBe('metadata');
-  expect(regularResult.isArraySplit).toBeUndefined();
-  expect(regularResult.isRecordSplit).toBeUndefined();
+  // Simple top-level path
+  const viewsResult = getSchemaAtDeepPath(schema, 'views');
+  expect(viewsResult).toBeDefined();
+  expect(viewsResult!.schema instanceof z.ZodArray).toBe(true);
+  expect(viewsResult!.segments).toEqual([
+    { key: 'views', collectionType: 'none' },
+  ]);
 
-  // Test nested path array split
-  const nestedArrayResult = parseEnumSplit('user.preferences.items[]');
-  expect(nestedArrayResult.path).toBe('user.preferences.items');
-  expect(nestedArrayResult.isArraySplit).toBe(true);
+  // Path through array element
+  const tracksResult = getSchemaAtDeepPath(schema, 'views.tracks');
+  expect(tracksResult).toBeDefined();
+  expect(tracksResult!.segments).toEqual([
+    { key: 'views', collectionType: 'array' },
+    { key: 'tracks', collectionType: 'none' },
+  ]);
 
-  // Test nested path record split
-  const nestedRecordResult = parseEnumSplit('config.settings.values{}');
-  expect(nestedRecordResult.path).toBe('config.settings.values');
-  expect(nestedRecordResult.isRecordSplit).toBe(true);
+  // Nested path through array to sub-array
+  const topResult = getSchemaAtDeepPath(schema, 'views.tracks.top');
+  expect(topResult).toBeDefined();
+  expect(topResult!.schema instanceof z.ZodArray).toBe(true);
+  expect(topResult!.segments).toEqual([
+    { key: 'views', collectionType: 'array' },
+    { key: 'tracks', collectionType: 'none' },
+    { key: 'top', collectionType: 'none' },
+  ]);
+});
+
+test('getSchemaAtDeepPath - traverses through records', () => {
+  const schema = z.object({
+    configs: z.record(z.string(), z.object({
+      settings: z.object({
+        enabled: z.boolean(),
+      }),
+    })),
+  });
+
+  const result = getSchemaAtDeepPath(schema, 'configs.settings');
+  expect(result).toBeDefined();
+  expect(result!.segments).toEqual([
+    { key: 'configs', collectionType: 'record' },
+    { key: 'settings', collectionType: 'none' },
+  ]);
+});
+
+test('getSchemaAtDeepPath - returns undefined for invalid paths', () => {
+  const schema = z.object({
+    views: z.array(z.object({
+      name: z.string(),
+    })),
+  });
+
+  expect(getSchemaAtDeepPath(schema, 'views.nonexistent')).toBeUndefined();
+  expect(getSchemaAtDeepPath(schema, 'nonexistent')).toBeUndefined();
+});
+
+test('decomposeSchema - deep path through array extracts top-level key', () => {
+  const schema = z.object({
+    views: z.array(z.object({
+      name: z.string(),
+      tracks: z.object({
+        top: z.array(z.object({
+          type: z.string(),
+        })),
+        bottom: z.array(z.object({
+          type: z.string(),
+        })),
+      }),
+    })),
+    title: z.string(),
+  });
+
+  const plan = ['title', 'views.tracks.top'];
+  const decomposed = decomposeSchema(schema, plan);
+
+  expect(decomposed.length).toBe(2);
+
+  const titleSchema = decomposed.find(d => d.targetPaths.includes('title'));
+  expect(titleSchema).toBeDefined();
+
+  // Deep path should extract the top-level key 'views' with full path in targetPaths
+  const tracksTopSchema = decomposed.find(d =>
+    d.targetPaths.includes('views.tracks.top')
+  );
+  expect(tracksTopSchema).toBeDefined();
+  expect(tracksTopSchema!.name).toBe('views-tracks-top');
+
+  // The schema should wrap the top-level 'views' property
+  const shape = (tracksTopSchema!.schema as z.ZodObject).shape;
+  expect(shape.views).toBeDefined();
+  expect(shape.views instanceof z.ZodArray).toBe(true);
+});
+
+test('validatePlan - validates deep paths through arrays', () => {
+  const schema = z.object({
+    views: z.array(z.object({
+      name: z.string(),
+      tracks: z.object({
+        top: z.array(z.object({
+          type: z.string(),
+        })),
+      }),
+    })),
+  });
+
+  // Valid deep path
+  const validErrors = validatePlan(['views.tracks.top'], schema);
+  expect(validErrors.length).toBe(0);
+
+  // Invalid deep path
+  const invalidErrors = validatePlan(['views.tracks.nonexistent'], schema);
+  expect(invalidErrors.length).toBe(1);
+  expect(invalidErrors[0]).toContain('does not exist');
 });

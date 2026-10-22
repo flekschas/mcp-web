@@ -1,6 +1,10 @@
 import { ZodEnum, type ZodObject, type ZodType } from 'zod';
 import type { SplitPlan } from './types.js';
-import { getSchemaAtPath, parseEnumSplit } from './utils.js';
+import {
+  getSchemaAtDeepPath,
+  getSchemaAtPath,
+  parseEnumSplit,
+} from './utils.js';
 
 // Validate that a split plan is structurally correct
 export const validatePlan = (
@@ -15,57 +19,14 @@ export const validatePlan = (
 
   for (const item of plan) {
     const parsed = parseEnumSplit(item);
-    
-    // Handle nested array validation (e.g., 'views[].tracks.top[]')
-    if (parsed.isArraySplit && item.includes('[].')) {
-      const nestedMatch = item.match(/^(.+)\[\]\.(.+)\[\]$/);
-      if (nestedMatch) {
-        const [, basePath, subPath] = nestedMatch;
-        
-        // Check if the base path exists and is an array
-        const baseSchema = getSchemaAtPath(schema, basePath);
-        if (!baseSchema) {
-          errors.push(`Base path '${basePath}' does not exist in schema`);
-          continue;
-        }
-        
-        // For array schemas, we need to check the element schema
-        if ('element' in baseSchema && baseSchema.element) {
-          const elementSchema = baseSchema.element;
-          if (elementSchema && typeof elementSchema === 'object' && 'shape' in elementSchema) {
-            const subSchemaAtPath = getSchemaAtPath(elementSchema as ZodObject<Record<string, ZodType>>, subPath);
-            if (!subSchemaAtPath) {
-              errors.push(`Sub-path '${subPath}' does not exist in array element schema at '${basePath}'`);
-              continue;
-            }
-            
-            // Unwrap optional schemas to get to the inner array
-            let actualSubSchema = subSchemaAtPath;
-            if (subSchemaAtPath && typeof subSchemaAtPath === 'object' && 'unwrap' in subSchemaAtPath) {
-              actualSubSchema = (subSchemaAtPath as { unwrap: () => ZodType }).unwrap();
-            }
-            
-            // Check if the sub-path is also an array (for the final [])
-            if (!actualSubSchema || typeof actualSubSchema !== 'object' || !('element' in actualSubSchema) || !actualSubSchema.element) {
-              errors.push(`Sub-path '${subPath}' at '${basePath}' is not an array schema`);
-              continue;
-            }
-          } else {
-            errors.push(`Array element at '${basePath}' is not an object schema`);
-            continue;
-          }
-        } else {
-          errors.push(`Path '${basePath}' is not an array schema`);
-          continue;
-        }
-      }
-    }
-    
-    // Get schema at path for all non-nested array items
-    let schemaAtPath: ZodType | undefined;
-    if (!(parsed.isArraySplit && item.includes('[].'))) {
-      schemaAtPath = getSchemaAtPath(schema, parsed.path);
-      if (!schemaAtPath) {
+
+    // Try shallow path first, then deep path (through arrays/records)
+    let schemaAtPath = getSchemaAtPath(schema, parsed.path);
+    if (!schemaAtPath) {
+      const deepResult = getSchemaAtDeepPath(schema, parsed.path);
+      if (deepResult) {
+        schemaAtPath = deepResult.schema;
+      } else {
         errors.push(`Path '${parsed.path}' does not exist in schema`);
         continue;
       }
@@ -73,7 +34,7 @@ export const validatePlan = (
 
     // Validate enum split notation
     if (parsed.chunkSize || parsed.start !== undefined) {
-      if (!schemaAtPath || !(schemaAtPath instanceof ZodEnum)) {
+      if (!(schemaAtPath instanceof ZodEnum)) {
         errors.push(
           `Path '${parsed.path}' is not an enum but has enum split notation`,
         );
