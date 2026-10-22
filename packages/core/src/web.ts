@@ -1,6 +1,5 @@
 import type { BridgeMessage, RegisterResourceMessage, RegisterToolMessage, ToolRegistrationErrorMessage } from '@mcp-web/bridge';
-import type { DecomposedSchema, SplitPlan } from '@mcp-web/decompose-zod-schema';
-import { decomposeSchema } from '@mcp-web/decompose-zod-schema';
+import type { SplitPlan } from '@mcp-web/decompose-zod-schema';
 import type {
   AppDefinition,
   CreatedApp,
@@ -25,12 +24,11 @@ import {
   ResourceDefinitionSchema,
   ToolDefinitionSchema,
 } from '@mcp-web/types';
-import { ZodObject, type z } from 'zod';
-import { type CreatedStateTools, isCreatedStateTools } from './create-state-tools.js';
+import type { z } from 'zod';
+import { type CreatedStateTools, createStateTools, isCreatedStateTools } from './create-state-tools.js';
 import { type CreatedTool, isCreatedTool } from './create-tool.js';
 import { QueryResponse } from './query.js';
 import { QueryRequestSchema, QueryResponseResultSchema } from './schemas.js';
-import { generateBasicStateTools, generateToolsForSchema } from './zod-schema-to-tools/index.js';
 import type { QueryRequest, QueryResponseResult } from './types.js';
 import { toJSONSchema, toToolMetadataJson } from './utils.js';
 
@@ -1299,141 +1297,24 @@ export class MCPWeb {
       return [registeredTools[0], registeredTools[1], cleanup];
     }
 
-    // At this point, optionsOrCreated is guaranteed to be the config object (not CreatedStateTools)
-    const options = optionsOrCreated as {
-      name: string;
-      description: string;
-      get: () => T;
-      set: (value: T) => void;
-      schema: z.ZodType<T>;
-      schemaSplit?: SplitPlan;
-      expand?: boolean;
-    };
-    const { name, description, get, set, schema, schemaSplit, expand } = options;
-    const allTools: ToolDefinition[] = [];
+    // Delegate to createStateTools for tool generation, then register
+    const created = createStateTools(optionsOrCreated as Parameters<typeof createStateTools>[0]);
+    const registeredTools: ToolDefinition[] = [];
 
-    // Determine if we're expanding (schemaSplit or expand flag)
-    const isZodObjectSchema = schema instanceof ZodObject;
-    const shouldDecompose = schemaSplit && isZodObjectSchema;
-
-    // Step 1: Apply schemaSplit if provided
-    let decomposedSchemas: DecomposedSchema[] = [];
-    if (shouldDecompose) {
-      decomposedSchemas = decomposeSchema(schema, schemaSplit);
+    for (const tool of created.tools) {
+      registeredTools.push(this.addTool(tool));
     }
 
-    // Step 2: Generate tools based on mode
-    if (expand) {
-      // Expanded mode: generate targeted tools for collections
-      if (decomposedSchemas.length > 0) {
-        // Generate expanded tools for each decomposed part
-        for (const decomposed of decomposedSchemas) {
-          const result = generateToolsForSchema({
-            name: `${name}_${decomposed.name}`,
-            description: `${decomposed.name} in ${description}`,
-            get: () => {
-              const fullState = get() as Record<string, unknown>;
-              const extracted: Record<string, unknown> = {};
-              for (const path of decomposed.targetPaths) {
-                extracted[path] = fullState[path];
-              }
-              return Object.keys(extracted).length === 1
-                ? extracted[decomposed.targetPaths[0]]
-                : extracted;
-            },
-            set: (value: unknown) => {
-              const current = get() as Record<string, unknown>;
-              if (decomposed.targetPaths.length === 1) {
-                set({ ...current, [decomposed.targetPaths[0]]: value } as T);
-              } else {
-                set({ ...current, ...(value as Record<string, unknown>) } as T);
-              }
-            },
-            schema: decomposed.schema as z.ZodTypeAny,
-          });
-
-          // Register and collect tools
-          for (const tool of result.tools) {
-            allTools.push(this.addTool(tool));
-          }
-
-          // Log warnings if any
-          for (const warning of result.warnings) {
-            console.warn(warning);
-          }
-        }
-      } else {
-        // Generate expanded tools for full schema
-        const result = generateToolsForSchema({
-          name,
-          description,
-          get: get as () => unknown,
-          set: set as (value: unknown) => void,
-          schema: schema as z.ZodTypeAny,
-        });
-
-        // Register and collect tools
-        for (const tool of result.tools) {
-          allTools.push(this.addTool(tool));
-        }
-
-        // Log warnings if any
-        for (const warning of result.warnings) {
-          console.warn(warning);
-        }
-      }
-    } else if (shouldDecompose) {
-      // Decompose mode without expand: use basic state tools with decomposition
-      const basicResult = generateBasicStateTools({
-        name,
-        description,
-        get,
-        set,
-        schema: schema as z.ZodType<T>,
-        schemaSplit,
-      });
-
-      // Register getter
-      allTools.push(this.addTool(basicResult.getter));
-      // Register all setters
-      for (const setter of basicResult.setters) {
-        allTools.push(this.addTool(setter));
-      }
-    } else {
-      // Basic mode: simple get/set tools
-      const basicResult = generateBasicStateTools({
-        name,
-        description,
-        get,
-        set,
-        schema: schema as z.ZodType<T>,
-      });
-
-      // Register getter
-      allTools.push(this.addTool(basicResult.getter));
-      // Register setter (should be single)
-      for (const setter of basicResult.setters) {
-        allTools.push(this.addTool(setter));
-      }
-    }
-
-    // Build cleanup function
     const cleanup = () => {
-      for (const tool of allTools) {
+      for (const tool of registeredTools) {
         this.removeTool(tool.name);
       }
     };
 
-    // Return tuple: [getter, setter(s), cleanup]
-    const getter = allTools[0];
-    const settersOrExpanded = allTools.slice(1);
-
-    // Return single setter if basic mode (no schemaSplit, no expand)
-    if (!expand && !shouldDecompose) {
-      return [getter, settersOrExpanded[0], cleanup];
+    if (created.isExpanded) {
+      return [registeredTools[0], registeredTools.slice(1), cleanup];
     }
-
-    return [getter, settersOrExpanded, cleanup];
+    return [registeredTools[0], registeredTools[1], cleanup];
   }
 
   /**

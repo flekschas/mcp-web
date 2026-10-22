@@ -702,3 +702,84 @@ test('integration - delete all projects', async () => {
   await deleteProjects.handler({ all: true });
   expect(state.projects).toEqual({});
 });
+
+// ============================================================================
+// Optional-to-Nullable Conversion
+// ============================================================================
+
+test('integration - optional-only field can be cleared with null', async () => {
+  const ItemSchema = z.object({
+    id: id(system(z.string().default(() => 'item-1'))),
+    name: z.string(),
+    nickname: z.string().optional(),
+  });
+
+  type Item = z.infer<typeof ItemSchema>;
+  let state: Item[] = [{ id: 'item-1', name: 'Alice', nickname: 'Ali' }];
+
+  const result = generateToolsForSchema({
+    name: 'items',
+    description: 'items',
+    get: () => state,
+    set: (value) => {
+      state = value as Item[];
+    },
+    schema: z.array(ItemSchema),
+  });
+
+  const setter = result.tools.find((t) => t.name === 'set_items')!;
+
+  // Clear nickname by passing null
+  await setter.handler({ id: 'item-1', value: { nickname: null } });
+
+  expect(state[0].nickname).toBeUndefined();
+  expect(state[0].name).toBe('Alice');
+
+  // No warnings for optional-only fields
+  expect(result.warnings).toHaveLength(0);
+});
+
+test('integration - nullable field still accepts null as state value', async () => {
+  // This tests that truly nullable fields are NOT affected by the conversion
+  let state: App = {
+    todos: [
+      {
+        id: 'todo-1',
+        value: 'Buy milk',
+        priority: 3,
+        projectId: 'proj-1',
+        created_at: 123456,
+        updated_at: 123456,
+        completed_at: 123456,
+        tags: [],
+      },
+    ],
+    projects: {},
+    sortBy: 'created_at',
+    sortOrder: 'asc',
+    showCompleted: true,
+    theme: 'system',
+  };
+
+  const result = generateToolsForSchema({
+    name: 'app',
+    description: 'todo app',
+    get: () => state,
+    set: (value) => {
+      state = value as App;
+    },
+    schema: AppSchema,
+  });
+
+  const setTodo = result.tools.find((t) => t.name === 'set_app_todos')!;
+
+  // Set completed_at to null (this is a nullable field, not optional-only)
+  await setTodo.handler({
+    id: 'todo-1',
+    value: { completed_at: null },
+  });
+
+  // null should remain as null (not converted to undefined)
+  expect(state.todos[0].completed_at).toBe(null);
+  expect(state.todos[0].projectId).toBe('proj-1');
+});

@@ -1,8 +1,12 @@
 import type { ToolDefinitionZod } from '@mcp-web/types';
 import { z } from 'zod';
-import { deriveSetInputSchema, unwrapSchema } from './schema-helpers.js';
+import {
+  deriveSetInputSchema,
+  getOptionalOnlyKeys,
+  unwrapSchema,
+} from './schema-helpers.js';
 import type { SchemaShape, ToolGenerationOptions } from './types.js';
-import { deepMerge } from './utils.js';
+import { deepMerge, nullToUndefinedForOptionalOnly } from './utils.js';
 
 /**
  * Generates getter and setter tools for fixed-shape schemas.
@@ -43,6 +47,7 @@ export function generateFixedShapeTools(
     // Partial update with deep merge for objects
     const objectSchema = unwrapped as z.ZodObject<z.ZodRawShape>;
     const setInputSchema = deriveSetInputSchema(objectSchema);
+    const optionalOnlyKeys = getOptionalOnlyKeys(objectSchema);
 
     tools.push({
       name: `set_${name}`,
@@ -51,7 +56,11 @@ export function generateFixedShapeTools(
       handler: async (input: Record<string, unknown>) => {
         const current = get();
         const merged = deepMerge(current, input);
-        const validated = schema.parse(merged);
+        const cleaned = nullToUndefinedForOptionalOnly(
+          merged as Record<string, unknown>,
+          optionalOnlyKeys,
+        );
+        const validated = schema.parse(cleaned);
         set(validated);
         return { success: true, value: validated };
       },

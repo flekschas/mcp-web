@@ -1,9 +1,10 @@
 import type { DecomposedSchema, SplitPlan } from '@mcp-web/decompose-zod-schema';
-import { decomposeSchema } from '@mcp-web/decompose-zod-schema';
+import { decomposeSchema, getSchemaAtDeepPath } from '@mcp-web/decompose-zod-schema';
 import type { ToolDefinitionZod } from '@mcp-web/types';
-import { ZodObject, type z } from 'zod';
+import { ZodObject, type ZodType, z } from 'zod';
 import { generateBasicStateTools } from './zod-schema-to-tools/index.js';
 import { generateToolsForSchema } from './zod-schema-to-tools/index.js';
+import { createMutex } from './serialize.js';
 
 /**
  * Configuration for creating state tools.
@@ -155,43 +156,189 @@ export function createStateTools<T>(
 
   // Step 2: Generate tools based on mode
   if (expand) {
-    // Expanded mode: generate targeted tools for collections
     if (decomposedSchemas.length > 0) {
-      // Generate expanded tools for each decomposed part
+      // Expanded + decomposed: root getter + per-segment tools
+      const rootGetter: ToolDefinitionZod = {
+        name: `get_${name}`,
+        description: `Get the current ${description}`,
+        inputSchema: z.object({}),
+        handler: async () => get(),
+      };
+      allTools.push(rootGetter);
+
+      const zodObjSchema = schema as ZodObject<Record<string, ZodType>>;
+
       for (const decomposed of decomposedSchemas) {
-        const result = generateToolsForSchema({
-          name: `${name}_${decomposed.name}`,
-          description: `${decomposed.name} in ${description}`,
-          get: () => {
-            const fullState = get() as Record<string, unknown>;
-            const extracted: Record<string, unknown> = {};
-            for (const path of decomposed.targetPaths) {
-              extracted[path] = fullState[path];
-            }
-            return Object.keys(extracted).length === 1
-              ? extracted[decomposed.targetPaths[0]]
-              : extracted;
-          },
-          set: (value: unknown) => {
-            const current = get() as Record<string, unknown>;
-            if (decomposed.targetPaths.length === 1) {
-              set({ ...current, [decomposed.targetPaths[0]]: value } as T);
-            } else {
-              set({ ...current, ...(value as Record<string, unknown>) } as T);
-            }
-          },
-          schema: decomposed.schema as z.ZodTypeAny,
-        });
+        const targetPath = decomposed.targetPaths[0];
+        const segments = targetPath.split('.');
+        const toolName = `${name}_${decomposed.name.replace(/-/g, '_')}`;
 
-        allTools.push(...result.tools);
+        // Check if this is a deep path (traverses through collections)
+        const deepResult = getSchemaAtDeepPath(zodObjSchema, targetPath);
+        const parentCollections = deepResult
+          ? deepResult.segments.filter((s) => s.collectionType !== 'none')
+          : [];
 
-        // Log warnings if any
-        for (const warning of result.warnings) {
-          console.warn(warning);
+        if (parentCollections.length === 0) {
+          // Simple top-level path (e.g., 'views', 'settings')
+          const topLevelKey = segments[0];
+          const rawSchema = zodObjSchema.shape[topLevelKey] as z.ZodTypeAny;
+          if (!rawSchema) continue;
+
+          const result = generateToolsForSchema({
+            name: toolName,
+            description: `${decomposed.name} in ${description}`,
+            get: () => (get() as Record<string, unknown>)[topLevelKey],
+            set: (value: unknown) => {
+              const current = get() as Record<string, unknown>;
+              set({ ...current, [topLevelKey]: value } as T);
+            },
+            schema: rawSchema,
+          });
+
+          allTools.push(...result.tools);
+          for (const warning of result.warnings) {
+            console.warn(warning);
+          }
+        } else {
+          // Deep path with intermediate collections (e.g., 'views.tracks.top')
+          // Build parent index schema for intermediate collections
+          const parentIndexFields: Record<string, z.ZodTypeAny> = {};
+          for (const parent of parentCollections) {
+            if (parent.collectionType === 'array') {
+              parentIndexFields[`${parent.key}Index`] = z
+                .number()
+                .int()
+                .min(0)
+                .describe(
+                  `Zero-based index in the ${parent.key} array`,
+                );
+            } else if (parent.collectionType === 'record') {
+              parentIndexFields[`${parent.key}Key`] = z
+                .string()
+                .describe(`Key in the ${parent.key} record`);
+            }
+          }
+          const parentIndexSchema = z.object(parentIndexFields);
+
+          /**
+           * Which element of each intermediate collection this call addresses.
+           *
+           * Shared rather than passed, because `generateToolsForSchema` builds
+           * one `get`/`set` pair for the whole path and has no channel for a
+           * per-call argument. `runExclusive` below is what makes that safe.
+           */
+          let currentParentIndices: Record<string, number | string> = {};
+
+          /**
+           * One handler at a time on this path, so a call that suspends cannot
+           * have its indices overwritten by the next one. Per path rather than
+           * global: two paths share nothing.
+           */
+          const runExclusive = createMutex();
+
+          const allSegments = deepResult!.segments;
+
+          const nestedGet = () => {
+            let current: unknown = get();
+            for (const seg of allSegments) {
+              current = (current as Record<string, unknown>)[seg.key];
+              if (seg.collectionType === 'array') {
+                current = (current as unknown[])[
+                  currentParentIndices[`${seg.key}Index`] as number
+                ];
+              } else if (seg.collectionType === 'record') {
+                current = (current as Record<string, unknown>)[
+                  currentParentIndices[`${seg.key}Key`] as string
+                ];
+              }
+            }
+            return current;
+          };
+
+          /** Immutably set a value at the deep path. */
+          const nestedSet = (value: unknown) => {
+            const state = structuredClone(get()) as Record<string, unknown>;
+            let current: unknown = state;
+
+            for (let i = 0; i < allSegments.length - 1; i++) {
+              const seg = allSegments[i];
+              current = (current as Record<string, unknown>)[seg.key];
+              if (seg.collectionType === 'array') {
+                current = (current as unknown[])[
+                  currentParentIndices[`${seg.key}Index`] as number
+                ];
+              } else if (seg.collectionType === 'record') {
+                current = (current as Record<string, unknown>)[
+                  currentParentIndices[`${seg.key}Key`] as string
+                ];
+              }
+            }
+
+            const lastSeg = allSegments[allSegments.length - 1];
+            (current as Record<string, unknown>)[lastSeg.key] = value;
+            set(state as T);
+          };
+
+          const result = generateToolsForSchema({
+            name: toolName,
+            description: `${decomposed.name} in ${description}`,
+            get: nestedGet,
+            set: nestedSet,
+            schema: deepResult!.schema as z.ZodTypeAny,
+          });
+
+          // Each tool gains the indices that say which element it addresses.
+          for (const tool of result.tools) {
+            const originalHandler = tool.handler;
+            const originalInputSchema = tool.inputSchema;
+
+            allTools.push({
+              ...tool,
+              inputSchema: originalInputSchema
+                ? parentIndexSchema.merge(
+                    originalInputSchema as z.ZodObject<z.ZodRawShape>,
+                  )
+                : parentIndexSchema,
+              handler: async (input: Record<string, unknown>) =>
+                runExclusive(async () => {
+                  currentParentIndices = {};
+                  for (const key of Object.keys(parentIndexFields)) {
+                    if (key in input) {
+                      currentParentIndices[key] = input[key] as number | string;
+                    }
+                  }
+                  // The indices address the path; the rest is the value, and
+                  // the underlying handler validates against a schema that does
+                  // not declare them.
+                  const remaining: Record<string, unknown> = {};
+                  for (const [k, v] of Object.entries(input)) {
+                    if (!(k in parentIndexFields)) {
+                      remaining[k] = v;
+                    }
+                  }
+                  return originalHandler(remaining);
+                }),
+            });
+          }
+
+          for (const warning of result.warnings) {
+            console.warn(warning);
+          }
         }
       }
+
+      const setters = allTools.slice(1);
+      return {
+        __brand: 'CreatedStateTools' as const,
+        getter: rootGetter,
+        setters,
+        tools: allTools,
+        config,
+        isExpanded: true,
+      };
     } else {
-      // Generate expanded tools for full schema
+      // Expanded without decomposition: generate tools for full schema
       const result = generateToolsForSchema({
         name,
         description,
@@ -201,25 +348,21 @@ export function createStateTools<T>(
       });
 
       allTools.push(...result.tools);
-
-      // Log warnings if any
       for (const warning of result.warnings) {
         console.warn(warning);
       }
+
+      const getter = allTools[0];
+      const setters = allTools.slice(1);
+      return {
+        __brand: 'CreatedStateTools' as const,
+        getter,
+        setters,
+        tools: allTools,
+        config,
+        isExpanded: true,
+      };
     }
-
-    // For expanded mode, first tool is getter, rest are setters
-    const getter = allTools[0];
-    const setters = allTools.slice(1);
-
-    return {
-      __brand: 'CreatedStateTools' as const,
-      getter,
-      setters,
-      tools: allTools,
-      config,
-      isExpanded: true,
-    };
   } else if (shouldDecompose) {
     // Decompose mode without expand: use basic state tools with decomposition
     const basicResult = generateBasicStateTools({

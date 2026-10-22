@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { deepMerge } from './utils.js';
+import { deepMerge, nullToUndefinedForOptionalOnly } from './utils.js';
 
 // ============================================================================
 // Basic Merge Cases
@@ -206,4 +206,42 @@ test('deepMerge - boolean source replaces any target', () => {
   const result = deepMerge(target, source);
 
   expect(result).toBe(false);
+});
+
+// ============================================================================
+// nullToUndefinedForOptionalOnly
+// ============================================================================
+
+test('nullToUndefinedForOptionalOnly - converts null to undefined for specified keys', () => {
+  const merged = { name: 'Alice', email: null, bio: null };
+  const optionalOnlyKeys = new Set(['email']);
+  const result = nullToUndefinedForOptionalOnly(merged, optionalOnlyKeys);
+
+  expect(result.email).toBeUndefined();
+  expect(result.bio).toBeNull();
+  expect(result.name).toBe('Alice');
+});
+
+test('nullToUndefinedForOptionalOnly - passes through non-null values', () => {
+  const merged = { name: 'Alice', email: 'alice@example.com' };
+  const optionalOnlyKeys = new Set(['email']);
+  const result = nullToUndefinedForOptionalOnly(merged, optionalOnlyKeys);
+
+  expect(result.email).toBe('alice@example.com');
+});
+
+test('nullToUndefinedForOptionalOnly - returns same reference when no keys', () => {
+  const merged = { name: 'Alice', email: null };
+  const optionalOnlyKeys = new Set<string>();
+  const result = nullToUndefinedForOptionalOnly(merged, optionalOnlyKeys);
+
+  expect(result).toBe(merged);
+});
+
+test('nullToUndefinedForOptionalOnly - handles undefined values unchanged', () => {
+  const merged = { name: 'Alice', email: undefined };
+  const optionalOnlyKeys = new Set(['email']);
+  const result = nullToUndefinedForOptionalOnly(merged, optionalOnlyKeys);
+
+  expect(result.email).toBeUndefined();
 });

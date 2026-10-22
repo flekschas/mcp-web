@@ -1,4 +1,27 @@
 /**
+ * For fields that are optional-only (not nullable in the original schema),
+ * converts null values to undefined after deepMerge. This allows the
+ * original schema.parse() to succeed since null is not valid for
+ * optional-only fields.
+ *
+ * Called between deepMerge and schema.parse in set handlers.
+ */
+export function nullToUndefinedForOptionalOnly(
+  merged: Record<string, unknown>,
+  optionalOnlyKeys: Set<string>,
+): Record<string, unknown> {
+  if (optionalOnlyKeys.size === 0) return merged;
+
+  const result = { ...merged };
+  for (const key of optionalOnlyKeys) {
+    if (result[key] === null) {
+      result[key] = undefined;
+    }
+  }
+  return result;
+}
+
+/**
  * Deep merge two objects recursively.
  * Used for partial updates to state objects.
  *

@@ -5,11 +5,12 @@ import { analyzeSchemaShape, findIdField } from './schema-analysis.js';
 import {
   deriveAddInputSchema,
   deriveSetInputSchema,
+  getOptionalOnlyKeys,
   unwrapSchema,
   validateSystemFields,
 } from './schema-helpers.js';
 import type { GeneratedTools, KeyFieldResult, SchemaShape, ToolGenerationOptions } from './types.js';
-import { deepMerge } from './utils.js';
+import { deepMerge, nullToUndefinedForOptionalOnly } from './utils.js';
 
 // ============================================================================
 // Main Entry Point
@@ -41,16 +42,18 @@ export function generateToolsForSchema(
   // Analyze schema shape
   const shape = analyzeSchemaShape(schema);
 
-  // Warn about optional fields (once)
-  if (shape.hasOptionalFields) {
+  // Warn about fields that are both optional AND nullable.
+  // Optional-only fields are handled automatically (converted to nullable in set input).
+  // But optional+nullable is ambiguous: null is already a valid state value,
+  // so it can't be used as a "clear" signal.
+  if (shape.optionalAndNullablePaths.length > 0) {
     warnings.push(
-      `⚠️ Warning: Schema for '${name}' uses optional() on field(s): ${shape.optionalPaths.join(', ')}.\n\n` +
-      `Problem: optional() creates ambiguity in partial updates:\n` +
-      `- Is the field missing because AI didn't provide it? (keep current)\n` +
-      `- Or because AI wants to clear it? (set to undefined)\n\n` +
-      `Solution: Use nullable() instead:\n` +
+      `⚠️ Warning: Schema for '${name}' uses both optional() and nullable() on field(s): ${shape.optionalAndNullablePaths.join(', ')}.\n\n` +
+      `Problem: When a field is both optional and nullable, null is already a valid state value,\n` +
+      `so the AI cannot use null as a signal to "clear" the field.\n\n` +
+      `Solution: Use only nullable() (not optional) if null means "no value":\n` +
       `- fieldName: z.string().nullable()\n\n` +
-      `This makes intent explicit:\n` +
+      `This makes intent explicit in partial updates:\n` +
       `- Omit field → keep current value\n` +
       `- Pass null → clear the value`
     );
@@ -116,6 +119,11 @@ function generateArrayTools(
     addInputSchema = deriveAddInputSchema(elementUnwrapped);
     setInputSchema = deriveSetInputSchema(elementUnwrapped);
   }
+
+  const optionalOnlyKeys =
+    elementUnwrapped instanceof z.ZodObject
+      ? getOptionalOnlyKeys(elementUnwrapped)
+      : new Set<string>();
 
   // GET tool
   if (useIdBased) {
@@ -206,7 +214,11 @@ function generateArrayTools(
           throw new Error(`Item with id '${input.id}' not found in ${name}`);
         }
         const merged = deepMerge(array[index], input.value);
-        const validated = elementSchema.parse(merged);
+        const cleaned = nullToUndefinedForOptionalOnly(
+          merged as Record<string, unknown>,
+          optionalOnlyKeys,
+        );
+        const validated = elementSchema.parse(cleaned);
         const newArray = [...array];
         newArray[index] = validated;
         set(newArray);
@@ -227,7 +239,11 @@ function generateArrayTools(
           throw new Error(`Index ${input.index} out of bounds for ${name} (length: ${array.length})`);
         }
         const merged = deepMerge(array[input.index], input.value);
-        const validated = elementSchema.parse(merged);
+        const cleaned = nullToUndefinedForOptionalOnly(
+          merged as Record<string, unknown>,
+          optionalOnlyKeys,
+        );
+        const validated = elementSchema.parse(cleaned);
         const newArray = [...array];
         newArray[input.index] = validated;
         set(newArray);
@@ -307,9 +323,11 @@ function generateRecordTools(
   // Derive input schemas (exclude system fields if value is object)
   const valueUnwrapped = unwrapSchema(valueSchema);
   let setInputSchema = valueSchema;
+  let optionalOnlyKeys = new Set<string>();
 
   if (valueUnwrapped instanceof z.ZodObject) {
     setInputSchema = deriveSetInputSchema(valueUnwrapped);
+    optionalOnlyKeys = getOptionalOnlyKeys(valueUnwrapped);
   }
 
   // GET tool
@@ -342,7 +360,11 @@ function generateRecordTools(
       // If value schema is object and entry exists, deep merge
       if (valueUnwrapped instanceof z.ZodObject && record[input.key] !== undefined) {
         const merged = deepMerge(record[input.key], input.value);
-        const validated = valueSchema.parse(merged);
+        const cleaned = nullToUndefinedForOptionalOnly(
+          merged as Record<string, unknown>,
+          optionalOnlyKeys,
+        );
+        const validated = valueSchema.parse(cleaned);
         set({ ...record, [input.key]: validated });
         return { success: true, value: validated };
       }
@@ -438,7 +460,9 @@ function generateMixedObjectTools(
 
   // ROOT SETTER - only if there are fixed props
   if (hasFixedProps) {
-    const setInputSchema = deriveSetInputSchema(z.object(fixedShape as z.ZodRawShape));
+    const fixedObjectSchema = z.object(fixedShape as z.ZodRawShape);
+    const setInputSchema = deriveSetInputSchema(fixedObjectSchema);
+    const optionalOnlyKeys = getOptionalOnlyKeys(fixedObjectSchema);
 
     tools.push({
       name: `set_${name}`,
@@ -456,7 +480,11 @@ function generateMixedObjectTools(
         }
 
         const merged = deepMerge(current, fixedUpdate);
-        const validated = schema.parse(merged);
+        const cleaned = nullToUndefinedForOptionalOnly(
+          merged as Record<string, unknown>,
+          optionalOnlyKeys,
+        );
+        const validated = schema.parse(cleaned);
         set(validated);
 
         // Return only the fixed props that were updated

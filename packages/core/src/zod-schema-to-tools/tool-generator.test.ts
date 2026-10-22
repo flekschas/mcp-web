@@ -903,7 +903,7 @@ test('generateToolsForSchema() - object with only dynamic props generates no too
 // Warnings
 // ============================================================================
 
-test('generateToolsForSchema() - warns about optional fields', () => {
+test('generateToolsForSchema() - no warning for optional-only fields (handled automatically)', () => {
   let state = { name: 'Test', email: undefined as string | undefined };
   const schema = z.object({
     name: z.string(),
@@ -920,11 +920,100 @@ test('generateToolsForSchema() - warns about optional fields', () => {
       },
       schema,
     },
-    mockMCPWeb
+    mockMCPWeb,
+  );
+
+  expect(result.warnings).toHaveLength(0);
+});
+
+test('generateToolsForSchema() - warns about optional+nullable fields', () => {
+  let state = {
+    name: 'Test',
+    bio: null as string | null | undefined,
+  };
+  const schema = z.object({
+    name: z.string(),
+    bio: z.string().nullable().optional(),
+  });
+
+  const result = generateToolsForSchema(
+    {
+      name: 'user',
+      description: 'user',
+      get: () => state,
+      set: (value) => {
+        state = value as typeof state;
+      },
+      schema,
+    },
+    mockMCPWeb,
   );
 
   expect(result.warnings).toHaveLength(1);
+  expect(result.warnings[0]).toContain('bio');
   expect(result.warnings[0]).toContain('optional()');
-  expect(result.warnings[0]).toContain('email');
   expect(result.warnings[0]).toContain('nullable()');
+});
+
+// ============================================================================
+// Optional-to-Nullable Conversion (end-to-end)
+// ============================================================================
+
+test('generateToolsForSchema() - array set clears optional-only field with null', async () => {
+  type Item = { id: string; name: string; email?: string };
+  let state: Item[] = [
+    { id: 'a', name: 'Alice', email: 'alice@example.com' },
+  ];
+  const schema = z.array(
+    z.object({
+      id: id(z.string()),
+      name: z.string(),
+      email: z.string().optional(),
+    }),
+  );
+
+  const result = generateToolsForSchema({
+    name: 'users',
+    description: 'users',
+    get: () => state,
+    set: (value) => {
+      state = value as Item[];
+    },
+    schema,
+  });
+
+  const setter = result.tools.find((t) => t.name === 'set_users')!;
+  await setter.handler({ id: 'a', value: { email: null } });
+
+  expect(state[0].email).toBeUndefined();
+  expect(state[0].name).toBe('Alice');
+});
+
+test('generateToolsForSchema() - record set clears optional-only field with null', async () => {
+  let state: Record<string, { name: string; email?: string }> = {
+    alice: { name: 'Alice', email: 'alice@example.com' },
+  };
+  const schema = z.record(
+    z.string(),
+    z.object({
+      name: z.string(),
+      email: z.string().optional(),
+    }),
+  );
+
+  const result = generateToolsForSchema({
+    name: 'users',
+    description: 'users',
+    get: () => state,
+    set: (value) => {
+      state = value as typeof state;
+    },
+    schema,
+  });
+
+  const setter = result.tools.find((t) => t.name === 'set_users')!;
+  await setter.handler({ key: 'alice', value: { email: null } });
+
+  expect(state.alice.email).toBeUndefined();
+  expect(state.alice.name).toBe('Alice');
 });
