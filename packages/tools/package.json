@@ -14,6 +14,10 @@
       "import": "./dist/code/index.js",
       "types": "./dist/code/index.d.ts"
     },
+    "./code/worker": {
+      "import": "./dist/code/worker-executor.js",
+      "types": "./dist/code/worker-executor.d.ts"
+    },
     "./python": {
       "import": "./dist/python/index.js",
       "types": "./dist/python/index.d.ts"

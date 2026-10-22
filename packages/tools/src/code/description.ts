@@ -190,11 +190,30 @@ function toolToSignature(tool: ToolDefinitionZod): {
   return { aliases, signature };
 }
 
+/** Usage text for line patching. Appended only when patching is enabled. */
+const PATCH_USAGE = [
+  'Fixing a failed program:',
+  'A failed run echoes the program with line numbers. Rather than re-sending it',
+  'whole, `code` also accepts edits against those numbers:',
+  '  [{ "op": "replace", "lines": [17, 17], "value": "  type: \'heatmap\'," }]',
+  '- `op`: `replace` | `delete` | `insert`. `insert` puts `value` before',
+  '  `lines[0]` and ignores `lines[1]`; anchor at lastLine + 1 to append.',
+  '- `value` is required except for `delete`.',
+  '- Lines are 1-based and inclusive and all refer to the echoed program — edits',
+  '  do not see each other\'s effects. Ranges must not overlap.',
+  '- Only possible after a run that failed *before* calling any function — a',
+  '  syntax error, an undefined variable, a misspelled name. Once a call has',
+  '  been made its effects stand, so the fix is a complete program covering',
+  '  only the work that remains; the error says which case you are in.',
+  '- Prefer edits when fixing a few lines, a complete program otherwise.',
+].join('\n');
+
 /**
  * Generates the full description for a CodeTool from its constituent tools.
  */
 export function generateCodeToolDescription(
   tools: ToolDefinitionZod[],
+  options: { patch?: boolean } = {},
 ): string {
   const allAliases: string[] = [];
   const allSignatures: string[] = [];
@@ -222,5 +241,6 @@ export function generateCodeToolDescription(
     'The value of the last expression is the result, e.g.:',
     '  const items = await get_items()',
     '  items.filter(i => i.active)  // ← returned',
+    ...(options.patch ? ['', PATCH_USAGE] : []),
   ].join('\n');
 }
