@@ -48,6 +48,7 @@ export const higlassTilesetsAtom = atom<Promise<HiGlassTileset[]>>(
             ...tileset,
             name: tileset.name.toLowerCase(),
             description: tileset.description.toLowerCase(),
+            server,
           }
         });
       }),
@@ -57,10 +58,60 @@ export const higlassTilesetsAtom = atom<Promise<HiGlassTileset[]>>(
   },
 );
 
+interface GeneAnnotationTrackInfo {
+  tilesetUid: string;
+  server: string;
+}
+
+function findGeneAnnotationTrack(
+  view: HiglassViewConfig['views'][number],
+): GeneAnnotationTrackInfo | undefined {
+  const allTracks = [
+    ...(view.tracks?.top ?? []),
+    ...(view.tracks?.bottom ?? []),
+    ...(view.tracks?.left ?? []),
+    ...(view.tracks?.right ?? []),
+    ...(view.tracks?.center ?? []),
+  ];
+
+  for (const track of allTracks) {
+    const parsedTrack = baseTrackSchema.safeParse(track);
+    if (
+      parsedTrack.success &&
+      parsedTrack.data.tilesetUid &&
+      (parsedTrack.data.type === 'horizontal-gene-annotations' ||
+        parsedTrack.data.type === 'vertical-gene-annotations' ||
+        parsedTrack.data.type === 'gene-annotations')
+    ) {
+      return {
+        tilesetUid: parsedTrack.data.tilesetUid,
+        server: parsedTrack.data.server ?? 'https://higlass.io/api/v1',
+      };
+    }
+  }
+  return undefined;
+}
+
+export const higlassGeneAnnotationByViewAtom = atom<
+  Promise<Record<string, GeneAnnotationTrackInfo>>
+>(async (get) => {
+  const { views } = get(higlassViewConfigAtom);
+  const result: Record<string, GeneAnnotationTrackInfo> = {};
+
+  for (const view of views) {
+    if (!view.uid) continue;
+    const info = findGeneAnnotationTrack(view);
+    if (info) result[view.uid] = info;
+  }
+
+  return result;
+});
+
 export const higlassChromosomeInfoByViewAtom = atom<
   Promise<Record<string, ChromosomeInfo>>
 >(async (get) => {
   const { views } = get(higlassViewConfigAtom);
+  const geneAnnotationByView = await get(higlassGeneAnnotationByViewAtom);
 
   const chromosomeInfosByView: Record<string, ChromosomeInfo> = {};
 
@@ -69,39 +120,15 @@ export const higlassChromosomeInfoByViewAtom = atom<
       continue;
     }
 
-    const allTracks = [
-      ...(view.tracks?.top ?? []),
-      ...(view.tracks?.bottom ?? []),
-      ...(view.tracks?.left ?? []),
-      ...(view.tracks?.right ?? []),
-      ...(view.tracks?.center ?? []),
-    ];
-
-    const geneAnnotationTracks = Array.from(
-      new Map(
-        allTracks.flatMap((track) => {
-          const parsedTrack = baseTrackSchema.safeParse(track);
-          if (
-            parsedTrack.success &&
-            (parsedTrack.data.type === 'horizontal-gene-annotations' ||
-              parsedTrack.data.type === 'vertical-gene-annotations' ||
-              parsedTrack.data.type === 'gene-annotations')
-          ) {
-            return [[parsedTrack.data.tilesetUid, parsedTrack.data]];
-          }
-          return [];
-        }),
-      ).values(),
-    );
-
-    const tilesetUid = geneAnnotationTracks[0]?.tilesetUid;
-
-    if (!tilesetUid) {
+    const geneAnnotation = geneAnnotationByView[view.uid];
+    if (!geneAnnotation) {
       continue;
     }
 
+    const { tilesetUid, server } = geneAnnotation;
+
     const response = await fetch(
-      `https://higlass.io/api/v1/tileset_info/?d=${tilesetUid}`,
+      `${server}/tileset_info/?d=${tilesetUid}`,
     );
     const responseData = await response.json();
 

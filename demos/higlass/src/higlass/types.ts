@@ -46,6 +46,7 @@ export interface HiGlassTileset {
   project_name: string;
   description: string;
   private: boolean;
+  server: string;
 }
 
 export type ChromosomeInfo = Record<
