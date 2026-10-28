@@ -18,8 +18,7 @@ agents/
     │   └── SKILL.md
     └── mcp-web/             # MCP-Web library usage skill
         ├── SKILL.md         # Main skill document
-        ├── examples.md      # Complete code examples
-        └── api-reference-*.md  # Per-package API documentation
+        └── examples.md      # Complete code examples
 ```
 
 ## AGENTS.md Purpose & Content Guidelines
@@ -58,13 +57,6 @@ The `mcp-web` skill (`agents/skills/mcp-web/`) provides **detailed guidance** fo
 
 ### Supporting Files:
 - `examples.md` - Complete, runnable code examples
-- `api-reference-*.md` - Per-package API documentation:
-  - `api-reference-core.md` - `@mcp-web/core` (MCPWeb class, state tools)
-  - `api-reference-bridge.md` - `@mcp-web/bridge` (MCPWebBridge class)
-  - `api-reference-client.md` - `@mcp-web/client` (MCP client for Claude)
-  - `api-reference-integrations.md` - Framework integrations (Jotai, React)
-  - `api-reference-tools.md` - Built-in tools (screenshot, DOM, Python)
-  - `api-reference-decompose-zod-schema.md` - Schema decomposition utilities
 
 ## When to Update Documentation
 

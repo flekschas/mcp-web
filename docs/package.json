@@ -11,8 +11,9 @@
     "vue": "^3.5.24"
   },
   "scripts": {
-    "dev": "vitepress dev",
-    "build": "vitepress build",
+    "api": "pnpm -C .. build:api-docs",
+    "dev": "pnpm api && vitepress dev",
+    "build": "pnpm api && vitepress build",
     "preview": "vitepress preview"
   },
   "dependencies": {

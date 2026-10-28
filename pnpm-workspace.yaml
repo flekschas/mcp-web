@@ -30,4 +30,3 @@ onlyBuiltDependencies:
   - '@modelcontextprotocol/ext-apps'
   - '@tailwindcss/oxide'
   - esbuild
-  - lefthook

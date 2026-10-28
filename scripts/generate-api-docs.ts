@@ -16,7 +16,7 @@ import * as ts from "typescript";
 const args = process.argv.slice(2);
 if (args.length < 2) {
   console.error("Usage: tsx generate-api-docs.ts <source-dir> <output-file> [--title <title>] [--description <desc>]");
-  console.error("Example: tsx generate-api-docs.ts packages/core/src agents/skills/mcp-web/api-reference-core.md --title 'Core API'");
+  console.error("Example: tsx generate-api-docs.ts packages/core/src docs/api/core.md --title 'Core API'");
   process.exit(1);
 }
 
