@@ -7,7 +7,8 @@
 Fluent builder for constructing schema decomposition plans.
 
 Provides a more ergonomic API for building complex split plans compared
-to manually constructing arrays.
+to manually constructing arrays. Array and record paths are auto-detected
+from the schema — use `addSplit()` for all path types.
 
 **Methods:**
 
@@ -15,7 +16,8 @@ to manually constructing arrays.
 addSplit(path: string): this
 ```
 
-Adds a simple path split.
+Adds a path split. Works for all property types — objects, arrays,
+records, and nested paths through collections.
 
 ```ts
 addEnumSplit(path: string, chunkSize: number): this
@@ -46,18 +48,6 @@ addEntireEnumSlice(path: string): this
 ```
 
 Adds a slice for the entire enum (equivalent to just the path).
-
-```ts
-addArraySplit(path: string): this
-```
-
-Adds an array split for item-by-item operations.
-
-```ts
-addRecordSplit(path: string): this
-```
-
-Adds a record split for key-value operations.
 
 ```ts
 addConditionalEnumSplit(path: string, maxSize: number, schema: ZodObject<Record<string, ZodType>>): this
@@ -160,32 +150,6 @@ targetPaths: string[]
 
 Original paths from the source schema included in this segment.
 
-### ArraySplit
-
-*Interface* — `packages/decompose-zod-schema/src/types.ts`
-
-Parsed array split information.
-
-**Properties:**
-
-```ts
-path: string
-```
-
-Base path to the array property.
-
-```ts
-isArrayElement: boolean
-```
-
-Whether this represents array element operations.
-
-```ts
-excludedSubArrays: string[]
-```
-
-Paths to exclude from the split.
-
 ### DecompositionOptions
 
 *Interface* — `packages/decompose-zod-schema/src/types.ts`
@@ -274,6 +238,46 @@ schemas: Record<string, ZodType>
 
 Schemas for each path.
 
+### DeepPathSegment
+
+*Interface* — `packages/decompose-zod-schema/src/utils.ts`
+
+Metadata about a segment encountered during deep path traversal.
+
+**Properties:**
+
+```ts
+key: string
+```
+
+The property key at this path segment
+
+```ts
+collectionType: 'array' | 'record' | 'none'
+```
+
+Whether this segment is an array, record, or regular object property
+
+### DeepPathResult
+
+*Interface* — `packages/decompose-zod-schema/src/utils.ts`
+
+Result of deep path traversal.
+
+**Properties:**
+
+```ts
+schema: ZodType
+```
+
+The schema at the target path
+
+```ts
+segments: DeepPathSegment[]
+```
+
+Information about each segment in the path
+
 ### Split
 
 *Type* — `packages/decompose-zod-schema/src/types.ts`
@@ -283,10 +287,10 @@ Split specification for decomposing schemas.
 Supports various notations:
 - Simple path: `'user'` - Extract the 'user' property
 - Nested path: `'profile.bio'` - Extract nested property
+- Collection path: `'todos'` - Array/record type auto-detected from schema
+- Deep path: `'views.tracks.top'` - Path through array elements
 - Enum chunking: `'category[50]'` - Split enum into chunks of 50
 - Enum slice: `'category[0:50]'` - Extract enum options 0-49
-- Array split: `'items[]'` - Split array for item operations
-- Record split: `'records{}'` - Split record for key-value operations
 
 ### SplitPlan
 
@@ -313,7 +317,10 @@ decomposeSchema(schema: ZodObject<Record<string, ZodType>>, planOrOptions: Split
 *Function* — `packages/decompose-zod-schema/src/decompose.ts`
 
 Manually decompose a schema using a predefined split plan.
-This function takes a schema and a split plan that defines exactly how to split it.
+
+For paths that traverse through collections (e.g., 'views.tracks.top' where
+'views' is an array), the decomposed schema extracts the top-level property
+and preserves the full path in `targetPaths` for downstream consumers.
 
 ```ts
 decomposeSchemaWithPlan(schema: ZodObject<Record<string, ZodType>>, plan: SplitPlan): DecomposedSchema[]
@@ -362,14 +369,15 @@ unknown
 *Variable* — `packages/decompose-zod-schema/src/schemas.ts`
 
 A split can be of the following types:
-- string // Simple path like 'user' or 'profile.bio'
+- string // Simple path like 'user', 'profile.bio', 'views', or 'views.tracks.top'
 - `${string}[${number}]` // Enum split into equal max. sized subarrays 'category[50]'
 - `${string}[${number}:${number}]` // Enum slice like 'category[0:50]'
 - `${string}[${number}:]` // Enum slice from index to end like 'category[50:]'
 - `${string}[:${number}]` // Enum slice from start to index like 'category[:50]'
 - `${string}[:]` // Entire enum (equivalent to just the path)
-- `${string}[]` // Array split - transforms z.array(T) to z.object({ index: number, value: T })
-- `${string}{}`; // Record split - transforms z.record(K, V) to z.object({ key: K, value: V })
+
+Array and record paths are auto-detected from the schema — no special notation needed.
+Simply use the property path (e.g., 'todos' for an array, 'configs' for a record).
 
 ### defaultStrategyRegistry
 
@@ -408,6 +416,17 @@ unknown
 ```ts
 unknown
 ```
+
+### getSchemaAtDeepPath
+
+*Variable* — `packages/decompose-zod-schema/src/utils.ts`
+
+Traverse a dot-path through a schema, following through array elements
+and record values. This allows resolving paths like 'views.tracks.top'
+where 'views' is an array.
+
+Returns the schema at the target path and metadata about each segment
+(including whether it's a collection that needs indexing).
 
 ### extractSchemaForPaths
 

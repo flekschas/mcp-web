@@ -575,6 +575,42 @@ config: CreateToolConfig<TInput, TOutput>
 
 The original config for type inference.
 
+### `ZodSchemasToToolsOptions<T>`
+
+*Interface* — `packages/core/src/zod-schemas-to-tools.ts`
+
+**Properties:**
+
+```ts
+schema: z.ZodType<T>
+```
+
+Zod schema describing the state shape.
+
+```ts
+get: () => T
+```
+
+Function to get the current state value.
+
+```ts
+set: (value: T) => void
+```
+
+Function to set the state value.
+
+```ts
+name?: string
+```
+
+Name prefix for generated tools (default: 'state').
+
+```ts
+description?: string
+```
+
+Description for generated tools.
+
 ### CreatedStateTools
 
 *Type* — `packages/core/src/create-state-tools.ts`
@@ -737,6 +773,30 @@ by exposing semantically related state through one tool set.
 groupState<T>(atoms: T): GroupedState<T>
 ```
 
+### createMutex
+
+*Function* — `packages/core/src/serialize.ts`
+
+Run tasks one at a time.
+
+Needed where handlers share state that is only correct for the duration of
+one call. `createStateTools` is the case in hand: a deep-path tool carries
+the indices naming which collection element it addresses, and the generated
+`get`/`set` pair for that path reads them from one shared object, because the
+generator builds the pair once and has no per-call channel. A handler that
+awaits anywhere lets a second call overwrite the indices while the first is
+suspended, and the first then reads or writes a different element — silently,
+and to a plausible-looking place.
+
+The generated handlers happen to be synchronous today, so the interleaving
+cannot occur; this holds regardless, because nothing states that as a
+contract and a handler that starts awaiting would not look like a change to
+the state tools at all.
+
+```ts
+createMutex(): <R>(task: () => Promise<R>) => Promise<R>
+```
+
 ### isZodSchema
 
 *Function* — `packages/core/src/utils.ts`
@@ -797,6 +857,22 @@ Used for partial updates to state objects.
 
 ```ts
 deepMerge(target: unknown, source: unknown): unknown
+```
+
+### zodSchemasToTools
+
+*Function* — `packages/core/src/zod-schemas-to-tools.ts`
+
+Converts a Zod schema into an array of MCP tool definitions.
+
+Analyzes the schema shape and generates appropriate CRUD tools:
+- Fixed-shape objects -> get + set (with deep merge)
+- Arrays -> get + add + set + delete
+- Records -> get + set + delete
+- Mixed objects -> root get/set + collection tools
+
+```ts
+zodSchemasToTools<T>(options: ZodSchemasToToolsOptions<T>): ToolDefinitionZod[]
 ```
 
 ### EphemeralContextSchema
