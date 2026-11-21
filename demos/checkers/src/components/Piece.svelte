@@ -8,10 +8,7 @@
   } from '../constants.js';
   import type { PieceType } from '../types.js';
 
-  const { piece, isSelected } = $props<{
-    piece: PieceType;
-    isSelected?: boolean;
-  }>();
+  const { piece }: { piece: PieceType; isSelected?: boolean } = $props();
 
   const isWhite = $derived(piece === WHITE_PIECE || piece === WHITE_QUEEN);
   const isBlack = $derived(piece === BLACK_PIECE || piece === BLACK_QUEEN);
