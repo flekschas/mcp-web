@@ -499,7 +499,14 @@ export class MCPWeb {
 
         // Resolve when authenticated, reject on auth failure
         const checkConnection = () => {
+          // Already rejected by onerror.
           if (failed) {
+            return;
+          }
+          // A disconnect during the handshake removes the socket handlers that
+          // would otherwise settle this attempt.
+          if (epoch !== this.#disconnectEpoch) {
+            resolve(false);
             return;
           }
           if (this.#connected) {
@@ -1651,6 +1658,9 @@ export class MCPWeb {
    */
   disconnect() {
     this.#disconnectEpoch++;
+    // An attempt still in its handshake has no other way to learn it was
+    // cancelled, and a stale flag makes every later connect() wait on it.
+    this.#setIsConnecting(false);
     if (this.#ws) {
       this.#ws.onmessage = null;
       this.#ws.onopen = null;

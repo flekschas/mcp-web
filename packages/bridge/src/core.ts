@@ -2328,6 +2328,10 @@ export class MCPWebBridge {
     }
 
     return sseResponse((writer, onClose) => {
+      // One stream per session: the session holds a single writer, so an
+      // earlier stream would keep running with nothing to deliver.
+      mcpSession.sseCleanup?.();
+
       // Store the writer so we can push notifications later
       mcpSession.sseWriter = writer;
       mcpSession.lastActivity = Date.now();

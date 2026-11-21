@@ -85,17 +85,20 @@ Each `wrangler dev` also needs its own inspector port:
 ```bash
 cd demos/deploy
 
-pnpm dev:checkers -- --port 8787 --inspector-port 9230 \
+# No `--` before the flags: pnpm passes it through, and wrangler stops reading
+# options there, so everything after it would be ignored.
+pnpm dev:checkers --port 8787 --inspector-port 9230 \
   --var AGENT_URL:http://localhost:8788
 
-pnpm dev:checkers-agent -- --port 8788 --inspector-port 9231 \
+pnpm dev:checkers-agent --port 8788 --inspector-port 9231 \
   --var BRIDGE_URL:http://localhost:8787 \
   --var ALLOWED_ORIGINS:http://localhost:8787
 ```
 
-The frontend bundle carries its own addresses, so build `demos/checkers` with a
-`mcp-web.config.ts` whose `bridgeUrl` is `localhost:8787` and whose `agentUrl`
-is `http://localhost:8788` before serving it this way.
+A production build of a demo drops `bridgeUrl` and takes the bridge host from
+the page, so the bridge follows whatever port it is served on. The agent address
+does not: build `demos/checkers` with a `mcp-web.config.ts` whose `agentUrl` is
+`http://localhost:8788` before serving it this way.
 
 ## Deployment
 

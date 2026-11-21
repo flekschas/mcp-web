@@ -344,14 +344,22 @@ function createBridgeDurableObject<Env>(
               return;
             }
 
-            const { conflictingUuid } =
-              await this.#queryIndex.registerFromMessage(data, room);
-            if (conflictingUuid) {
+            const registration = await this.#queryIndex.registerFromMessage(
+              data,
+              room,
+            );
+            if (
+              registration.status === 'taken' ||
+              registration.status === 'unroutable'
+            ) {
               connection.send(
                 JSON.stringify({
                   type: 'query_failure',
-                  uuid: conflictingUuid,
-                  error: 'Query id already in use',
+                  uuid: registration.uuid,
+                  error:
+                    registration.status === 'taken'
+                      ? 'Query id already in use'
+                      : 'Query routing unavailable',
                 }),
               );
               return;
@@ -512,6 +520,18 @@ export class MCPWebQueryIndexDurableObject {
   }
 }
 
+/**
+ * Outcome of recording a query's callback route.
+ *
+ * `taken` means another room owns the uuid; `unroutable` means the route was
+ * not written at all. Both leave the agent unable to reach this frontend.
+ */
+type QueryRegistration =
+  | { status: 'not-a-query' }
+  | { status: 'registered'; uuid: string }
+  | { status: 'taken'; uuid: string }
+  | { status: 'unroutable'; uuid: string };
+
 /** Thin client the bridge object and router use to reach the query index. */
 class QueryIndexClient {
   #namespace: DurableObjectNamespace | undefined;
@@ -528,26 +548,32 @@ class QueryIndexClient {
   /**
    * Records the room if `data` is a frontend `query` message.
    *
-   * Returns the uuid when another room already owns it, so the caller can
-   * refuse the query instead of letting its callbacks reach that other room.
+   * The agent calls back with the uuid alone, so a query whose route was not
+   * written has nowhere to return its results. The caller refuses those rather
+   * than starting the agent.
    */
   async registerFromMessage(
     data: string,
     room: string,
-  ): Promise<{ conflictingUuid?: string }> {
-    const stub = this.#stub();
-    if (!stub) return {};
-
+  ): Promise<QueryRegistration> {
     let uuid: unknown;
     try {
       const message = JSON.parse(data);
-      if (message?.type !== 'query') return {};
+      if (message?.type !== 'query') return { status: 'not-a-query' };
       uuid = message.uuid;
     } catch {
-      return {};
+      return { status: 'not-a-query' };
     }
 
-    if (typeof uuid !== 'string' || !uuid) return {};
+    if (typeof uuid !== 'string' || !uuid) return { status: 'not-a-query' };
+
+    const stub = this.#stub();
+    if (!stub) {
+      console.error(
+        '[MCPWebBridge] No query index binding; agent callbacks cannot be routed',
+      );
+      return { status: 'unroutable', uuid };
+    }
 
     try {
       const response = await stub.fetch(
@@ -556,12 +582,20 @@ class QueryIndexClient {
           { method: 'PUT' },
         ),
       );
-      if (response.status === 409) return { conflictingUuid: uuid };
+
+      if (response.status === 409) return { status: 'taken', uuid };
+      if (!response.ok) {
+        console.error(
+          `[MCPWebBridge] Query index refused the route: ${response.status}`,
+        );
+        return { status: 'unroutable', uuid };
+      }
     } catch (error) {
       console.error('[MCPWebBridge] Failed to record query room:', error);
+      return { status: 'unroutable', uuid };
     }
 
-    return {};
+    return { status: 'registered', uuid };
   }
 
   async lookup(uuid: string): Promise<string | undefined> {
@@ -745,7 +779,7 @@ export function createCloudflareBridge<Env = CloudflareBridgeEnv>(
       const rewriteSessionId = session.room !== undefined;
 
       let forwarded = request;
-      if (body !== undefined || rewriteSessionId) {
+      if (body !== undefined) {
         const headers = new Headers(request.headers);
         if (rewriteSessionId) headers.set('mcp-session-id', session.sessionId);
         forwarded = new Request(request.url, {
@@ -753,6 +787,12 @@ export function createCloudflareBridge<Env = CloudflareBridgeEnv>(
           headers,
           body,
         });
+      } else if (rewriteSessionId) {
+        // Built from the request so that a method with a body — an agent
+        // callback carrying the session header, say — keeps it.
+        const headers = new Headers(request.headers);
+        headers.set('mcp-session-id', session.sessionId);
+        forwarded = new Request(request, { headers });
       }
 
       const response = await namespace

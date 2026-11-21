@@ -333,3 +333,30 @@ test('deleting a session ends its open SSE stream', async () => {
   expect(closed).toBe(true);
   await reader.cancel();
 }, 15_000);
+
+test('opening a second SSE stream closes the first', async () => {
+  const sessionId = await initializeSession('cf-sse-replace-token');
+
+  const open = async () => {
+    const response = await fetch(`http://${BRIDGE_URL}/`, {
+      headers: { accept: 'text/event-stream', 'mcp-session-id': sessionId },
+    });
+    return (response.body as ReadableStream<Uint8Array>).getReader();
+  };
+
+  const first = await open();
+  const firstEnded = first.read().then(({ done }) => done);
+  const second = await open();
+
+  // The session holds one writer, so a stream it no longer owns would send
+  // keepalives into a Durable Object nobody is reading.
+  const closed = await Promise.race([
+    firstEnded,
+    new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 5_000)),
+  ]);
+
+  expect(closed).toBe(true);
+
+  await first.cancel();
+  await second.cancel();
+}, 15_000);

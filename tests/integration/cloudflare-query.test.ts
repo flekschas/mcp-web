@@ -255,3 +255,61 @@ test('a query id already routed to another room is refused', async () => {
   owner.close();
   other.close();
 }, 20_000);
+
+test('an agent callback keeps its body when it carries a session header', async () => {
+  // Never completes, so the manual callback below is what finishes the query.
+  agent = new MockAgentServer(clientConfig, async () => {}, AGENT_PORT);
+
+  const initialize = await fetch(`http://${BRIDGE_URL}/`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      accept: 'application/json',
+      authorization: 'Bearer cf-callback-body-token',
+    },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: {
+        protocolVersion: '2024-11-05',
+        capabilities: {},
+        clientInfo: { name: 'test', version: '1.0.0' },
+      },
+    }),
+  });
+  const sessionId = initialize.headers.get('mcp-session-id') as string;
+  expect(sessionId).toBeTruthy();
+
+  const uuid = '99999999-8888-4777-8666-555555555555';
+  const socket = await authenticatedSocket('cf-callback-body-token');
+  const accepted = nextMessage(socket, 'query_accepted');
+  socket.send(
+    JSON.stringify({
+      type: 'query',
+      uuid,
+      prompt: 'callback body',
+      context: [],
+      tools: [],
+    }),
+  );
+  await accepted;
+
+  const complete = nextMessage(socket, 'query_complete');
+
+  // Completion is a PUT, which the router does not buffer. Rewriting the
+  // session header must not drop what it is carrying.
+  const callback = await fetch(`http://${BRIDGE_URL}/query/${uuid}/complete`, {
+    method: 'PUT',
+    headers: {
+      'content-type': 'application/json',
+      'mcp-session-id': sessionId,
+    },
+    body: JSON.stringify({ message: 'finished' }),
+  });
+
+  expect(callback.status).toBe(200);
+  expect((await complete).message).toBe('finished');
+
+  socket.close();
+}, 20_000);

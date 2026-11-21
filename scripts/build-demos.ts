@@ -2,10 +2,11 @@
 /**
  * Builds the demo frontends the way the deploy workflow does.
  *
- * Each demo's own `mcp-web.config.ts` points at localhost. The deployed config
- * lives in `demos/deploy/<demo>/`, so it is swapped in for the build and put
- * back afterwards — building without the swap produces a bundle that talks to
- * localhost from the public demo.
+ * The deployed `mcp-web.config.ts` lives in `demos/deploy/<demo>/` and carries
+ * the public name, description and — for checkers — the agent's address. It is
+ * swapped in for the build and put back afterwards, the same way the deploy
+ * workflow does it. The demos drop `bridgeUrl` in a production build and take
+ * the bridge host from the page, so that field is not what differs.
  *
  * Wrangler serves `demos/<demo>/dist` directly, so nothing is copied.
  *
@@ -18,6 +19,7 @@
 
 import { execSync } from 'node:child_process';
 import {
+  constants,
   copyFileSync,
   existsSync,
   readdirSync,
@@ -60,7 +62,19 @@ function buildWithDeployConfig(demo: string): void {
   const deployConfig = join(ROOT_DIR, 'demos', 'deploy', demo, CONFIG);
   const backup = `${demoConfig}.local`;
 
-  copyFileSync(demoConfig, backup);
+  // Exclusive, so an interrupted run cannot have its saved config overwritten
+  // with the deploy config it was swapped for.
+  try {
+    copyFileSync(demoConfig, backup, constants.COPYFILE_EXCL);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+    throw new Error(
+      `${backup} already exists, so an earlier build was interrupted. ` +
+        `Check which of the two files holds your config, restore it over ` +
+        `${demoConfig}, delete the backup and run this again.`,
+    );
+  }
+
   try {
     copyFileSync(deployConfig, demoConfig);
     console.log(`> pnpm build (${demo})`);
