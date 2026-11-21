@@ -12,6 +12,7 @@ const isHomePage = computed(() => frontmatter.value.layout === 'home');
 
 // Add .is-home class to <html> for root-level CSS variable overrides
 watch(isHomePage, (isHome) => {
+  if (import.meta.env.SSR) return;
   document.documentElement.classList.toggle('is-home', isHome);
 }, { immediate: true });
 

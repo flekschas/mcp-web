@@ -28,7 +28,7 @@ When the human makes a move:
 
 ### Prerequisites
 
-- Node.js 22+
+- Node.js 24+
 - PNPM package manager
 - Anthropic API key
 

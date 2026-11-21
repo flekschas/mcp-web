@@ -1,6 +1,6 @@
 import { createStateTools, groupState, type StateTriple } from '@mcp-web/core';
 import { getDefaultStore, type WritableAtom } from 'jotai';
-import type { Store } from 'jotai/vanilla/store';
+import type { Store } from 'jotai/vanilla';
 import type { z } from 'zod';
 import {
   ProjectsSchema,
