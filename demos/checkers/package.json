@@ -34,7 +34,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.5",
+    "@eslint/js": "^10.0.1",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@tailwindcss/vite": "catalog:",
     "@tsconfig/svelte": "^5.0.9",
@@ -42,11 +42,11 @@
     "@typescript-eslint/eslint-plugin": "^8.73.0",
     "@typescript-eslint/parser": "^8.73.0",
     "concurrently": "catalog:",
-    "eslint": "^9.39.5",
+    "eslint": "^10.15.0",
     "eslint-plugin-svelte": "^3.24.1",
-    "globals": "^16.5.0",
+    "globals": "^17.14.0",
     "prettier": "^3.10.1",
-    "prettier-plugin-svelte": "^3.5.2",
+    "prettier-plugin-svelte": "^4.2.0",
     "svelte": "^5.59.1",
     "svelte-check": "^4.7.8",
     "svelte-eslint-parser": "^1.10.1",
