@@ -7,7 +7,7 @@ export const mcpAtom = atom(mcp);
 export const mcpIsConnectedAsyncAtom = atom((get) => get(mcpAtom).connect());
 
 // `undefined` while the connection is pending
-const mcpIsConnectedAtom = unwrap(mcpIsConnectedAsyncAtom, () => undefined);
+const mcpIsConnectedAtom = unwrap(mcpIsConnectedAsyncAtom);
 
 export const mcpStatusAtom = atom((get) => {
   try {
