@@ -24,8 +24,8 @@
     "example": "tsx src/cli.ts -i examples/example-schema.ts -s userSchema -v"
   },
   "dependencies": {
-    "commander": "^14.0.3",
-    "immer": "^10.2.0",
+    "commander": "^15.1.0",
+    "immer": "^11.2.10",
     "zod": "catalog:"
   },
   "devDependencies": {

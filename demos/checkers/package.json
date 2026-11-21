@@ -22,15 +22,15 @@
     "@ai-sdk/google": "^4.0.124",
     "@ai-sdk/openai": "^4.0.122",
     "@ai-sdk/provider": "^4.0.39",
-    "@hono/node-server": "^1.19.19",
+    "@hono/node-server": "^2.1.11",
     "@mcp-web/bridge": "workspace:*",
     "@mcp-web/client": "workspace:*",
     "@mcp-web/core": "workspace:*",
     "@mcp-web/types": "workspace:*",
     "ai": "^7.0.179",
-    "dotenv": "^17.4.2",
+    "dotenv": "^18.0.10",
     "hono": "^4.13.19",
-    "uuid": "^13.0.2",
+    "uuid": "^14.0.3",
     "zod": "catalog:"
   },
   "devDependencies": {

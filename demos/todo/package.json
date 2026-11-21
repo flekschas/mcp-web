@@ -25,7 +25,7 @@
     "@mcp-web/types": "workspace:*",
     "@observablehq/plot": "^0.6.19",
     "@tailwindcss/vite": "catalog:",
-    "dotenv": "^17.4.2",
+    "dotenv": "^18.0.10",
     "jotai": "catalog:",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
