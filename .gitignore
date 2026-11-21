@@ -4,6 +4,7 @@
 # JavaScript directories
 node_modules
 dist
+.pnpm-store
 
 # Logs
 logs
