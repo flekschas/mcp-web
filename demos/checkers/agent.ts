@@ -17,7 +17,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { MCPWebClient } from '@mcp-web/client';
 import { type Query, QuerySchema, type Tool } from '@mcp-web/types';
 import { ToolLoopAgent, tool, ToolSet, type JSONSchema7, jsonSchema, stepCountIs, hasToolCall } from 'ai';
-import type { LanguageModelV3 } from '@ai-sdk/provider';
+import type { LanguageModelV4 } from '@ai-sdk/provider';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
@@ -69,8 +69,8 @@ function getAvailableProviders(config: AgentConfig): Provider[] {
  * Select and initialize the model based on configuration.
  * Returns a lazy getter that initializes on first use.
  */
-function createLazyModel(config: AgentConfig): () => LanguageModelV3 {
-  let cachedModel: LanguageModelV3 | null = null;
+function createLazyModel(config: AgentConfig): () => LanguageModelV4 {
+  let cachedModel: LanguageModelV4 | null = null;
 
   return () => {
     if (cachedModel) return cachedModel;
@@ -191,7 +191,7 @@ async function generateAnswer<T extends Record<string, unknown>>({
   query: Query;
   mcpClient: ReturnType<typeof MCPWebClient.prototype.contextualize>;
   tools: Tool[];
-  model: LanguageModelV3;
+  model: LanguageModelV4;
   maxSteps?: number;
 }): Promise<{ text: string; object?: T }> {
   // Validate response tool schema if present
