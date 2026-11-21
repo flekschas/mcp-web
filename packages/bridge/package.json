@@ -17,12 +17,12 @@
   "dependencies": {
     "@mcp-web/types": "workspace:*",
     "@modelcontextprotocol/sdk": "catalog:",
-    "ws": "^8.18.0",
+    "ws": "^8.23.0",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "@types/ws": "^8.5.13",
+    "@types/ws": "^8.18.2",
     "typescript": "catalog:"
   },
   "repository": {

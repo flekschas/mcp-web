@@ -26,8 +26,8 @@
   },
   "dependencies": {
     "@mcp-web/types": "workspace:*",
-    "@modelcontextprotocol/ext-apps": "^1.0.1",
-    "vite-plugin-singlefile": "^2.3.0",
+    "@modelcontextprotocol/ext-apps": "^1.7.5",
+    "vite-plugin-singlefile": "^2.3.4",
     "zod": "catalog:"
   },
   "devDependencies": {
