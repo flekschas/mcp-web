@@ -1,19 +1,22 @@
 import { atom } from 'jotai';
-import { loadable } from 'jotai/utils';
+import { unwrap } from 'jotai/utils';
 import { mcp } from './mcp';
 
 export const mcpAtom = atom(mcp);
 
 export const mcpIsConnectedAsyncAtom = atom((get) => get(mcpAtom).connect());
 
-export const mcpStatusAtom = atom((get) => {
-  const loadableState = get(loadable(mcpIsConnectedAsyncAtom));
+// `undefined` while the connection is pending
+const mcpIsConnectedAtom = unwrap(mcpIsConnectedAsyncAtom, () => undefined);
 
-  if (loadableState.state === 'hasError') {
+export const mcpStatusAtom = atom((get) => {
+  try {
+    const isConnected = get(mcpIsConnectedAtom);
+    if (isConnected === undefined) {
+      return 'connecting';
+    }
+    return isConnected ? 'connected' : 'disconnected';
+  } catch {
     return 'error';
   }
-  if (loadableState.state === 'hasData') {
-    return loadableState.data ? 'connected' : 'disconnected';
-  }
-  return 'connecting';
 });
