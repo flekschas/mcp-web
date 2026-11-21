@@ -1,4 +1,4 @@
-import { z } from 'https://deno.land/x/zod@v4.0.5/mod.ts';
+import { z } from 'zod';
 
 // Example complex schema for testing decomposition
 export const userSchema = z.object({

@@ -2,7 +2,7 @@
  * Runtime abstraction layer for MCP Web Bridge.
  *
  * This module provides interfaces and utilities that allow the bridge
- * to work across different JavaScript runtimes (Node.js, Deno, Bun, PartyKit).
+ * to work across different JavaScript runtimes (Node.js, Bun, PartyKit).
  */
 
 export type {

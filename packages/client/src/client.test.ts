@@ -58,7 +58,7 @@ test('callTool validates restrictTools', async () => {
 });
 
 test('callTool allows tools when restrictTools is false', async () => {
-  // Mock fetch to return success - Deno has native fetch!
+  // Mock fetch to return success
   globalThis.fetch = (async () => {
     return new Response(
       JSON.stringify({

@@ -43,12 +43,11 @@ export {
   QueryNotFoundErrorCode,
   UnknownMethodErrorCode,
 } from '@mcp-web/types';
-export type { MCPWebBridgeBunConfig, MCPWebBridgeDenoConfig, MCPWebBridgeNodeConfig, MCPWebBridgeNodeSSLConfig, MCPWebBridgePartyConfig } from './adapters/index.js';
+export type { MCPWebBridgeBunConfig, MCPWebBridgeNodeConfig, MCPWebBridgeNodeSSLConfig, MCPWebBridgePartyConfig } from './adapters/index.js';
 // Adapters
-// Deno adapter
 // Bun adapter
 // PartyKit adapter
-export { AlarmScheduler, Bridge, createPartyKitBridge, MCPWebBridgeBun, MCPWebBridgeDeno, MCPWebBridgeNode, MCPWebBridgeParty } from './adapters/index.js';
+export { AlarmScheduler, Bridge, createPartyKitBridge, MCPWebBridgeBun, MCPWebBridgeNode, MCPWebBridgeParty } from './adapters/index.js';
 // Core bridge (runtime-agnostic)
 // Backwards compatibility: re-export MCPWebBridge as the old name
 // Note: The old MCPWebBridge class used dual ports. The new architecture

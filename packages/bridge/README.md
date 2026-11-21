@@ -8,7 +8,7 @@ The bridge server:
 - Runs a **single-port server** for both WebSocket and HTTP connections
 - Manages session authentication and tool registration
 - Routes tool calls between AI agents and the appropriate frontend session
-- Supports multiple JavaScript runtimes (Node.js, Deno, Bun, PartyKit/Cloudflare)
+- Supports multiple JavaScript runtimes (Node.js, Bun, PartyKit/Cloudflare)
 
 ## Quick Start
 
@@ -28,20 +28,6 @@ process.on('SIGINT', async () => {
   await bridge.close();
   process.exit(0);
 });
-```
-
-### Deno
-
-```typescript
-import { MCPWebBridgeDeno } from '@mcp-web/bridge';
-
-const bridge = new MCPWebBridgeDeno({
-  name: 'My App',
-  description: 'My awesome application',
-  port: 3001,
-});
-
-// Bridge is now listening on ws://localhost:3001 and http://localhost:3001
 ```
 
 ### Bun
@@ -99,47 +85,6 @@ await bridge.close();
 - Single port for both HTTP and WebSocket (uses HTTP upgrade)
 - Full session and query limit support
 - Timer-based scheduler for session timeouts
-
----
-
-### MCPWebBridgeDeno (Deno / Deno Deploy)
-
-**Status:** Experimental 🧪
-
-The Deno adapter uses `Deno.serve()` with native WebSocket upgrade support.
-
-```typescript
-import { MCPWebBridgeDeno } from '@mcp-web/bridge';
-
-const bridge = new MCPWebBridgeDeno({
-  name: 'My App',
-  description: 'My application',
-  port: 3001,
-  hostname: '0.0.0.0',  // Optional
-});
-```
-
-**Deno Deploy:**
-
-```typescript
-// main.ts - Entry point for Deno Deploy
-import { MCPWebBridgeDeno } from '@mcp-web/bridge';
-
-new MCPWebBridgeDeno({
-  name: 'Production Bridge',
-  description: 'MCP Web bridge on Deno Deploy',
-  port: Number(Deno.env.get('PORT')) || 8000,
-});
-```
-
-**Features:**
-- Native Deno.serve() with WebSocket upgrade
-- Works with Deno Deploy
-- Timer-based scheduler
-
-**Limitations:**
-- Deno Deploy doesn't support monorepo subdirectories for entry points
-- Consider using a separate repo or root-level entry point for deployment
 
 ---
 
@@ -251,7 +196,7 @@ All adapters accept these common options from `MCPWebConfig`:
 
 ### Adapter-Specific Options
 
-**Node.js / Deno / Bun:**
+**Node.js / Bun:**
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `port` | `number` | `3001` | Port to listen on |
@@ -279,7 +224,7 @@ All adapters accept these common options from `MCPWebConfig`:
            ┌───────────────────┼───────────────────┐
            │                   │                   │
     ┌──────┴──────┐    ┌──────┴──────┐    ┌──────┴──────┐
-    │ Node.js     │    │ Deno        │    │ PartyKit    │
+    │ Node.js     │    │ Bun         │    │ PartyKit    │
     │ Adapter     │    │ Adapter     │    │ Adapter     │
     └─────────────┘    └─────────────┘    └─────────────┘
 ```

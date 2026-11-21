@@ -2,26 +2,18 @@
 /**
  * Bundle script for MCP-Web demo servers
  *
- * Uses esbuild to create self-contained bundles for deployment.
- * Supports two targets:
- * - Deno Deploy: Bundles all deps except Deno std library imports.
- *   Uses a bridge shim to avoid Node-specific adapters (ws, etc.)
- * - Node.js (Render, Railway, etc.): Bundles everything including ws and sirv.
- *   Resolves the full @mcp-web/bridge package.
+ * Uses esbuild to create self-contained Node.js bundles for deployment
+ * (Render, Railway, etc.). Bundles everything including ws and sirv.
  *
  * Usage:
  *   pnpm bundle:servers
  *   tsx scripts/bundle-servers.ts
  *
  * Outputs:
- *   - demos/deploy/higlass/server.bundle.js        (Deno)
- *   - demos/deploy/higlass/server.node.bundle.js   (Node.js)
- *   - demos/deploy/todo/server.bundle.js           (Deno)
- *   - demos/deploy/todo/server.node.bundle.js      (Node.js)
- *   - demos/deploy/checkers/server.bundle.js       (Deno)
- *   - demos/deploy/checkers/server.node.bundle.js  (Node.js)
- *   - demos/deploy/checkers/agent.bundle.js        (Deno)
- *   - demos/deploy/checkers/agent.node.bundle.js   (Node.js)
+ *   - demos/deploy/higlass/server.node.bundle.js
+ *   - demos/deploy/todo/server.node.bundle.js
+ *   - demos/deploy/checkers/server.node.bundle.js
+ *   - demos/deploy/checkers/agent.node.bundle.js
  */
 
 import * as esbuild from 'esbuild';
@@ -31,81 +23,19 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = dirname(__dirname);
 
-type ServerTarget = 'deno' | 'node';
-
 interface ServerEntry {
   entry: string;
   out: string;
-  target: ServerTarget;
   /** Extra node_modules directories to search for dependencies */
   extraNodePaths?: string[];
 }
 
 const SERVERS: ServerEntry[] = [
-  // Deno Deploy targets
-  { entry: 'demos/deploy/higlass/main.ts', out: 'demos/deploy/higlass/server.bundle.js', target: 'deno' },
-  { entry: 'demos/deploy/todo/main.ts', out: 'demos/deploy/todo/server.bundle.js', target: 'deno' },
-  { entry: 'demos/deploy/checkers/main.ts', out: 'demos/deploy/checkers/server.bundle.js', target: 'deno' },
-  { entry: 'demos/deploy/checkers/serve-agent.ts', out: 'demos/deploy/checkers/agent.bundle.js', target: 'deno' },
-  // Node.js targets (for Render, Railway, etc.)
-  { entry: 'demos/deploy/todo/main-node.ts', out: 'demos/deploy/todo/server.node.bundle.js', target: 'node' },
-  { entry: 'demos/deploy/higlass/main-node.ts', out: 'demos/deploy/higlass/server.node.bundle.js', target: 'node' },
-  { entry: 'demos/deploy/checkers/main-node.ts', out: 'demos/deploy/checkers/server.node.bundle.js', target: 'node' },
-  { entry: 'demos/deploy/checkers/serve-agent-node.ts', out: 'demos/deploy/checkers/agent.node.bundle.js', target: 'node', extraNodePaths: ['demos/checkers/node_modules'] },
+  { entry: 'demos/deploy/todo/main-node.ts', out: 'demos/deploy/todo/server.node.bundle.js' },
+  { entry: 'demos/deploy/higlass/main-node.ts', out: 'demos/deploy/higlass/server.node.bundle.js' },
+  { entry: 'demos/deploy/checkers/main-node.ts', out: 'demos/deploy/checkers/server.node.bundle.js' },
+  { entry: 'demos/deploy/checkers/serve-agent-node.ts', out: 'demos/deploy/checkers/agent.node.bundle.js', extraNodePaths: ['demos/checkers/node_modules'] },
 ];
-
-/**
- * esbuild plugin to resolve @mcp-web/* workspace packages for Deno Deploy.
- *
- * For Deno Deploy, we need to avoid bundling Node-specific adapters
- * (which include 'ws' that uses require('events'), etc.)
- *
- * Instead of importing from the main index.js (which re-exports everything),
- * we resolve to specific submodules:
- * - @mcp-web/bridge -> core.js and runtime/index.js (no Node adapter)
- * - @mcp-web/types -> index.js
- * - @mcp-web/client -> index.js
- */
-function mcpWebResolverPlugin(): esbuild.Plugin {
-  return {
-    name: 'mcp-web-resolver',
-    setup(build) {
-      // Handle @mcp-web/bridge - use a virtual module that only exports what we need
-      build.onResolve({ filter: /^@mcp-web\/bridge$/ }, () => {
-        return {
-          path: '@mcp-web/bridge',
-          namespace: 'mcp-web-bridge-shim',
-        };
-      });
-
-      // Create a virtual module that only imports the Deno-compatible parts
-      build.onLoad({ filter: /.*/, namespace: 'mcp-web-bridge-shim' }, () => {
-        return {
-          contents: `
-            export { MCPWebBridge } from '${join(ROOT_DIR, 'packages/bridge/dist/core.js')}';
-            export { TimerScheduler, NoopScheduler } from '${join(ROOT_DIR, 'packages/bridge/dist/runtime/index.js')}';
-          `,
-          loader: 'js',
-          resolveDir: ROOT_DIR,
-        };
-      });
-
-      // Handle @mcp-web/types - use the full index
-      build.onResolve({ filter: /^@mcp-web\/types$/ }, () => {
-        return {
-          path: join(ROOT_DIR, 'packages/types/dist/index.js'),
-        };
-      });
-
-      // Handle @mcp-web/client - use the full index
-      build.onResolve({ filter: /^@mcp-web\/client$/ }, () => {
-        return {
-          path: join(ROOT_DIR, 'packages/client/dist/index.js'),
-        };
-      });
-    },
-  };
-}
 
 /**
  * esbuild plugin to resolve @mcp-web/* workspace packages for Node.js.
@@ -147,9 +77,8 @@ async function main() {
   for (const server of SERVERS) {
     const entryPoint = join(ROOT_DIR, server.entry);
     const outfile = join(ROOT_DIR, server.out);
-    const isDeno = server.target === 'deno';
 
-    console.log(`Bundling ${server.entry} (${server.target})...`);
+    console.log(`Bundling ${server.entry}...`);
 
     await esbuild.build({
       entryPoints: [entryPoint],
@@ -158,13 +87,10 @@ async function main() {
       format: 'esm',
       target: 'esnext',
       outfile,
-      plugins: [isDeno ? mcpWebResolverPlugin() : mcpWebNodeResolverPlugin()],
-      // Deno: externalize Deno std library (resolved at runtime by Deno Deploy)
-      // Node: no externals — bundle everything into a self-contained file
-      external: isDeno ? ['https://deno.land/*'] : [],
-      // For Node targets, add package node_modules so esbuild can resolve
-      // transitive dependencies like `ws` (which lives in packages/bridge/node_modules/)
-      nodePaths: isDeno ? [] : [
+      plugins: [mcpWebNodeResolverPlugin()],
+      // Add package node_modules so esbuild can resolve transitive
+      // dependencies like `ws` (which lives in packages/bridge/node_modules/)
+      nodePaths: [
         join(ROOT_DIR, 'packages/bridge/node_modules'),
         join(ROOT_DIR, 'node_modules'),
         ...(server.extraNodePaths ?? []).map((p) => join(ROOT_DIR, p)),
@@ -173,15 +99,12 @@ async function main() {
         js: [
           '// Auto-generated bundle - do not edit directly',
           `// Source: ${server.entry}`,
-          `// Target: ${server.target}`,
-          // For Node targets, create a proper require() function for CJS interop.
+          // Create a proper require() function for CJS interop.
           // esbuild generates a __require shim that throws when CommonJS modules
           // (like ws) use require('events'), require('stream'), etc. This banner
           // provides a real require() via createRequire() so those calls work.
-          ...(!isDeno ? [
-            `import { createRequire as __bundleCreateRequire } from 'node:module';`,
-            `const require = __bundleCreateRequire(import.meta.url);`,
-          ] : []),
+          `import { createRequire as __bundleCreateRequire } from 'node:module';`,
+          `const require = __bundleCreateRequire(import.meta.url);`,
         ].join('\n'),
       },
     });

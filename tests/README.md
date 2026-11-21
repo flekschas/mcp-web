@@ -66,6 +66,5 @@ When adding integration tests:
 
 1. Create test files in the `integration/` directory with `.test.ts` extension
 2. Import from TypeScript source files using `.ts` extensions: `@mcp-web/{package}` or relative paths
-3. Use Deno test syntax: `Deno.test('description', async () => { ... })`
-4. Import assertions from `@std/assert`: `import { assert, assertEquals, assertRejects } from '@std/assert'`
-5. Update this README with descriptions of new test files
+3. Use Bun test syntax: `import { expect, test } from 'bun:test'`, then `test('description', async () => { ... })`
+4. Update this README with descriptions of new test files
