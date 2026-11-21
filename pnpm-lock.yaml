@@ -492,7 +492,7 @@ importers:
         specifier: 'catalog:'
         version: 25.9.9
       tsx:
-        specifier: ^4.23.15
+        specifier: 'catalog:'
         version: 4.23.15
       typescript:
         specifier: 'catalog:'
