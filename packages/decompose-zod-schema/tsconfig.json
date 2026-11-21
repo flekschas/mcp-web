@@ -9,7 +9,7 @@
     "rootDir": "src",
 
     /* Module resolution */
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "moduleDetection": "force",
