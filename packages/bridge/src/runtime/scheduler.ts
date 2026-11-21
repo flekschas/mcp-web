@@ -2,7 +2,7 @@
  * Scheduler abstraction for timing operations.
  *
  * Different runtimes have different timing APIs:
- * - Node.js/Deno/Bun: setTimeout/setInterval
+ * - Node.js/Bun: setTimeout/setInterval
  * - PartyKit/Cloudflare: Alarms via Party.storage.setAlarm()
  *
  * This abstraction allows the bridge core to schedule tasks
@@ -51,7 +51,7 @@ export interface Scheduler {
 
 /**
  * Timer-based scheduler using setTimeout/setInterval.
- * Works with Node.js, Deno, and Bun.
+ * Works with Node.js and Bun.
  */
 export class TimerScheduler implements Scheduler {
   #timeouts = new Map<string, ReturnType<typeof setTimeout>>();

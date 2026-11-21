@@ -11,16 +11,13 @@ export { MCPWebClient } from './client.js';
 export type * from './types.js';
 
 // Only run as CLI if this is the main module in Node.js
-// Guard against running in Deno or when bundled
 // Uses realpathSync on both sides to handle symlinks (e.g. npx, pnpm)
-// @ts-expect-error - Deno global exists in Deno runtime
-const isDeno = typeof Deno !== 'undefined';
 // When esbuild bundles this file into another entry point, import.meta.url
 // and process.argv[1] both resolve to the same bundle file, making the
 // realpathSync check pass incorrectly. We detect bundled contexts by
 // checking for MCP_SERVER_URL — the CLI requires it but library consumers
 // use programmatic config instead.
-const isNodeCLI = !isDeno &&
+const isNodeCLI =
   typeof process !== 'undefined' &&
   process.argv?.[1] &&
   process.env.MCP_SERVER_URL !== undefined &&

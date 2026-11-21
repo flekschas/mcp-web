@@ -33,7 +33,7 @@ getHandlers(): BridgeHandlers
 Returns handlers for wiring to runtime-specific I/O.
 
 Use these handlers to connect the bridge to your runtime's WebSocket
-and HTTP servers. Pre-built adapters (Node, Bun, Deno, PartyKit) handle
+and HTTP servers. Pre-built adapters (Node, Bun, PartyKit) handle
 this automatically.
 
 ```ts

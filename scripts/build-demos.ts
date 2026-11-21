@@ -3,7 +3,7 @@
  * Build script for MCP-Web demos
  *
  * This script builds all demos and copies the output to the deploy directories.
- * It's primarily used by GitHub Actions for deployment to Deno Deploy Classic.
+ * It's primarily used by GitHub Actions for demo deployment.
  *
  * Usage:
  *   pnpm build:demos        # Build all demos for deployment

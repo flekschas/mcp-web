@@ -1,7 +1,7 @@
 /**
  * Runtime-agnostic types for the MCP Web Bridge.
  * These interfaces allow the bridge core to work with any JavaScript runtime
- * (Node.js, Deno, Bun, Cloudflare Workers/PartyKit).
+ * (Node.js, Bun, Cloudflare Workers/PartyKit).
  */
 
 /**
@@ -27,7 +27,7 @@ export interface WebSocketConnection {
 
 /**
  * Runtime-agnostic HTTP request.
- * Abstracts differences between Node.js IncomingMessage, Deno Request, etc.
+ * Abstracts differences between Node.js IncomingMessage, the Fetch API Request, etc.
  */
 export interface HttpRequest {
   /** HTTP method (GET, POST, PUT, etc.) */
