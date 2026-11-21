@@ -449,9 +449,9 @@ export class MCPWeb {
     const roomId = await this.#getRoomId();
 
     // A disconnect can land while the room is being derived. The caller asked
-    // for the teardown, so this resolves rather than rejecting.
+    // for the teardown, so this resolves rather than rejecting. The flag stays
+    // as it is: disconnect() cleared it, and a later attempt may own it by now.
     if (epoch !== this.#disconnectEpoch) {
-      this.#setIsConnecting(false);
       return false;
     }
 

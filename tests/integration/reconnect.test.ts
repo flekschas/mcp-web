@@ -53,27 +53,59 @@ async function until(condition: () => boolean, timeoutMs = 5_000) {
   }
 }
 
-test('a disconnect during the handshake does not block later connects', async () => {
-  // Accepts the socket and never answers `authenticate`, so the frontend stays
-  // in its handshake for as long as the test needs.
-  const silent = Bun.serve({
-    port: 4323,
+/**
+ * Accepts sockets and never answers `authenticate`, so a frontend stays in its
+ * handshake for as long as a test needs. Counts sockets and records when each
+ * one has sent its authentication message.
+ */
+function silentBridge(port: number) {
+  let opened = 0;
+  let authenticated = 0;
+
+  const server = Bun.serve({
+    port,
     fetch: (request, server) =>
       server.upgrade(request) ? undefined : new Response('no'),
-    websocket: { message: () => {} },
+    websocket: {
+      open: () => {
+        opened++;
+      },
+      message: (_ws, data) => {
+        if (JSON.parse(String(data)).type === 'authenticate') authenticated++;
+      },
+    },
   });
 
-  const web = new MCPWeb({
+  return {
+    stop: () => server.stop(true),
+    get opened() {
+      return opened;
+    },
+    get authenticated() {
+      return authenticated;
+    },
+  };
+}
+
+function handshakeClient(port: number, authToken: string) {
+  return new MCPWeb({
     name: 'Handshake',
     description: 'Handshake',
-    bridgeUrl: 'localhost:4323',
-    authToken: 'handshake-token',
+    bridgeUrl: `localhost:${port}`,
+    authToken,
     persistAuthToken: false,
     autoConnect: false,
   });
+}
+
+test('a disconnect during authentication does not block later connects', async () => {
+  const bridge = silentBridge(4323);
+  const web = handshakeClient(4323, 'handshake-token');
 
   const attempt = web.connect();
-  await until(() => web.connecting);
+  // `connecting` is set before the room lookup, so waiting on it would not
+  // reach the handshake. The server says when the socket has authenticated.
+  await until(() => bridge.authenticated === 1);
 
   web.disconnect();
 
@@ -87,5 +119,33 @@ test('a disconnect during the handshake does not block later connects', async ()
   expect(settled).toBe(false);
   expect(web.connecting).toBe(false);
 
-  await silent.stop(true);
+  await bridge.stop();
+}, 15_000);
+
+test('a cancelled attempt does not release the flag a retry holds', async () => {
+  const bridge = silentBridge(4324);
+  const web = handshakeClient(4324, 'retry-token');
+
+  // Cancelled while deriving its room, so it settles after the retry below has
+  // already taken ownership of the connecting flag.
+  const cancelled = web.connect();
+  web.disconnect();
+
+  const retry = web.connect();
+  await until(() => bridge.authenticated === 1);
+
+  expect(await cancelled).toBe(false);
+  expect(web.connecting).toBe(true);
+
+  // A second caller has to wait for the socket already in its handshake.
+  const concurrent = web.connect();
+  await new Promise((resolve) => setTimeout(resolve, 300));
+
+  expect(bridge.opened).toBe(1);
+
+  web.disconnect();
+  expect(await retry).toBe(false);
+  expect(await concurrent).toBe(false);
+
+  await bridge.stop();
 }, 15_000);
