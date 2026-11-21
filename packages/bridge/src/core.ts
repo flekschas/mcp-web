@@ -8,10 +8,6 @@
  * @module @mcp-web/bridge
  */
 
-import crypto from 'node:crypto';
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath, URL } from 'node:url';
 import {
   type AvailableSession,
   type ErroredListPromptsResult,
@@ -69,6 +65,7 @@ import type {
   WebSocketConnection,
 } from './runtime/types.js';
 import { jsonResponse, sseResponse } from './runtime/types.js';
+import { VERSION } from './version.js';
 
 const SessionNotSpecifiedErrorDetails =
   'Multiple sessions available. See `available_sessions` or call the `list_sessions` tool to discover available sessions and specify the session using `_meta.sessionId`.';
@@ -243,12 +240,32 @@ interface McpSession {
 // ============================================
 
 /**
+ * Base64-encodes binary data using only web-standard APIs.
+ *
+ * Encodes in chunks because `String.fromCharCode(...bytes)` overflows the call
+ * stack on large inputs.
+ */
+function toBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  let binary = '';
+
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+
+  return btoa(binary);
+}
+
+/**
  * Builds the query URL by appending the UUID to the agent URL.
  * If no protocol is specified, defaults to http://.
  */
 const buildQueryUrl = (agentUrl: string, uuid: string): string => {
   // Add http:// if no protocol specified
-  const urlWithProtocol = agentUrl.includes('://') ? agentUrl : `http://${agentUrl}`;
+  const urlWithProtocol = agentUrl.includes('://')
+    ? agentUrl
+    : `http://${agentUrl}`;
   const url = new URL(urlWithProtocol);
 
   if (url.pathname === '/' || url.pathname === '') {
@@ -330,7 +347,7 @@ export class MCPWebBridge {
     const parsedConfig = McpWebConfigSchema.safeParse(config);
     if (!parsedConfig.success) {
       throw new Error(
-        `Invalid bridge server configuration: ${parsedConfig.error.message}`
+        `Invalid bridge server configuration: ${parsedConfig.error.message}`,
       );
     }
 
@@ -361,7 +378,7 @@ export class MCPWebBridge {
    * Returns handlers for wiring to runtime-specific I/O.
    *
    * Use these handlers to connect the bridge to your runtime's WebSocket
-   * and HTTP servers. Pre-built adapters (Node, Bun, PartyKit) handle
+   * and HTTP servers. Pre-built adapters (Node, Bun, Cloudflare) handle
    * this automatically.
    *
    * @returns Object containing WebSocket and HTTP handlers
@@ -431,7 +448,7 @@ export class MCPWebBridge {
   #handleWebSocketConnect(
     _sessionId: string,
     _ws: WebSocketConnection,
-    url: URL
+    url: URL,
   ): boolean {
     const session = url.searchParams.get('session');
     if (!session) {
@@ -443,7 +460,7 @@ export class MCPWebBridge {
   #handleWebSocketMessage(
     sessionId: string,
     ws: WebSocketConnection,
-    data: string
+    data: string,
   ): void {
     try {
       const message = JSON.parse(data) as FrontendMessage;
@@ -451,7 +468,7 @@ export class MCPWebBridge {
       // Check if this is a tool response
       if (message.type === 'tool-response') {
         const handler = this.#toolResponseHandlers.get(
-          (message as ToolResponseMessage).requestId
+          (message as ToolResponseMessage).requestId,
         );
         if (handler) {
           handler(data);
@@ -462,7 +479,7 @@ export class MCPWebBridge {
       // Check if this is a resource response
       if (message.type === 'resource-response') {
         const handler = this.#resourceResponseHandlers.get(
-          (message as ResourceResponseMessage).requestId
+          (message as ResourceResponseMessage).requestId,
         );
         if (handler) {
           handler(data);
@@ -488,7 +505,7 @@ export class MCPWebBridge {
   #handleFrontendMessage(
     sessionId: string,
     message: FrontendMessage,
-    ws: WebSocketConnection
+    ws: WebSocketConnection,
   ): void {
     switch (message.type) {
       case 'authenticate':
@@ -516,14 +533,16 @@ export class MCPWebBridge {
         this.#handleQueryCancel(message);
         break;
       default:
-        console.warn(`Unknown message type: ${(message as { type: string }).type}`);
+        console.warn(
+          `Unknown message type: ${(message as { type: string }).type}`,
+        );
     }
   }
 
   #handleAuthentication(
     sessionId: string,
     message: AuthenticateMessage,
-    ws: WebSocketConnection
+    ws: WebSocketConnection,
   ): void {
     const { authToken } = message;
 
@@ -541,7 +560,7 @@ export class MCPWebBridge {
               type: 'authentication-failed',
               error: 'Session limit exceeded',
               code: SessionLimitExceededErrorCode,
-            })
+            }),
           );
           ws.close(1008, 'Session limit exceeded');
           return;
@@ -561,7 +580,7 @@ export class MCPWebBridge {
                 type: 'authentication-failed',
                 error: `Session name "${message.sessionName}" is already in use`,
                 code: SessionNameAlreadyInUseErrorCode,
-              })
+              }),
             );
             ws.close(1008, 'Session name already in use');
             return;
@@ -595,13 +614,13 @@ export class MCPWebBridge {
         type: 'authenticated',
         sessionId,
         success: true,
-      })
+      }),
     );
   }
 
   #handleToolRegistration(
     sessionId: string,
-    message: RegisterToolMessage
+    message: RegisterToolMessage,
   ): void {
     const session = this.#sessions.get(sessionId);
     if (!session) {
@@ -624,7 +643,7 @@ export class MCPWebBridge {
           const existingSchema = JSON.stringify(existingTool.inputSchema ?? {});
           if (existingSchema !== newSchema) {
             console.warn(
-              `Tool schema conflict: '${toolName}' registered by session ${siblingId} has a different schema. Rejecting registration from session ${sessionId}.`
+              `Tool schema conflict: '${toolName}' registered by session ${siblingId} has a different schema. Rejecting registration from session ${sessionId}.`,
             );
             session.ws.send(
               JSON.stringify({
@@ -632,7 +651,7 @@ export class MCPWebBridge {
                 toolName,
                 error: ToolSchemaConflictErrorCode,
                 message: `Tool '${toolName}' is already registered by another session with a different schema. Tools with the same name must have identical schemas across sessions.`,
-              })
+              }),
             );
             return;
           }
@@ -649,7 +668,7 @@ export class MCPWebBridge {
 
   #handleResourceRegistration(
     sessionId: string,
-    message: RegisterResourceMessage
+    message: RegisterResourceMessage,
   ): void {
     const session = this.#sessions.get(sessionId);
     if (!session) {
@@ -688,7 +707,7 @@ export class MCPWebBridge {
         });
       } catch (error) {
         console.debug(
-          `Failed to notify agent of query deletion (optional): ${error instanceof Error ? error.message : String(error)}`
+          `Failed to notify agent of query deletion (optional): ${error instanceof Error ? error.message : String(error)}`,
         );
       }
     }
@@ -700,7 +719,7 @@ export class MCPWebBridge {
   async #handleQuery(
     sessionId: string,
     message: QueryMessage,
-    ws: WebSocketConnection
+    ws: WebSocketConnection,
   ): Promise<void> {
     const { uuid, responseTool, tools, restrictTools } = message;
 
@@ -710,8 +729,8 @@ export class MCPWebBridge {
           QueryFailureMessageSchema.parse({
             uuid,
             error: 'Missing Agent URL',
-          })
-        )
+          }),
+        ),
       );
       return;
     }
@@ -723,26 +742,26 @@ export class MCPWebBridge {
           QueryFailureMessageSchema.parse({
             uuid,
             error: 'Session not found',
-          })
-        )
+          }),
+        ),
       );
       return;
     }
 
     // Check query limit
     if (this.#config.maxInFlightQueriesPerToken) {
-      const currentQueries =
-        this.#tokenQueryCounts.get(session.authToken) ?? 0;
+      const currentQueries = this.#tokenQueryCounts.get(session.authToken) ?? 0;
 
       if (currentQueries >= this.#config.maxInFlightQueriesPerToken) {
         ws.send(
           JSON.stringify(
             QueryFailureMessageSchema.parse({
               uuid,
-              error: 'Query limit exceeded. Wait for existing queries to complete.',
+              error:
+                'Query limit exceeded. Wait for existing queries to complete.',
               code: QueryLimitExceededErrorCode,
-            })
-          )
+            }),
+          ),
         );
         return;
       }
@@ -751,7 +770,7 @@ export class MCPWebBridge {
     // Increment query count
     this.#tokenQueryCounts.set(
       session.authToken,
-      (this.#tokenQueryCounts.get(session.authToken) ?? 0) + 1
+      (this.#tokenQueryCounts.get(session.authToken) ?? 0) + 1,
     );
 
     try {
@@ -765,23 +784,20 @@ export class MCPWebBridge {
         restrictTools,
       });
 
-      const response = await fetch(
-        buildQueryUrl(this.#config.agentUrl, uuid),
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(this.#config.authToken && {
-              Authorization: `Bearer ${this.#config.authToken}`,
-            }),
-          },
-          body: JSON.stringify(QueryMessageSchema.parse(message)),
-        }
-      );
+      const response = await fetch(buildQueryUrl(this.#config.agentUrl, uuid), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(this.#config.authToken && {
+            Authorization: `Bearer ${this.#config.authToken}`,
+          }),
+        },
+        body: JSON.stringify(QueryMessageSchema.parse(message)),
+      });
 
       if (!response.ok) {
         throw new Error(
-          `Agent responded with ${response.status}: ${response.statusText}`
+          `Agent responded with ${response.status}: ${response.statusText}`,
         );
       }
 
@@ -795,8 +811,8 @@ export class MCPWebBridge {
           QueryFailureMessageSchema.parse({
             uuid,
             error: `${error instanceof Error ? error.message : String(error)}`,
-          })
-        )
+          }),
+        ),
       );
     }
   }
@@ -805,7 +821,9 @@ export class MCPWebBridge {
   // HTTP Request Handling
   // ============================================
 
-  async #handleHttpRequest(req: HttpRequest): Promise<HttpResponse | SSEResponse> {
+  async #handleHttpRequest(
+    req: HttpRequest,
+  ): Promise<HttpResponse | SSEResponse> {
     const startTime = Date.now();
 
     // Debug logging helper
@@ -823,7 +841,9 @@ export class MCPWebBridge {
     debug(`  Headers:`, {
       accept: req.headers.get('accept'),
       contentType: req.headers.get('content-type'),
-      authorization: req.headers.get('authorization') ? '[PRESENT]' : '[ABSENT]',
+      authorization: req.headers.get('authorization')
+        ? '[PRESENT]'
+        : '[ABSENT]',
       mcpSessionId: req.headers.get('mcp-session-id'),
     });
 
@@ -864,7 +884,9 @@ export class MCPWebBridge {
       if (mcpSessionId) {
         debug(`  Processing DELETE for session ${mcpSessionId}`);
         const response = this.#handleMcpSessionDelete(mcpSessionId);
-        debug(`← ${response.status} (session delete) [${Date.now() - startTime}ms]`);
+        debug(
+          `← ${response.status} (session delete) [${Date.now() - startTime}ms]`,
+        );
         return response;
       }
       debug(`← 400 (missing Mcp-Session-Id) [${Date.now() - startTime}ms]`);
@@ -873,7 +895,9 @@ export class MCPWebBridge {
 
     // Handle GET requests for SSE stream (Remote MCP server-initiated messages)
     if (req.method === 'GET') {
-      const acceptsSSE = req.headers.get('accept')?.includes('text/event-stream');
+      const acceptsSSE = req.headers
+        .get('accept')
+        ?.includes('text/event-stream');
       if (acceptsSSE) {
         debug(`  Opening SSE stream`);
         return this.#handleSSEStream(req);
@@ -885,7 +909,7 @@ export class MCPWebBridge {
       return jsonResponse(200, {
         name: this.#config.name,
         description: this.#config.description,
-        version: this.#getVersion(),
+        version: VERSION,
         ...(icon && { icon, icons: [{ src: icon }] }),
       });
     }
@@ -904,7 +928,7 @@ export class MCPWebBridge {
 
   async #handleQueryProgressEndpoint(
     uuid: string,
-    req: HttpRequest
+    req: HttpRequest,
   ): Promise<HttpResponse> {
     try {
       const body = await req.text();
@@ -932,7 +956,7 @@ export class MCPWebBridge {
 
   async #handleQueryCompleteEndpoint(
     uuid: string,
-    req: HttpRequest
+    req: HttpRequest,
   ): Promise<HttpResponse> {
     try {
       const body = await req.text();
@@ -985,7 +1009,7 @@ export class MCPWebBridge {
 
   async #handleQueryFailEndpoint(
     uuid: string,
-    req: HttpRequest
+    req: HttpRequest,
   ): Promise<HttpResponse> {
     try {
       const body = await req.text();
@@ -1017,7 +1041,7 @@ export class MCPWebBridge {
 
   async #handleQueryCancelEndpoint(
     uuid: string,
-    req: HttpRequest
+    req: HttpRequest,
   ): Promise<HttpResponse> {
     try {
       const query = this.#queries.get(uuid);
@@ -1059,16 +1083,24 @@ export class MCPWebBridge {
 
       // Debug logging
       if (this.#config.debug) {
-        console.log(`[MCP Debug]   Method: ${mcpRequest.method}, ID: ${mcpRequest.id}`);
+        console.log(
+          `[MCP Debug]   Method: ${mcpRequest.method}, ID: ${mcpRequest.id}`,
+        );
         if (mcpRequest.params && Object.keys(mcpRequest.params).length > 0) {
-          console.log(`[MCP Debug]   Params:`, JSON.stringify(mcpRequest.params).substring(0, 200));
+          console.log(
+            `[MCP Debug]   Params:`,
+            JSON.stringify(mcpRequest.params).substring(0, 200),
+          );
         }
       }
 
       // Extract auth token from header OR URL query param (for Remote MCP compatibility)
       const authHeader = req.headers.get('authorization');
       const url = new URL(req.url, 'http://localhost');
-      const authToken = authHeader?.replace('Bearer ', '') ?? url.searchParams.get('token') ?? undefined;
+      const authToken =
+        authHeader?.replace('Bearer ', '') ??
+        url.searchParams.get('token') ??
+        undefined;
       const mcpSessionId = req.headers.get('mcp-session-id');
       const queryId = mcpRequest.params?._meta?.queryId;
 
@@ -1081,7 +1113,7 @@ export class MCPWebBridge {
           return this.#mcpErrorResponse(
             mcpRequest.id,
             -32600,
-            MissingAuthenticationErrorCode
+            MissingAuthenticationErrorCode,
           );
         }
         const { result, sessionId } = await this.#handleInitialize(authToken);
@@ -1119,14 +1151,26 @@ export class MCPWebBridge {
       if (queryId) {
         const query = this.#queries.get(queryId);
         if (!query) {
-          return this.#mcpErrorResponse(mcpRequest.id, -32600, QueryNotFoundErrorCode);
+          return this.#mcpErrorResponse(
+            mcpRequest.id,
+            -32600,
+            QueryNotFoundErrorCode,
+          );
         }
         if (query.state !== 'active') {
-          return this.#mcpErrorResponse(mcpRequest.id, -32600, QueryNotActiveErrorCode);
+          return this.#mcpErrorResponse(
+            mcpRequest.id,
+            -32600,
+            QueryNotActiveErrorCode,
+          );
         }
         const session = this.#sessions.get(query.sessionId);
         if (!session) {
-          return this.#mcpErrorResponse(mcpRequest.id, -32600, InvalidSessionErrorCode);
+          return this.#mcpErrorResponse(
+            mcpRequest.id,
+            -32600,
+            InvalidSessionErrorCode,
+          );
         }
         sessions.set(query.sessionId, session);
       } else if (authToken) {
@@ -1139,7 +1183,7 @@ export class MCPWebBridge {
         return this.#mcpErrorResponse(
           mcpRequest.id,
           -32600,
-          MissingAuthenticationErrorCode
+          MissingAuthenticationErrorCode,
         );
       }
 
@@ -1171,7 +1215,11 @@ export class MCPWebBridge {
           result = await this.#handlePromptsList(sessions, mcpRequest.params);
           break;
         default:
-          return this.#mcpErrorResponse(mcpRequest.id, -32601, UnknownMethodErrorCode);
+          return this.#mcpErrorResponse(
+            mcpRequest.id,
+            -32601,
+            UnknownMethodErrorCode,
+          );
       }
 
       // Check for fatal errors
@@ -1186,7 +1234,7 @@ export class MCPWebBridge {
           mcpRequest.id,
           -32602,
           fatalError.error_message,
-          fatalError
+          fatalError,
         );
       }
 
@@ -1209,7 +1257,7 @@ export class MCPWebBridge {
   #mcpSuccessResponseWithHeaders(
     id: string | number,
     result: unknown,
-    headers: Record<string, string>
+    headers: Record<string, string>,
   ): HttpResponse {
     const response: McpResponse = {
       jsonrpc: '2.0',
@@ -1230,7 +1278,7 @@ export class MCPWebBridge {
     id: string | number,
     code: number,
     message: string,
-    data?: unknown
+    data?: unknown,
   ): HttpResponse {
     const response: McpResponse = {
       jsonrpc: '2.0',
@@ -1257,16 +1305,18 @@ export class MCPWebBridge {
     switch (mcpRequest.method) {
       case 'tools/list':
         result = {
-          tools: [{
-            name: 'get_connection_status',
-            description:
-              'Check the connection status of this MCP-Web server. Returns whether any browser sessions are currently connected. If no sessions are connected, you should tell the user to open the web app in their browser.',
-            inputSchema: {
-              type: 'object',
-              properties: {},
-              required: [],
+          tools: [
+            {
+              name: 'get_connection_status',
+              description:
+                'Check the connection status of this MCP-Web server. Returns whether any browser sessions are currently connected. If no sessions are connected, you should tell the user to open the web app in their browser.',
+              inputSchema: {
+                type: 'object',
+                properties: {},
+                required: [],
+              },
             },
-          }],
+          ],
         };
         break;
 
@@ -1275,17 +1325,21 @@ export class MCPWebBridge {
 
         if (toolName === 'get_connection_status') {
           result = {
-            content: [{
-              type: 'text',
-              text: 'No browser sessions are currently connected to this MCP-Web server. Please ask the user to open the web app in their browser. Once connected, tools from the web app will become available automatically.',
-            }],
+            content: [
+              {
+                type: 'text',
+                text: 'No browser sessions are currently connected to this MCP-Web server. Please ask the user to open the web app in their browser. Once connected, tools from the web app will become available automatically.',
+              },
+            ],
           };
         } else {
           result = {
-            content: [{
-              type: 'text',
-              text: 'No browser sessions connected. Please open the web app in a browser first.',
-            }],
+            content: [
+              {
+                type: 'text',
+                text: 'No browser sessions connected. Please open the web app in a browser first.',
+              },
+            ],
             isError: true,
           };
         }
@@ -1294,13 +1348,15 @@ export class MCPWebBridge {
 
       case 'resources/list':
         result = {
-          resources: [{
-            uri: 'status://connection',
-            name: 'Connection Status',
-            description:
-              'No browser sessions connected. Open the web app in a browser to enable tools.',
-            mimeType: 'text/plain',
-          }],
+          resources: [
+            {
+              uri: 'status://connection',
+              name: 'Connection Status',
+              description:
+                'No browser sessions connected. Open the web app in a browser to enable tools.',
+              mimeType: 'text/plain',
+            },
+          ],
         };
         break;
 
@@ -1309,17 +1365,19 @@ export class MCPWebBridge {
 
         if (uri === 'status://connection') {
           result = {
-            contents: [{
-              uri: 'status://connection',
-              mimeType: 'text/plain',
-              text: 'No browser sessions are currently connected. Please open the web app in a browser to enable tools and resources.',
-            }],
+            contents: [
+              {
+                uri: 'status://connection',
+                mimeType: 'text/plain',
+                text: 'No browser sessions are currently connected. Please open the web app in a browser to enable tools and resources.',
+              },
+            ],
           };
         } else {
           return this.#mcpErrorResponse(
             mcpRequest.id,
             -32600,
-            NoSessionsFoundErrorCode
+            NoSessionsFoundErrorCode,
           );
         }
         break;
@@ -1334,7 +1392,7 @@ export class MCPWebBridge {
         return this.#mcpErrorResponse(
           mcpRequest.id,
           -32600,
-          NoSessionsFoundErrorCode
+          NoSessionsFoundErrorCode,
         );
     }
 
@@ -1350,7 +1408,12 @@ export class MCPWebBridge {
    * than being serialized inside the JSON text content.
    */
   #wrapToolCallResult(result: unknown): {
-    content: Array<{ type: string; text?: string; data?: string; mimeType?: string }>;
+    content: Array<{
+      type: string;
+      text?: string;
+      data?: string;
+      mimeType?: string;
+    }>;
     isError?: boolean;
     _meta?: Record<string, unknown>;
   } {
@@ -1429,13 +1492,21 @@ export class MCPWebBridge {
       }
 
       const wrapped: {
-        content: Array<{ type: string; text?: string; data?: string; mimeType?: string }>;
+        content: Array<{
+          type: string;
+          text?: string;
+          data?: string;
+          mimeType?: string;
+        }>;
         _meta?: Record<string, unknown>;
       } = {
         content: [
           {
             type: 'text',
-            text: typeof resultToSerialize === 'object' ? JSON.stringify(resultToSerialize, null, 2) : String(resultToSerialize),
+            text:
+              typeof resultToSerialize === 'object'
+                ? JSON.stringify(resultToSerialize, null, 2)
+                : String(resultToSerialize),
           },
         ],
       };
@@ -1462,18 +1533,6 @@ export class MCPWebBridge {
   // MCP Method Handlers
   // ============================================
 
-  #getVersion(): string {
-    try {
-      const __filename = fileURLToPath(import.meta.url);
-      const __dirname = dirname(__filename);
-      const packageJsonPath = join(__dirname, '..', 'package.json');
-      const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
-      return packageJson.version || '1.0.0';
-    } catch {
-      return '1.0.0';
-    }
-  }
-
   /**
    * Resolves the icon config value to a data URI.
    * If icon is already a data URI, uses it directly.
@@ -1496,20 +1555,18 @@ export class MCPWebBridge {
         const response = await fetch(icon);
         if (!response.ok) {
           console.warn(
-            `[MCPWebBridge] Failed to fetch icon from ${icon}: HTTP ${response.status}`
+            `[MCPWebBridge] Failed to fetch icon from ${icon}: HTTP ${response.status}`,
           );
           return;
         }
 
-        const contentType =
-          response.headers.get('content-type') || 'image/png';
+        const contentType = response.headers.get('content-type') || 'image/png';
         const buffer = await response.arrayBuffer();
-        const base64 = Buffer.from(buffer).toString('base64');
-        this.#resolvedIcon = `data:${contentType};base64,${base64}`;
+        this.#resolvedIcon = `data:${contentType};base64,${toBase64(buffer)}`;
       } catch (error) {
         console.warn(
           `[MCPWebBridge] Failed to fetch icon from ${icon}:`,
-          error instanceof Error ? error.message : error
+          error instanceof Error ? error.message : error,
         );
       }
       return;
@@ -1531,7 +1588,9 @@ export class MCPWebBridge {
    * Handles MCP initialize request and creates a new MCP session.
    * Returns the initialize result along with a session ID for the Mcp-Session-Id header.
    */
-  async #handleInitialize(authToken: string): Promise<{ result: unknown; sessionId: string }> {
+  async #handleInitialize(
+    authToken: string,
+  ): Promise<{ result: unknown; sessionId: string }> {
     // Create a new MCP session
     const sessionId = crypto.randomUUID();
     const mcpSession: McpSession = {
@@ -1553,7 +1612,7 @@ export class MCPWebBridge {
       serverInfo: {
         name: this.#config.name,
         description: this.#config.description,
-        version: this.#getVersion(),
+        version: VERSION,
         ...(icon && { icon, icons: [{ src: icon }] }),
       },
     };
@@ -1563,7 +1622,7 @@ export class MCPWebBridge {
 
   #getSessionAndSessionId(
     sessions: Map<string, SessionData>,
-    sessionId?: string
+    sessionId?: string,
   ): [string, SessionData] | undefined {
     if (!sessionId) {
       if (sessions.size === 1) {
@@ -1586,7 +1645,7 @@ export class MCPWebBridge {
 
   #getSessionFromMetaParams(
     sessions: Map<string, SessionData>,
-    params?: McpRequest['params']
+    params?: McpRequest['params'],
   ): SessionData | undefined {
     const sessionId = params?._meta?.sessionId as string | undefined;
     return this.#getSessionAndSessionId(sessions, sessionId)?.[1];
@@ -1609,7 +1668,7 @@ export class MCPWebBridge {
 
   async #handleToolsList(
     sessions: Map<string, SessionData>,
-    params?: McpRequest['params']
+    params?: McpRequest['params'],
   ): Promise<ListToolsResult | ErroredListToolsResult | FatalError> {
     const session = this.#getSessionFromMetaParams(sessions, params);
 
@@ -1645,10 +1704,7 @@ export class MCPWebBridge {
                 },
                 ...(tool.inputSchema?.properties || {}),
               },
-              required: [
-                'session_id',
-                ...(tool.inputSchema?.required || []),
-              ],
+              required: ['session_id', ...(tool.inputSchema?.required || [])],
             },
             // Forward _meta (e.g., _meta.ui.resourceUri for MCP Apps)
             ...(tool._meta ? { _meta: tool._meta } : {}),
@@ -1699,7 +1755,7 @@ export class MCPWebBridge {
 
   async #handleToolCall(
     sessions: Map<string, SessionData>,
-    params?: McpRequest['params']
+    params?: McpRequest['params'],
   ): Promise<unknown> {
     const { name: toolName, arguments: toolInput, _meta } = params || {};
 
@@ -1738,7 +1794,7 @@ export class MCPWebBridge {
     const [sessionId, session] =
       this.#getSessionAndSessionId(
         sessions,
-        (toolInput?.session_id as string | undefined) || _meta?.sessionId
+        (toolInput?.session_id as string | undefined) || _meta?.sessionId,
       ) || [];
 
     if (!sessionId || !session) {
@@ -1756,12 +1812,17 @@ export class MCPWebBridge {
     // parameter injected by the bridge, not an actual tool argument.
     const { session_id: _, ...forwardedInput } = toolInput || {};
 
-    return this.#forwardToolCallToSession(sessionId, toolName, forwardedInput, queryId);
+    return this.#forwardToolCallToSession(
+      sessionId,
+      toolName,
+      forwardedInput,
+      queryId,
+    );
   }
 
   async #handleResourcesList(
     sessions: Map<string, SessionData>,
-    params?: McpRequest['params']
+    params?: McpRequest['params'],
   ): Promise<ListResourcesResult | ErroredListResourcesResult | FatalError> {
     const session = this.#getSessionFromMetaParams(sessions, params);
 
@@ -1809,9 +1870,10 @@ export class MCPWebBridge {
 
   async #handleResourceRead(
     sessions: Map<string, SessionData>,
-    params?: McpRequest['params']
+    params?: McpRequest['params'],
   ): Promise<unknown> {
-    const { uri, _meta } = (params as { uri?: string; _meta?: { sessionId?: string } }) || {};
+    const { uri, _meta } =
+      (params as { uri?: string; _meta?: { sessionId?: string } }) || {};
 
     if (!uri) {
       return { error: 'Resource URI is required' };
@@ -1831,7 +1893,8 @@ export class MCPWebBridge {
     }
 
     // Look for frontend-registered resource
-    const [sessionId, session] = this.#getSessionAndSessionId(sessions, _meta?.sessionId) || [];
+    const [sessionId, session] =
+      this.#getSessionAndSessionId(sessions, _meta?.sessionId) || [];
 
     if (!sessionId || !session) {
       // If no session specified and multiple sessions, check all sessions for the resource
@@ -1864,7 +1927,7 @@ export class MCPWebBridge {
 
   async #handlePromptsList(
     sessions: Map<string, SessionData>,
-    params?: McpRequest['params']
+    params?: McpRequest['params'],
   ): Promise<ListPromptsResult | ErroredListPromptsResult | FatalError> {
     const session = this.#getSessionFromMetaParams(sessions, params);
 
@@ -1894,7 +1957,7 @@ export class MCPWebBridge {
     sessionId: string,
     toolName: string,
     toolInput?: Record<string, unknown>,
-    queryId?: string
+    queryId?: string,
   ): Promise<unknown> {
     const session = this.#sessions.get(sessionId);
     if (!session || session.ws.readyState !== 'OPEN') {
@@ -1946,11 +2009,12 @@ export class MCPWebBridge {
                       'error' in toolResult
                     )
                   ) {
-                    const bridgeMessage = QueryCompleteBridgeMessageSchema.parse({
-                      uuid: queryId,
-                      message: undefined,
-                      toolCalls: query.toolCalls,
-                    });
+                    const bridgeMessage =
+                      QueryCompleteBridgeMessageSchema.parse({
+                        uuid: queryId,
+                        message: undefined,
+                        toolCalls: query.toolCalls,
+                      });
 
                     if (query.ws.readyState === 'OPEN') {
                       query.ws.send(JSON.stringify(bridgeMessage));
@@ -1970,7 +2034,7 @@ export class MCPWebBridge {
           if (typeof data === 'string' && data.includes('tool-response')) {
             console.warn(
               `[MCPWebBridge] Failed to parse tool response:`,
-              parseError instanceof Error ? parseError.message : parseError
+              parseError instanceof Error ? parseError.message : parseError,
             );
           }
         }
@@ -1991,7 +2055,7 @@ export class MCPWebBridge {
 
   async #forwardResourceReadToSession(
     sessionId: string,
-    uri: string
+    uri: string,
   ): Promise<unknown> {
     const session = this.#sessions.get(sessionId);
     if (!session || session.ws.readyState !== 'OPEN') {
@@ -2058,7 +2122,7 @@ export class MCPWebBridge {
           if (typeof data === 'string' && data.includes('resource-response')) {
             console.warn(
               `[MCPWebBridge] Failed to parse resource response:`,
-              parseError instanceof Error ? parseError.message : parseError
+              parseError instanceof Error ? parseError.message : parseError,
             );
           }
         }
@@ -2118,7 +2182,7 @@ export class MCPWebBridge {
             type: 'session-closed',
             reason: 'Session limit exceeded, closing oldest session',
             code: SessionLimitExceededErrorCode,
-          })
+          }),
         );
         session.ws.close(1008, 'Session limit exceeded');
       }
@@ -2154,7 +2218,7 @@ export class MCPWebBridge {
             JSON.stringify({
               type: 'session-expired',
               code: SessionExpiredErrorCode,
-            })
+            }),
           );
           session.ws.close(1008, 'Session expired');
         }
@@ -2182,7 +2246,9 @@ export class MCPWebBridge {
             mcpSession.sseCleanup();
           }
           this.#mcpSessions.delete(sessionId);
-          console.log(`MCP session ${sessionId} expired after ${idleTime}ms of inactivity`);
+          console.log(
+            `MCP session ${sessionId} expired after ${idleTime}ms of inactivity`,
+          );
         }
       }
     }, 60000);
@@ -2213,15 +2279,16 @@ export class MCPWebBridge {
     const mcpSessionId = req.headers.get('mcp-session-id');
 
     if (this.#config.debug) {
-      console.log(`[MCP Debug]   SSE stream request, session: ${mcpSessionId || '[NONE]'}`);
+      console.log(
+        `[MCP Debug]   SSE stream request, session: ${mcpSessionId || '[NONE]'}`,
+      );
     }
 
     if (!mcpSessionId) {
       if (this.#config.debug) {
         console.log(`[MCP Debug]   SSE Error: Missing Mcp-Session-Id header`);
       }
-      // Return a regular response indicating error - we need Mcp-Session-Id
-      return sseResponse((writer, _onClose) => {
+      return sseResponse((writer, onClose) => {
         writer(
           JSON.stringify({
             jsonrpc: '2.0',
@@ -2229,8 +2296,11 @@ export class MCPWebBridge {
               code: -32600,
               message: 'Mcp-Session-Id header required for SSE stream',
             },
-          })
+          }),
         );
+        // Nothing further will be sent on an error stream; leaving it open
+        // holds the connection until the client gives up.
+        onClose();
       });
     }
 
@@ -2239,7 +2309,7 @@ export class MCPWebBridge {
       if (this.#config.debug) {
         console.log(`[MCP Debug]   SSE Error: MCP session not found`);
       }
-      return sseResponse((writer, _onClose) => {
+      return sseResponse((writer, onClose) => {
         writer(
           JSON.stringify({
             jsonrpc: '2.0',
@@ -2247,8 +2317,9 @@ export class MCPWebBridge {
               code: -32600,
               message: 'MCP session not found',
             },
-          })
+          }),
         );
+        onClose();
       });
     }
 
@@ -2261,19 +2332,18 @@ export class MCPWebBridge {
       mcpSession.sseWriter = writer;
       mcpSession.lastActivity = Date.now();
 
-      // Set up cleanup for when client disconnects
+      // Ending the session ends the stream.
       const cleanup = () => {
         if (this.#config.debug) {
-          console.log(`[MCP Debug]   SSE stream closed for session ${mcpSessionId}`);
+          console.log(
+            `[MCP Debug]   SSE stream closed for session ${mcpSessionId}`,
+          );
         }
         mcpSession.sseWriter = undefined;
         mcpSession.sseCleanup = undefined;
+        onClose();
       };
       mcpSession.sseCleanup = cleanup;
-
-      // Register the onClose callback
-      // Note: The adapter will call onClose when the client disconnects
-      // We store our cleanup function so we can also call it manually
     });
   }
 

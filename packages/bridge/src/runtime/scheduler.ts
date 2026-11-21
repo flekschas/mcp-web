@@ -1,10 +1,6 @@
 /**
  * Scheduler abstraction for timing operations.
  *
- * Different runtimes have different timing APIs:
- * - Node.js/Bun: setTimeout/setInterval
- * - PartyKit/Cloudflare: Alarms via Party.storage.setAlarm()
- *
  * This abstraction allows the bridge core to schedule tasks
  * without knowing which runtime it's running on.
  */
@@ -51,7 +47,10 @@ export interface Scheduler {
 
 /**
  * Timer-based scheduler using setTimeout/setInterval.
- * Works with Node.js and Bun.
+ *
+ * Works in every runtime the bridge supports, Cloudflare Workers included.
+ * Everything the core schedules acts on in-memory state, which a Durable Object
+ * loses when it is evicted, so the timers are gone exactly when their work is.
  */
 export class TimerScheduler implements Scheduler {
   #timeouts = new Map<string, ReturnType<typeof setTimeout>>();

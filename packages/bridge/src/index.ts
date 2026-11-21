@@ -43,11 +43,13 @@ export {
   QueryNotFoundErrorCode,
   UnknownMethodErrorCode,
 } from '@mcp-web/types';
-export type { MCPWebBridgeBunConfig, MCPWebBridgeNodeConfig, MCPWebBridgeNodeSSLConfig, MCPWebBridgePartyConfig } from './adapters/index.js';
-// Adapters
-// Bun adapter
-// PartyKit adapter
-export { AlarmScheduler, Bridge, createPartyKitBridge, MCPWebBridgeBun, MCPWebBridgeNode, MCPWebBridgeParty } from './adapters/index.js';
+export type {
+  MCPWebBridgeBunConfig,
+  MCPWebBridgeNodeConfig,
+  MCPWebBridgeNodeSSLConfig,
+} from './adapters/index.js';
+// Adapters (Cloudflare lives at @mcp-web/bridge/cloudflare)
+export { Bridge, MCPWebBridgeBun, MCPWebBridgeNode } from './adapters/index.js';
 // Core bridge (runtime-agnostic)
 // Backwards compatibility: re-export MCPWebBridge as the old name
 // Note: The old MCPWebBridge class used dual ports. The new architecture
@@ -61,14 +63,17 @@ export type {
   BridgeAdapterConfig,
   BridgeHandlers,
   HttpRequest,
-  HttpResponse,Scheduler,
-  WebSocketConnection
+  HttpResponse,
+  Scheduler,
+  WebSocketConnection,
 } from './runtime/index.js';
 export {
   createHttpResponse,
-  jsonResponse,NoopScheduler,
-  readyStateToString,TimerScheduler,
-  WebSocketReadyState
+  jsonResponse,
+  NoopScheduler,
+  readyStateToString,
+  TimerScheduler,
+  WebSocketReadyState,
 } from './runtime/index.js';
 // Legacy types (for backwards compatibility)
 export type {

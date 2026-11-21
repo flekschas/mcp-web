@@ -1,29 +1,35 @@
 #!/usr/bin/env tsx
 /**
- * Build script for MCP-Web demos
+ * Builds the demo frontends the way the deploy workflow does.
  *
- * This script builds all demos and copies the output to the deploy directories.
- * It's primarily used by GitHub Actions for demo deployment.
+ * Each demo's own `mcp-web.config.ts` points at localhost. The deployed config
+ * lives in `demos/deploy/<demo>/`, so it is swapped in for the build and put
+ * back afterwards — building without the swap produces a bundle that talks to
+ * localhost from the public demo.
+ *
+ * Wrangler serves `demos/<demo>/dist` directly, so nothing is copied.
  *
  * Usage:
- *   pnpm build:demos        # Build all demos for deployment
- *   tsx scripts/build-demos.ts
+ *   pnpm build:demos
  *
- * Note: For local development, use the demos/<demo> directories directly:
+ * For local development use the demo directories directly:
  *   cd demos/todo && pnpm dev
- *   cd demos/checkers && pnpm dev
  */
 
 import { execSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import {
+  copyFileSync,
+  existsSync,
+  readdirSync,
+  rmSync,
+  statSync,
+} from 'node:fs';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const ROOT_DIR = dirname(__dirname);
-
+const ROOT_DIR = dirname(dirname(fileURLToPath(import.meta.url)));
 const DEMOS = ['higlass', 'todo', 'checkers'] as const;
+const CONFIG = 'mcp-web.config.ts';
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes}B`;
@@ -31,90 +37,65 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}M`;
 }
 
-function getDirectorySize(dirPath: string): number {
-  let totalSize = 0;
-  
+function directorySize(dirPath: string): number {
   if (!existsSync(dirPath)) return 0;
-  
-  const entries = readdirSync(dirPath, { withFileTypes: true });
-  for (const entry of entries) {
-    const fullPath = join(dirPath, entry.name);
-    if (entry.isDirectory()) {
-      totalSize += getDirectorySize(fullPath);
-    } else {
-      totalSize += statSync(fullPath).size;
-    }
-  }
-  
-  return totalSize;
+
+  return readdirSync(dirPath, { withFileTypes: true }).reduce(
+    (total, entry) => {
+      const fullPath = join(dirPath, entry.name);
+      return (
+        total +
+        (entry.isDirectory()
+          ? directorySize(fullPath)
+          : statSync(fullPath).size)
+      );
+    },
+    0,
+  );
 }
 
-function run(command: string, cwd?: string): void {
-  console.log(`> ${command}`);
-  execSync(command, {
-    cwd,
-    stdio: 'inherit',
-    env: { ...process.env, FORCE_COLOR: '1' },
-  });
+function buildWithDeployConfig(demo: string): void {
+  const demoDir = join(ROOT_DIR, 'demos', demo);
+  const demoConfig = join(demoDir, CONFIG);
+  const deployConfig = join(ROOT_DIR, 'demos', 'deploy', demo, CONFIG);
+  const backup = `${demoConfig}.local`;
+
+  copyFileSync(demoConfig, backup);
+  try {
+    copyFileSync(deployConfig, demoConfig);
+    console.log(`> pnpm build (${demo})`);
+    execSync('pnpm build', {
+      cwd: demoDir,
+      stdio: 'inherit',
+      env: { ...process.env, FORCE_COLOR: '1' },
+    });
+  } finally {
+    copyFileSync(backup, demoConfig);
+    rmSync(backup);
+  }
 }
 
-async function main() {
-  console.log('Building MCP-Web demos for deployment...');
-  console.log(`Root directory: ${ROOT_DIR}\n`);
+function main(): void {
+  console.log('Building MCP-Web demos with their deploy configs...\n');
 
-  // Ensure deploy directories exist
   for (const demo of DEMOS) {
-    const deployDir = join(ROOT_DIR, 'demos', 'deploy', demo, 'static');
-    mkdirSync(deployDir, { recursive: true });
-  }
-
-  // Build each demo
-  for (const demo of DEMOS) {
-    console.log('');
     console.log('==========================================');
     console.log(`Building ${demo}...`);
     console.log('==========================================');
-
-    const demoDir = join(ROOT_DIR, 'demos', demo);
-    const distDir = join(demoDir, 'dist');
-    const deployDir = join(ROOT_DIR, 'demos', 'deploy', demo, 'static');
-
-    // Build with production environment
-    console.log(`Building ${demo} with production config...`);
-    run('pnpm build', demoDir);
-
-    // Clear deploy directory and copy build output
-    console.log(`Copying build to demos/deploy/${demo}/static/...`);
-    
-    if (existsSync(deployDir)) {
-      rmSync(deployDir, { recursive: true });
-    }
-    mkdirSync(deployDir, { recursive: true });
-    
-    cpSync(distDir, deployDir, { recursive: true });
-
-    console.log(`✅ Built ${demo} -> demos/deploy/${demo}/static/`);
+    buildWithDeployConfig(demo);
   }
 
-  console.log('');
-  console.log('==========================================');
-  console.log('All demos built successfully!');
-  console.log('==========================================');
-  console.log('');
-  console.log('Deploy directories:');
-  
+  console.log('\nBuilt:');
   for (const demo of DEMOS) {
-    const deployDir = join(ROOT_DIR, 'demos', 'deploy', demo, 'static');
-    const size = formatSize(getDirectorySize(deployDir));
-    console.log(`  - demos/deploy/${demo}/static/ (${size})`);
+    const dist = join(ROOT_DIR, 'demos', demo, 'dist');
+    console.log(`  - demos/${demo}/dist (${formatSize(directorySize(dist))})`);
   }
-
-  console.log('');
-  console.log('These builds are used by GitHub Actions for deployment.');
-  console.log('See .github/workflows/deploy-demos.yml for the deployment workflow.');
+  console.log('\nDeploy with: cd demos/deploy && pnpm deploy:<demo>');
 }
 
-main().catch((error) => {
+try {
+  main();
+} catch (error) {
   console.error('Build failed:', error);
   process.exit(1);
-});
+}

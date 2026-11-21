@@ -27,7 +27,6 @@
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "catalog:",
-    "ajv": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {

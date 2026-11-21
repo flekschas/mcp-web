@@ -8,7 +8,7 @@ The bridge server:
 - Runs a **single-port server** for both WebSocket and HTTP connections
 - Manages session authentication and tool registration
 - Routes tool calls between AI agents and the appropriate frontend session
-- Supports multiple JavaScript runtimes (Node.js, Bun, PartyKit/Cloudflare)
+- Supports multiple JavaScript runtimes (Node.js, Bun, Cloudflare Workers)
 
 ## Quick Start
 
@@ -42,16 +42,21 @@ const bridge = new MCPWebBridgeBun({
 });
 ```
 
-### PartyKit / Cloudflare
+### Cloudflare Workers
 
 ```typescript
-// server.ts
-import { createPartyKitBridge } from '@mcp-web/bridge';
+// worker.ts
+import { createCloudflareBridge } from '@mcp-web/bridge/cloudflare';
 
-export default createPartyKitBridge({
-  name: 'My App',
-  description: 'My awesome application on the edge',
+const bridge = createCloudflareBridge({
+  config: {
+    name: 'My App',
+    description: 'My awesome application on the edge',
+  },
 });
+
+export const MCPWebBridgeObject = bridge.DurableObject;
+export default bridge.worker;
 ```
 
 ## Runtime Adapters
@@ -112,47 +117,94 @@ const bridge = new MCPWebBridgeBun({
 
 ---
 
-### MCPWebBridgeParty (PartyKit / Cloudflare)
+### createCloudflareBridge (Cloudflare Workers)
 
 **Status:** Experimental 🧪
 
-The PartyKit adapter enables deployment to Cloudflare's edge network with Durable Objects for state management.
+Deploys to Cloudflare Workers with Durable Objects. A Worker routes each request
+to an object; each object runs one bridge core.
+
+Objects are keyed by a **room**, derived from the auth token. Every cross-session
+feature in the bridge — session lists, tool-change notifications, per-token
+limits — is already scoped to one token, so this partition lets the core's
+in-memory state work unchanged. In practice one browser gets one object.
 
 ```typescript
-// server.ts
-import { createPartyKitBridge } from '@mcp-web/bridge';
+// worker.ts
+import { createCloudflareBridge } from '@mcp-web/bridge/cloudflare';
 
-export default createPartyKitBridge({
-  name: 'My App',
-  description: 'My application on the edge',
-  sessionCheckIntervalMs: 60000,  // Optional: alarm interval
+interface Env {
+  AGENT_URL?: string;
+}
+
+const bridge = createCloudflareBridge<Env>({
+  // A function receives the Worker env, for config that depends on vars
+  config: (env) => ({
+    name: 'My App',
+    description: 'My application on the edge',
+    agentUrl: env.AGENT_URL,
+  }),
 });
+
+export const MCPWebBridgeObject = bridge.DurableObject;
+export const MCPWebQueryIndex = bridge.QueryIndex;  // only needed with an agent
+export default bridge.worker;
 ```
 
-**partykit.json:**
-```json
+**wrangler.jsonc:**
+```jsonc
 {
   "name": "my-mcp-bridge",
-  "main": "server.ts",
-  "compatibility_date": "2024-01-01"
+  "main": "worker.ts",
+  "compatibility_date": "2026-08-01",
+  "durable_objects": {
+    "bindings": [
+      { "name": "MCP_WEB_BRIDGE", "class_name": "MCPWebBridgeObject" }
+    ]
+  },
+  "migrations": [
+    // SQLite-backed objects are the only kind on the free plan
+    { "tag": "v1", "new_sqlite_classes": ["MCPWebBridgeObject"] }
+  ]
 }
 ```
 
 **Deploy:**
 ```bash
-npx partykit deploy
+npx wrangler deploy
 ```
 
-**Features:**
-- Global edge deployment via Cloudflare
-- Durable Objects for stateful WebSocket handling
-- Hibernation support for cost efficiency
-- Uses PartyKit Alarms instead of setInterval for session timeouts
+**Serving a frontend from the same Worker.** Add an `assets` binding and the
+Worker will fall back to it for anything that is not bridge traffic. List the
+bridge's own paths in `run_worker_first`, or asset routing will answer the
+WebSocket upgrade on `/` before the Worker sees it:
 
-**Key Differences:**
-- No explicit port configuration (managed by PartyKit/Cloudflare)
-- Uses `AlarmScheduler` instead of `TimerScheduler`
-- State persists across hibernation cycles via `Party.storage`
+```jsonc
+"assets": {
+  "directory": "./dist",
+  "binding": "ASSETS",
+  "not_found_handling": "single-page-application",
+  "run_worker_first": ["/", "/health"]
+}
+```
+
+**Options:**
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `config` | `MCPWebConfig \| (env) => MCPWebConfig` | Bridge configuration |
+| `bindings` | `object` | Override binding names (`bridge`, `queryIndex`, `assets`) |
+| `serveAssets` | `boolean` | Serve non-bridge requests from `ASSETS`. Defaults to true when the binding exists |
+
+**Notes:**
+- Bridge sessions use ordinary timers. Only the query index schedules a storage
+  alarm, to sweep expired callback routes
+- Sockets are accepted with `accept()`, not the Hibernation API, so an object
+  stays live while any client is connected
+- Only needed when the bridge forwards queries to an agent: bind
+  `MCP_WEB_QUERY_INDEX` and export `QueryIndex`. Agent callbacks arrive on
+  `/query/:uuid/*` with no auth token, and the index is how the router finds the
+  object that owns the query
 
 ---
 
@@ -202,10 +254,11 @@ All adapters accept these common options from `MCPWebConfig`:
 | `port` | `number` | `3001` | Port to listen on |
 | `host` / `hostname` | `string` | `'0.0.0.0'` | Hostname to bind to |
 
-**PartyKit:**
+**Cloudflare Workers:**
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `sessionCheckIntervalMs` | `number` | `60000` | Alarm interval for session checks |
+| `bindings` | `object` | binding names below | Override `MCP_WEB_BRIDGE`, `MCP_WEB_QUERY_INDEX`, `ASSETS` |
+| `serveAssets` | `boolean` | `true` when `ASSETS` exists | Serve unmatched requests from the assets binding |
 
 ## Architecture
 
@@ -224,7 +277,7 @@ All adapters accept these common options from `MCPWebConfig`:
            ┌───────────────────┼───────────────────┐
            │                   │                   │
     ┌──────┴──────┐    ┌──────┴──────┐    ┌──────┴──────┐
-    │ Node.js     │    │ Bun         │    │ PartyKit    │
+    │ Node.js     │    │ Bun         │    │ Cloudflare  │
     │ Adapter     │    │ Adapter     │    │ Adapter     │
     └─────────────┘    └─────────────┘    └─────────────┘
 ```

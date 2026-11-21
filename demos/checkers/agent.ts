@@ -2,12 +2,11 @@
  * Checkers AI Agent - Core Logic
  *
  * This module exports a createApp function that creates a Hono app
- * configured for the checkers AI agent. It is runtime-agnostic and
- * can be used with both Node.js and Deno.
+ * configured for the checkers AI agent. It is runtime-agnostic.
  *
  * For serving, see:
  * - serve-agent.ts (Node.js local development)
- * - ../deploy/checkers/serve-agent.ts (Deno Deploy)
+ * - ../deploy/checkers/agent-worker.ts (Cloudflare Workers)
  */
 
 import { createAnthropic } from '@ai-sdk/anthropic';
@@ -17,7 +16,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { MCPWebClient } from '@mcp-web/client';
 import { type Query, QuerySchema, type Tool } from '@mcp-web/types';
 import { ToolLoopAgent, tool, ToolSet, type JSONSchema7, jsonSchema, stepCountIs, hasToolCall } from 'ai';
-import type { LanguageModelV4 } from '@ai-sdk/provider';
+import type { LanguageModelV4, SharedV4ProviderOptions } from '@ai-sdk/provider';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 
@@ -45,13 +44,32 @@ export interface AgentConfig {
 
 // Provider defaults - can be overridden by modelName config
 const PROVIDER_DEFAULTS = {
-  anthropic: 'claude-sonnet-4-5',
+  anthropic: 'claude-haiku-5-5',
   google: 'gemini-2.5-flash',
   openai: 'gpt-5-mini',
   cerebras: 'gpt-oss-120b',
 } as const;
 
 type Provider = keyof typeof PROVIDER_DEFAULTS;
+
+/**
+ * Provider options for the agent's own default models.
+ *
+ * `effort` is an Anthropic option that the default model supports. An explicit
+ * MODEL_NAME is the operator's choice and not every model takes it — Haiku 4.5
+ * rejects it — so nothing is added to an override.
+ *
+ * Options are namespaced per provider, so a non-Anthropic default ignores them.
+ */
+function defaultProviderOptions(
+  config: AgentConfig
+): SharedV4ProviderOptions | undefined {
+  if (config.modelName) return undefined;
+
+  // A checkers move needs little deliberation, and higher effort only costs the
+  // player latency.
+  return { anthropic: { effort: 'low' } };
+}
 
 /**
  * Detect available providers based on API keys in config
@@ -186,12 +204,14 @@ async function generateAnswer<T extends Record<string, unknown>>({
   mcpClient,
   tools,
   model,
+  providerOptions,
   maxSteps = 5,
 }: {
   query: Query;
   mcpClient: ReturnType<typeof MCPWebClient.prototype.contextualize>;
   tools: Tool[];
   model: LanguageModelV4;
+  providerOptions?: SharedV4ProviderOptions;
   maxSteps?: number;
 }): Promise<{ text: string; object?: T }> {
   // Validate response tool schema if present
@@ -243,6 +263,7 @@ async function generateAnswer<T extends Record<string, unknown>>({
     model,
     tools: aiSdkTools,
     instructions,
+    providerOptions,
     stopWhen: [
       stepCountIs(maxSteps),
       ...(responseToolName ? [hasToolCall(responseToolName)] : []),
@@ -336,6 +357,7 @@ export function createApp(config: AgentConfig) {
         mcpClient: queryClient,
         tools,
         model: getModel(),
+        providerOptions: defaultProviderOptions(config),
       });
 
       if (query.responseTool && result.object) {
@@ -403,9 +425,17 @@ export function createApp(config: AgentConfig) {
     activeQueries.set(uuid, query);
 
     // Process asynchronously to provide an immediate response
-    processQuery(query, uuid).catch((error) => {
+    const work = processQuery(query, uuid).catch((error) => {
       console.error(`\n💥 Unhandled error processing query ${uuid}:`, error);
     });
+
+    // Keeps the query running after the Worker returns 202. Hono throws on this
+    // getter off-Workers, where the promise keeps running on its own.
+    try {
+      c.executionCtx.waitUntil(work);
+    } catch {
+      // Not running on Workers
+    }
 
     // Return immediately with 202 Accepted
     return c.json(

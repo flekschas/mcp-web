@@ -10,7 +10,7 @@
  */
 
 import { execSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -56,6 +56,19 @@ function main() {
 
   console.log(`Bumping all packages: ${current} -> ${next}\n`);
 
+  // The bridge inlines its version so it can run without `node:fs`
+  const versionFile = join(ROOT_DIR, 'packages/bridge/src/version.ts');
+  const versionSource = readFileSync(versionFile, 'utf-8');
+  const pattern = /export const VERSION = '[^']*';/;
+
+  if (!pattern.test(versionSource)) {
+    console.error(
+      `Could not find the VERSION constant in ${versionFile}. ` +
+        'The bridge would report a stale version, so nothing was written.',
+    );
+    process.exit(1);
+  }
+
   // Bump root
   execSync(`npm version ${next} --no-git-tag-version`, {
     cwd: ROOT_DIR,
@@ -67,6 +80,12 @@ function main() {
     cwd: ROOT_DIR,
     stdio: 'inherit',
   });
+
+  writeFileSync(
+    versionFile,
+    versionSource.replace(pattern, `export const VERSION = '${next}';`),
+  );
+  console.log(`Updated packages/bridge/src/version.ts`);
 
   console.log(`\nAll packages bumped to ${next}`);
 }

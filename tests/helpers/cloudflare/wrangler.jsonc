@@ -1,0 +1,17 @@
+{
+  "name": "mcp-web-test-bridge",
+  "main": "worker.ts",
+  "compatibility_date": "2026-08-01",
+  "durable_objects": {
+    "bindings": [
+      { "name": "MCP_WEB_BRIDGE", "class_name": "MCPWebBridgeObject" },
+      { "name": "MCP_WEB_QUERY_INDEX", "class_name": "MCPWebQueryIndex" }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["MCPWebBridgeObject", "MCPWebQueryIndex"]
+    }
+  ]
+}

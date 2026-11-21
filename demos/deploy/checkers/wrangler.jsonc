@@ -1,0 +1,46 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "mcp-web-checkers",
+  "main": "worker.ts",
+  "compatibility_date": "2026-08-01",
+  "assets": {
+    "directory": "../../checkers/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    // The bridge answers WebSocket upgrades and SSE streams on "/", both of
+    // which are GETs that asset routing would otherwise swallow. Everything
+    // else is served straight from assets and never bills a Worker request.
+    "run_worker_first": ["/", "/health", "/query/*"]
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "MCP_WEB_BRIDGE",
+        "class_name": "MCPWebBridgeObject"
+      },
+      {
+        "name": "MCP_WEB_QUERY_INDEX",
+        "class_name": "MCPWebQueryIndex"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      // SQLite-backed objects are the only kind available on the free plan
+      "new_sqlite_classes": ["MCPWebBridgeObject", "MCPWebQueryIndex"]
+    }
+  ],
+  "vars": {
+    "AGENT_URL": "https://checkers-agent.demo.mcp-web.dev"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "routes": [
+    {
+      "pattern": "checkers.demo.mcp-web.dev",
+      "custom_domain": true
+    }
+  ]
+}

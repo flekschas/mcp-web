@@ -33,7 +33,7 @@ getHandlers(): BridgeHandlers
 Returns handlers for wiring to runtime-specific I/O.
 
 Use these handlers to connect the bridge to your runtime's WebSocket
-and HTTP servers. Pre-built adapters (Node, Bun, PartyKit) handle
+and HTTP servers. Pre-built adapters (Node, Bun, Cloudflare) handle
 this automatically.
 
 ```ts
@@ -534,3 +534,14 @@ unknown
 ```ts
 unknown
 ```
+
+### VERSION
+
+*Variable* — `packages/bridge/src/version.ts`
+
+Package version, inlined at author time rather than read from package.json.
+
+Reading package.json at runtime needs `node:fs` and `import.meta.url` path
+resolution, neither of which exist on Cloudflare Workers.
+
+Kept in sync by `scripts/bump-version.ts`.

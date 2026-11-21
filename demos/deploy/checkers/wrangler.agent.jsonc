@@ -1,0 +1,25 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "mcp-web-checkers-agent",
+  "main": "agent-worker.ts",
+  "compatibility_date": "2026-08-01",
+  // The AI SDK and the MCP SDK both reach for node builtins
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "BRIDGE_URL": "https://checkers.demo.mcp-web.dev",
+    "ALLOWED_ORIGINS": "https://checkers.demo.mcp-web.dev"
+    // MODEL_PROVIDER and MODEL_NAME pick the model; add them here to override
+    // the agent's defaults.
+  },
+  "observability": {
+    "enabled": true
+  },
+  "routes": [
+    {
+      "pattern": "checkers-agent.demo.mcp-web.dev",
+      "custom_domain": true
+    }
+  ]
+  // API keys are secrets:
+  //   wrangler secret put ANTHROPIC_API_KEY --config wrangler.agent.jsonc
+}

@@ -1,7 +1,7 @@
 /**
  * Runtime-agnostic types for the MCP Web Bridge.
  * These interfaces allow the bridge core to work with any JavaScript runtime
- * (Node.js, Bun, Cloudflare Workers/PartyKit).
+ * (Node.js, Bun, Cloudflare Workers).
  */
 
 /**
@@ -83,7 +83,7 @@ export interface SSEResponse {
   /**
    * Called by the adapter to set up the SSE stream.
    * @param writer - Function to send SSE data to the client
-   * @param onClose - Called when the client disconnects
+   * @param onClose - Call to end the stream
    */
   setup(writer: SSEWriter, onClose: () => void): void;
 }
@@ -100,7 +100,11 @@ export interface BridgeHandlers {
    * @param url - The parsed connection URL
    * @returns true if the connection should be accepted
    */
-  onWebSocketConnect(sessionId: string, ws: WebSocketConnection, url: URL): boolean;
+  onWebSocketConnect(
+    sessionId: string,
+    ws: WebSocketConnection,
+    url: URL,
+  ): boolean;
 
   /**
    * Called when a WebSocket message is received.
@@ -108,7 +112,11 @@ export interface BridgeHandlers {
    * @param ws - The wrapped WebSocket connection
    * @param data - The message data as a string
    */
-  onWebSocketMessage(sessionId: string, ws: WebSocketConnection, data: string): void;
+  onWebSocketMessage(
+    sessionId: string,
+    ws: WebSocketConnection,
+    data: string,
+  ): void;
 
   /**
    * Called when a WebSocket connection closes.
@@ -142,7 +150,7 @@ export interface BridgeAdapterConfig {
 export function createHttpResponse(
   status: number,
   body: unknown,
-  headers: Record<string, string> = {}
+  headers: Record<string, string> = {},
 ): HttpResponse {
   const isJson = typeof body === 'object';
   return {
@@ -162,7 +170,8 @@ export function jsonResponse(status: number, data: unknown): HttpResponse {
   return createHttpResponse(status, data, {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Mcp-Session-Id',
+    'Access-Control-Allow-Headers':
+      'Content-Type, Authorization, Mcp-Session-Id',
     'Access-Control-Expose-Headers': 'Mcp-Session-Id',
   });
 }
@@ -171,7 +180,7 @@ export function jsonResponse(status: number, data: unknown): HttpResponse {
  * Type guard to check if a response is an SSE response
  */
 export function isSSEResponse(
-  response: HttpResponse | SSEResponse
+  response: HttpResponse | SSEResponse,
 ): response is SSEResponse {
   return 'isSSE' in response && response.isSSE === true;
 }
@@ -180,17 +189,18 @@ export function isSSEResponse(
  * Helper to create an SSE response
  */
 export function sseResponse(
-  setup: (writer: SSEWriter, onClose: () => void) => void
+  setup: (writer: SSEWriter, onClose: () => void) => void,
 ): SSEResponse {
   return {
     status: 200,
     headers: {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
+      Connection: 'keep-alive',
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization, Mcp-Session-Id',
+      'Access-Control-Allow-Headers':
+        'Content-Type, Authorization, Mcp-Session-Id',
       'Access-Control-Expose-Headers': 'Mcp-Session-Id',
     },
     isSSE: true,
@@ -212,7 +222,7 @@ export const WebSocketReadyState = {
  * Convert numeric ready state to string
  */
 export function readyStateToString(
-  state: number
+  state: number,
 ): 'CONNECTING' | 'OPEN' | 'CLOSING' | 'CLOSED' {
   switch (state) {
     case 0:

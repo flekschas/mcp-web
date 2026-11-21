@@ -9,41 +9,110 @@ import { z } from 'zod';
  */
 export const McpWebConfigSchema = z.object({
   /** The name of the server. This is used to identify the server and is displayed in your AI App (e.g., Claude Desktop) */
-  name: z.string().min(1).describe('The name of the server. This is used to identify the server and is displayed in your AI App (e.g., Claude Desktop)'),
+  name: z
+    .string()
+    .min(1)
+    .describe(
+      'The name of the server. This is used to identify the server and is displayed in your AI App (e.g., Claude Desktop)',
+    ),
   /** The description of the server. This should describe the web app you want the AI App to control. */
-  description: z.string().min(1).describe('The description of the server. This should describe the web app you want the AI App to control.'),
+  description: z
+    .string()
+    .min(1)
+    .describe(
+      'The description of the server. This should describe the web app you want the AI App to control.',
+    ),
   /** The bridge server address as host:port (e.g., 'localhost:3001' or 'bridge.example.com'). Protocol is determined automatically based on page context. */
   bridgeUrl: z
     .string()
     .optional()
     .transform((url) => url?.replace(/^(wss?|https?):\/\//, ''))
-    .describe('The bridge server address as host:port (e.g., \'localhost:3001\' or \'bridge.example.com\'). Protocol is determined automatically. Defaults to window.location.host in browser contexts, or localhost:3001 otherwise.'),
+    .describe(
+      "The bridge server address as host:port (e.g., 'localhost:3001' or 'bridge.example.com'). Protocol is determined automatically. Defaults to window.location.host in browser contexts, or localhost:3001 otherwise.",
+    ),
   /** Either a URL or a data URI (e.g., "data:image/svg+xml;base64,..." or "data:image/png;base64,..."). This is shown in the AI App. */
-  icon: z.string().optional().describe('Either a URL or a data URI (e.g., "data:image/svg+xml;base64,..." or "data:image/png;base64,..."). This is shown in the AI App.'),
-  /** The agent server address with optional path (e.g., 'localhost:3000' or 'localhost:3000/api/v1/query'). Protocol is determined automatically. Required for query support. */
+  icon: z
+    .string()
+    .optional()
+    .describe(
+      'Either a URL or a data URI (e.g., "data:image/svg+xml;base64,..." or "data:image/png;base64,..."). This is shown in the AI App.',
+    ),
+  /**
+   * The agent server address with optional path (e.g., 'localhost:3000',
+   * 'localhost:3000/api/v1/query' or 'https://agent.example.com').
+   *
+   * Only the bridge calls this address, from the server side, where there is no
+   * page context to take a protocol from. An explicit protocol is therefore
+   * kept; a bare host falls back to `http://`.
+   */
   agentUrl: z
     .string()
     .optional()
-    .transform((url) => url?.replace(/^(wss?|https?):\/\//, ''))
-    .describe('The agent server address with optional path (e.g., \'localhost:3000\' or \'localhost:3000/api/v1/query\'). Protocol is determined automatically.'),
+    .describe(
+      "The agent server address with optional path (e.g., 'localhost:3000' or 'https://agent.example.com'). A bare host defaults to http://.",
+    ),
   /** Authentication token for the agent. If not provided, will use auto-generated token. */
-  authToken: z.string().optional().describe('Authentication token for the agent. If not provided, will use auto-generated token.'),
+  authToken: z
+    .string()
+    .optional()
+    .describe(
+      'Authentication token for the agent. If not provided, will use auto-generated token.',
+    ),
   /** Whether to persist the auth token in localStorage. */
-  persistAuthToken: z.boolean().optional().default(true).describe('Whether to persist the auth token in localStorage.'),
+  persistAuthToken: z
+    .boolean()
+    .optional()
+    .default(true)
+    .describe('Whether to persist the auth token in localStorage.'),
   /** Whether to automatically connect to the MCP bridge on initialization. */
-  autoConnect: z.boolean().optional().default(true).describe('Whether to automatically connect to the MCP bridge on initialization.'),
+  autoConnect: z
+    .boolean()
+    .optional()
+    .default(true)
+    .describe(
+      'Whether to automatically connect to the MCP bridge on initialization.',
+    ),
   /** Maximum sessions allowed per auth token. When exceeded, behavior is determined by `onSessionLimitExceeded`. */
-  maxSessionsPerToken: z.number().int().positive().optional().describe('Maximum sessions allowed per auth token.'),
+  maxSessionsPerToken: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe('Maximum sessions allowed per auth token.'),
   /** Behavior when session limit is exceeded. "reject" rejects new connections, "close_oldest" closes the oldest session. */
-  onSessionLimitExceeded: z.enum(['reject', 'close_oldest']).optional().default('reject').describe('Behavior when session limit is exceeded.'),
+  onSessionLimitExceeded: z
+    .enum(['reject', 'close_oldest'])
+    .optional()
+    .default('reject')
+    .describe('Behavior when session limit is exceeded.'),
   /** Maximum concurrent in-flight queries across all sessions for a token. Prevents resource exhaustion. */
-  maxInFlightQueriesPerToken: z.number().int().positive().optional().describe('Maximum concurrent in-flight queries per token.'),
+  maxInFlightQueriesPerToken: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe('Maximum concurrent in-flight queries per token.'),
   /** Maximum session duration in milliseconds. Sessions older than this are automatically closed. */
-  sessionMaxDurationMs: z.number().int().positive().optional().describe('Maximum session duration in milliseconds.'),
+  sessionMaxDurationMs: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe('Maximum session duration in milliseconds.'),
   /** Optional human-readable name for the session. Must be unique per auth token. Used to identify specific sessions when multiple are connected. */
-  sessionName: z.string().min(1).optional().describe('Optional human-readable name for the session. Must be unique per auth token. Used to identify specific sessions when multiple are connected.'),
+  sessionName: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      'Optional human-readable name for the session. Must be unique per auth token. Used to identify specific sessions when multiple are connected.',
+    ),
   /** Enable debug logging for MCP requests and responses. */
-  debug: z.boolean().optional().default(false).describe('Enable debug logging for MCP requests and responses.'),
+  debug: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe('Enable debug logging for MCP requests and responses.'),
 });
 
 /**

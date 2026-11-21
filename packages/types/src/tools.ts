@@ -1,4 +1,3 @@
-import { Ajv, type AnySchema } from 'ajv';
 import { z } from 'zod';
 
 /**
@@ -10,26 +9,42 @@ import { z } from 'zod';
  */
 export type { ListToolsResult, Tool } from '@modelcontextprotocol/sdk/types.js';
 
-const ajv = new Ajv({ strict: false });
+/**
+ * Checks the shape of a JSON Schema: the keywords the bridge and MCP clients
+ * read, not the full meta-schema.
+ *
+ * Compiling the meta-schema needs `new Function`, which Cloudflare Workers
+ * block, and this check runs on every query the bridge parses.
+ */
+const validateJsonSchema = (
+  schema: unknown,
+): schema is z.core.JSONSchema.JSONSchema => {
+  if (!schema || typeof schema !== 'object' || Array.isArray(schema))
+    return false;
 
-const validateJsonSchema = (schema: unknown): schema is z.core.JSONSchema.JSONSchema => {
-  // Check if it's a JSON Schema
-  if (schema && typeof schema === 'object') {
-    // Allow schemas with explicit $schema to validate against their declared version
-    if ('$schema' in schema && schema.$schema) {
-      return ajv.validateSchema(schema as AnySchema) as boolean;
-    }
+  const { type, properties, required } = schema as {
+    type?: unknown;
+    properties?: unknown;
+    required?: unknown;
+  };
 
-    // Default to Draft 7 for schemas without $schema
-    const schemaWithDraft = {
-      $schema: 'http://json-schema.org/draft-07/schema#',
-      ...schema
-    };
+  const typeIsValid =
+    type === undefined ||
+    typeof type === 'string' ||
+    (Array.isArray(type) && type.every((entry) => typeof entry === 'string'));
 
-    return ajv.validateSchema(schemaWithDraft as AnySchema) as boolean;
-  }
+  const propertiesAreValid =
+    properties === undefined ||
+    (typeof properties === 'object' &&
+      properties !== null &&
+      !Array.isArray(properties));
 
-  return false;
+  const requiredIsValid =
+    required === undefined ||
+    (Array.isArray(required) &&
+      required.every((entry) => typeof entry === 'string'));
+
+  return typeIsValid && propertiesAreValid && requiredIsValid;
 };
 
 /** Base schema for all tool definitions with common fields */
@@ -42,7 +57,7 @@ const ToolDefinitionBaseSchema = z.object({
   // biome-ignore lint/suspicious/noExplicitAny: Can literally be anything
   handler: z.custom<(...args: any[]) => any | Promise<any>>(
     (val) => typeof val === 'function',
-    { message: "Handler must be a function" }
+    { message: 'Handler must be a function' },
   ),
 });
 
@@ -51,7 +66,7 @@ export const ToolDefinitionZodSchema = ToolDefinitionBaseSchema.extend({
   /** The input schema for the tool (Zod object schema). */
   inputSchema: z.instanceof(z.ZodObject).optional(),
   /** The output schema for the tool (any Zod schema type). */
-  outputSchema: z.instanceof(z.ZodType).optional()
+  outputSchema: z.instanceof(z.ZodType).optional(),
 });
 
 /** Tool definition type for tools with Zod schemas (inferred from schema) */
@@ -60,13 +75,24 @@ export type ToolDefinitionZod = z.infer<typeof ToolDefinitionZodSchema>;
 /** Schema for tool definitions with JSON Schema */
 export const ToolDefinitionJsonSchema = ToolDefinitionBaseSchema.extend({
   /** The input schema for the tool (JSON Schema). */
-  inputSchema: z.custom<z.core.JSONSchema.JSONSchema>(validateJsonSchema, { message: "Must be valid JSON Schema Draft 7" }).optional(),
+  inputSchema: z
+    .custom<z.core.JSONSchema.JSONSchema>(validateJsonSchema, {
+      message: 'Must be a JSON Schema object',
+    })
+    .optional(),
   /** The output schema for the tool (JSON Schema). */
-  outputSchema: z.custom<z.core.JSONSchema.JSONSchema>(validateJsonSchema, { message: "Must be valid JSON Schema Draft 7" }).optional()
+  outputSchema: z
+    .custom<z.core.JSONSchema.JSONSchema>(validateJsonSchema, {
+      message: 'Must be a JSON Schema object',
+    })
+    .optional(),
 });
 
 /** Runtime validation schema that accepts either Zod or JSON Schema */
-export const ToolDefinitionSchema = z.union([ToolDefinitionZodSchema, ToolDefinitionJsonSchema]);
+export const ToolDefinitionSchema = z.union([
+  ToolDefinitionZodSchema,
+  ToolDefinitionJsonSchema,
+]);
 
 /**
  * Tool definition for client-side use with handler and optional schemas.
@@ -97,19 +123,26 @@ export interface ToolDefinition {
  * Tool metadata without handler, for wire protocol transmission.
  * Schemas must be JSON Schema (not Zod) to be serializable.
  */
-export const ToolMetadataZodSchema = ToolDefinitionZodSchema.omit({ handler: true });
+export const ToolMetadataZodSchema = ToolDefinitionZodSchema.omit({
+  handler: true,
+});
 
 /** Tool metadata type with Zod schemas. */
 export type ToolMetadataZod = z.infer<typeof ToolMetadataJsonSchema>;
 
 /** Tool metadata schema with JSON Schema format. */
-export const ToolMetadataJsonSchema = ToolDefinitionJsonSchema.omit({ handler: true });
+export const ToolMetadataJsonSchema = ToolDefinitionJsonSchema.omit({
+  handler: true,
+});
 
 /** Tool metadata type with JSON schemas. */
 export type ToolMetadataJson = z.infer<typeof ToolMetadataJsonSchema>;
 
 /** Combined tool metadata schema accepting either format. */
-export const ToolMetadataSchema = z.union([ToolMetadataZodSchema, ToolMetadataJsonSchema]);
+export const ToolMetadataSchema = z.union([
+  ToolMetadataZodSchema,
+  ToolMetadataJsonSchema,
+]);
 
 /** Tool metadata type (either Zod or JSON Schema format). */
 export type ToolMetadata = z.infer<typeof ToolMetadataSchema>;
@@ -127,4 +160,4 @@ export type ProcessedToolDefinition = ToolDefinition & {
   inputJsonSchema?: z.core.JSONSchema.JSONSchema;
   /** JSON Schema for output (always available after processing). */
   outputJsonSchema?: z.core.JSONSchema.JSONSchema;
-}
+};

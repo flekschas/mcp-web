@@ -1,289 +1,226 @@
 # MCP-Web Demos Deployment
 
-This directory contains deployment configurations for deploying the MCP-Web
-demos (HiGlass, Todo, Checkers) to Deno Deploy Classic.
+Deployment configuration for the MCP-Web demos (HiGlass, Todo, Checkers) on
+Cloudflare Workers.
 
-> **Note:** This directory is used by GitHub Actions for deployment only.
-> For local development, use the `demos/<demo>` directories with Node.js/pnpm.
+> For local development use the `demos/<demo>` directories, which have
+> hot-reload. This directory is for deployment.
 
 ## Architecture
 
-Each demo is deployed as a fully isolated instance with its own bridge server:
+Each demo is one Worker that serves the built frontend from static assets and
+routes bridge traffic to Durable Objects:
 
 ```
-higlass.demo.mcp-web.dev  → HiGlass bridge + frontend
-todo.demo.mcp-web.dev     → Todo bridge + frontend
-checkers.demo.mcp-web.dev → Checkers bridge + frontend
-checkers-agent.demo.mcp-web.dev → Checkers AI agent
+                    ┌─────────────────────────────┐
+  browser ─────────►│ Worker                      │
+   (WebSocket)      │  ├─ static assets (frontend)│
+                    │  └─ router                  │
+  MCP client ──────►│         │                   │
+   (HTTP/SSE)       └─────────┼───────────────────┘
+                              ▼
+                    ┌─────────────────────────────┐
+                    │ Durable Object (per room)   │
+                    │  MCPWebBridge core          │
+                    └─────────────────────────────┘
 ```
+
+A **room** is derived from the auth token, which the frontend persists in
+`localStorage`. One visitor therefore gets one Durable Object, holding their
+WebSocket sessions and the MCP client requests that target them. An object is
+evicted once nothing is connected to it, and nothing wakes it again until the
+next request.
+
+| Deployment | Domain |
+|---|---|
+| `mcp-web-higlass` | `higlass.demo.mcp-web.dev` |
+| `mcp-web-todo` | `todo.demo.mcp-web.dev` |
+| `mcp-web-checkers` | `checkers.demo.mcp-web.dev` |
+| `mcp-web-checkers-agent` | `checkers-agent.demo.mcp-web.dev` |
 
 ## Directory Structure
 
 ```
 demos/deploy/
-├── lib/
-│   └── create-demo-server.ts    # Shared server template
+├── package.json               # Workspace package; owns wrangler + deploy scripts
 ├── higlass/
-│   ├── main.ts                  # Entry point (source)
-│   ├── server.bundle.js         # Bundled server (gitignored)
-│   ├── deno.json                # Deno config
-│   └── static/                  # Built frontend (gitignored)
-├── todo/
-│   ├── main.ts
-│   ├── server.bundle.js
-│   ├── deno.json
-│   └── static/
-├── checkers/
-│   ├── main.ts                  # Bridge entry point (source)
-│   ├── serve-agent.ts           # AI agent entry point (source)
-│   ├── server.bundle.js         # Bundled bridge (gitignored)
-│   ├── agent.bundle.js          # Bundled agent (gitignored)
-│   ├── deno.json
-│   └── static/
-└── README.md                    # This file
+│   ├── worker.ts              # Worker entry point
+│   ├── wrangler.jsonc
+│   └── mcp-web.config.ts      # Bridge config, also copied into the frontend build
+├── todo/                      # same shape
+└── checkers/
+    ├── worker.ts              # Bridge worker
+    ├── agent-worker.ts        # AI agent worker
+    ├── wrangler.jsonc
+    ├── wrangler.agent.jsonc
+    └── mcp-web.config.ts
 ```
 
-**Note:** The checkers agent logic lives in `demos/checkers/agent.ts` and is shared
-between local development (Node.js) and deployment (Deno). The `serve-agent.ts` files
-in each environment are thin wrappers that handle runtime-specific concerns.
-
-## Pre-Bundling for Deno Deploy Classic
-
-Deno Deploy Classic doesn't bundle code at deployment time—it runs imports directly.
-Since our `@mcp-web/*` packages aren't published to npm, we pre-bundle the server
-code with esbuild before deploying.
-
-### How It Works
-
-1. **Source files** (`main.ts`, `serve-agent.ts`) import from `@mcp-web/bridge`, etc.
-2. **Bundle script** (`scripts/bundle-servers.ts`) uses esbuild to create self-contained bundles
-3. **Bundle outputs** (`server.bundle.js`, `agent.bundle.js`) have all dependencies inlined
-4. **Deno Deploy** runs the bundles directly with no runtime import resolution needed
-
-### Building Bundles Locally
-
-```bash
-# From repo root
-pnpm install
-pnpm build           # Build all packages first
-pnpm bundle:servers  # Create .bundle.js files
-```
-
-This creates:
-- `demos/deploy/higlass/server.bundle.js`
-- `demos/deploy/todo/server.bundle.js`
-- `demos/deploy/checkers/server.bundle.js`
-- `demos/deploy/checkers/agent.bundle.js`
-
-### Testing Bundles with Deno
-
-```bash
-# Test a bundled server locally
-cd demos/deploy/todo
-deno task start   # Runs server.bundle.js
-
-cd demos/deploy/checkers
-deno task start   # Runs server.bundle.js
-deno task agent   # Runs agent.bundle.js
-```
+The checkers agent logic lives in `demos/checkers/agent.ts` as a runtime-agnostic
+Hono app; `agent-worker.ts` only builds its config from the Worker `env`.
 
 ## Local Development
 
-For local development, use the Node.js setup in the main demo directories:
+Build the frontend first — the Worker serves it from the `assets` directory:
 
 ```bash
-# Install dependencies (from repo root)
 pnpm install
+pnpm build:packages
 
-# Run a demo locally
-cd demos/todo
-pnpm dev          # Starts frontend dev server
+cd demos/todo && pnpm build && cd -
 
-cd demos/checkers
-pnpm dev          # Starts frontend dev server
-pnpm bridge       # Starts bridge server (separate terminal)
+cd demos/deploy
+pnpm dev:todo        # http://localhost:8787
 ```
 
-> **Why not use `demos/deploy/` locally?**
-> The deploy configurations use bundled files that need to be built first.
-> For active development, the main demo directories with hot-reload are easier.
+The same works for `dev:higlass`, `dev:checkers`, and `dev:checkers-agent`.
+`wrangler dev` runs the real workerd runtime with local Durable Objects, so
+behaviour matches production closely.
 
-## Deployment to Deno Deploy Classic
+The `vars` in each config point at the deployed hostnames. Checkers needs two
+Workers, so override both sides or the local bridge sends its queries to the
+production agent and the production agent calls back to the production bridge.
+Each `wrangler dev` also needs its own inspector port:
 
-### One-Time Setup
+```bash
+cd demos/deploy
 
-1. **Create Deno Deploy Classic projects:**
-   - Go to [dash.deno.com](https://dash.deno.com)
-   - Create 4 projects (click "Just link the repo, I'll set up GitHub Actions myself"):
-     - `mcp-web-higlass`
-     - `mcp-web-todo`
-     - `mcp-web-checkers`
-     - `mcp-web-checkers-agent`
+pnpm dev:checkers -- --port 8787 --inspector-port 9230 \
+  --var AGENT_URL:http://localhost:8788
 
-2. **Link GitHub repository:**
-   - In each project, go to Settings → GitHub
-   - Connect your repository
-   - Select "GitHub Actions" as the deployment method
+pnpm dev:checkers-agent -- --port 8788 --inspector-port 9231 \
+  --var BRIDGE_URL:http://localhost:8787 \
+  --var ALLOWED_ORIGINS:http://localhost:8787
+```
 
-3. **Configure custom domains:**
-   - In each project, go to Settings → Domains
-   - Add custom domains:
-     - `mcp-web-higlass` → `higlass.demo.mcp-web.dev`
-     - `mcp-web-todo` → `todo.demo.mcp-web.dev`
-     - `mcp-web-checkers` → `checkers.demo.mcp-web.dev`
-     - `mcp-web-checkers-agent` → `checkers-agent.demo.mcp-web.dev`
+The frontend bundle carries its own addresses, so build `demos/checkers` with a
+`mcp-web.config.ts` whose `bridgeUrl` is `localhost:8787` and whose `agentUrl`
+is `http://localhost:8788` before serving it this way.
 
-4. **Configure DNS (at your DNS provider):**
+## Deployment
+
+### One-time setup
+
+1. **Authenticate:** `npx wrangler login`
+
+2. **Add the custom domains.** The `routes` entry in each `wrangler.jsonc`
+   claims the hostname; the zone must already exist in the Cloudflare account.
+
+   A hostname that already has a DNS record — these demos were served from
+   Render, so each has a `CNAME` — cannot be claimed by a Worker Custom Domain.
+   Delete the existing record in the zone's DNS tab first; `wrangler deploy`
+   then creates the Custom Domain record itself. Check what is there with:
+
+   ```bash
+   dig +short CNAME checkers.demo.mcp-web.dev
    ```
-   CNAME higlass.demos        mcp-web-higlass.deno.dev
-   CNAME todo.demos           mcp-web-todo.deno.dev
-   CNAME checkers.demos       mcp-web-checkers.deno.dev
-   CNAME checkers-agent.demos mcp-web-checkers-agent.deno.dev
+
+3. **Set the checkers agent secrets:**
+
+   ```bash
+   cd demos/deploy
+   npx wrangler secret put ANTHROPIC_API_KEY --config checkers/wrangler.agent.jsonc
    ```
 
-5. **Set environment variables (Checkers Agent only):**
-   - Go to `mcp-web-checkers-agent` → Settings → Environment Variables
-   - Add:
-     - `ANTHROPIC_API_KEY` (required)
-     - `GOOGLE_API_KEY` (optional)
-     - `OPENAI_API_KEY` (optional)
-     - `MODEL_PROVIDER` (optional, e.g., `anthropic`)
-     - `BRIDGE_URL` = `https://checkers.demo.mcp-web.dev`
-     - `ALLOWED_ORIGINS` = `https://checkers.demo.mcp-web.dev`
+   `OPENAI_API_KEY`, `GOOGLE_API_KEY`, and `CEREBRAS_API_KEY` are optional.
+   `BRIDGE_URL`, `ALLOWED_ORIGINS`, `MODEL_PROVIDER`, and `MODEL_NAME` are
+   settings, not secrets, so they belong in `vars` in the config.
 
-   - Go to `mcp-web-checkers` → Settings → Environment Variables
-   - Add:
-     - `AGENT_URL` = `https://checkers-agent.demo.mcp-web.dev`
+4. **Add CI secrets** to the GitHub repository: `CLOUDFLARE_API_TOKEN` (with
+   the *Edit Cloudflare Workers* template) and `CLOUDFLARE_ACCOUNT_ID`.
 
-### Automated Deployment
-
-GitHub Actions automatically deploys on push to `main` when files in `demos/` or `packages/` change.
-
-**Workflow:** `.github/workflows/deploy-demos.yml`
-
-**Manual deployment:**
-```bash
-# Via GitHub UI
-Go to Actions → Deploy Demos to Deno Deploy → Run workflow
-
-# Or push to main
-git push origin main
-```
-
-**Deploy specific demo:**
-```bash
-# Via GitHub UI with input parameter
-Actions → Deploy Demos → Run workflow → Select demo (higlass/todo/checkers)
-```
-
-### Build Process
-
-The GitHub Actions workflow:
-1. Installs dependencies (`pnpm install`)
-2. Builds all packages (`pnpm build`)
-3. Builds each demo frontend (`pnpm build` in demo directory)
-4. Bundles servers with esbuild (`pnpm bundle:servers`)
-5. Uploads artifacts (frontend dist + server bundles)
-6. Deploy jobs download artifacts and deploy via `deployctl`
-
-The bundled `.js` files are self-contained—no npm imports to resolve at runtime.
-
-## Monitoring
-
-### Health Checks
-
-Each deployment exposes a `/health` endpoint:
+### Manual deploy
 
 ```bash
-curl https://higlass.demo.mcp-web.dev/health
-curl https://todo.demo.mcp-web.dev/health
-curl https://checkers.demo.mcp-web.dev/health
-curl https://checkers-agent.demo.mcp-web.dev/health
+cd demos/todo && pnpm build && cd -   # assets must exist before deploying
+
+cd demos/deploy
+pnpm deploy:todo
 ```
 
-### Logs
+### Automated deploy
 
-View logs in Deno Deploy dashboard:
-- Go to your project → Logs
-- Real-time log streaming
-- Error tracking
+`.github/workflows/deploy-demos.yml` builds each frontend and runs
+`wrangler deploy` on every push to `main` that touches `demos/` or `packages/`.
+Use the workflow's `demo` input to deploy just one.
 
-### Metrics
+## How Requests Are Routed
 
-Deno Deploy provides:
-- Request count
-- Response time
-- Error rate
-- Bandwidth usage
+`run_worker_first` in each `wrangler.jsonc` lists the paths the Worker must see
+before asset routing does. Everything else — hashed JS, CSS, images — is served
+straight from Cloudflare's asset storage and never bills a Worker request.
 
-## Troubleshooting
+The Worker claims a request when it is a WebSocket upgrade, an agent callback on
+`/query/:uuid/*`, any non-GET method, a `GET` that accepts `text/event-stream`,
+or a `GET` on `/` that accepts `application/json`. A normal browser navigation
+falls through to the assets binding, with `index.html` as the SPA fallback, and
+so does an application's own JSON file.
 
-### Frontend not connecting to bridge
+Rooms are resolved in the same order the bridge itself resolves sessions:
 
-Check browser console for WebSocket connection errors:
-- Verify `VITE_BRIDGE_HOST` and `VITE_BRIDGE_PORT` in `.env.production`
-- Check that bridge is running at expected URL
-- Verify CORS settings
+| Request | Room comes from |
+|---|---|
+| WebSocket upgrade | `room` query parameter, sent by the frontend |
+| Agent callback `/query/:uuid/*` | query index lookup |
+| MCP request carrying a query id | query index lookup |
+| MCP follow-up with only `Mcp-Session-Id` | room prefix inside that id |
+| Any other MCP request | SHA-256 of the auth token |
+| No token at all (preflight, server info) | shared `anonymous` object |
 
-### Checkers agent not responding
+The query index is a single Durable Object mapping query uuid to room. Agent
+callbacks carry only a uuid, so without it the router would have nothing to key
+on.
 
-1. Check environment variables are set correctly
-2. Verify API keys are valid
-3. Check agent logs in Deno Deploy dashboard
-4. Test health endpoint: `curl https://checkers-agent.demo.mcp-web.dev/health`
-
-### Build failures
-
-1. Ensure all packages are built first: `pnpm build`
-2. Check for TypeScript errors: `pnpm typecheck`
-3. Verify demo builds locally: `cd demos/<demo> && pnpm build`
-4. Verify bundles build: `pnpm bundle:servers`
-
-### Deployment failures
-
-1. Check GitHub Actions logs
-2. Verify Deno Deploy project names match workflow
-3. Ensure GitHub repository is linked in Deno Deploy
-4. Check deployment permissions (id-token: write)
-
-### Bundle issues
-
-If bundles fail to build:
-1. Check that all packages are built: `pnpm build`
-2. Look for import errors in `scripts/bundle-servers.ts`
-3. Run `pnpm bundle:servers` locally to see detailed errors
-
-If bundles fail at runtime on Deno:
-1. Check for Node.js-specific APIs that aren't available in Deno
-2. Verify the bundle includes all necessary dependencies
-3. Test locally with `deno run --allow-all demos/deploy/<demo>/server.bundle.js`
-
-## Rollback
-
-To rollback to a previous deployment:
-
-1. Go to Deno Deploy project
-2. Click "Deployments" tab
-3. Find previous successful deployment
-4. Click "Promote to Production"
+`Mcp-Session-Id` is opaque to clients, so the Worker prefixes the room onto the
+id the core issues and strips it again on the way in. A Remote MCP client sends
+nothing but that header when it opens its stream or closes its session.
 
 ## Cost
 
-Deno Deploy pricing:
-- **Free tier:** 100K requests/day, 100GB bandwidth/month
-- **Pro:** $20/month per project for higher limits
+Durable Objects are available on the Workers Free plan using the SQLite storage
+backend, which is what `migrations.new_sqlite_classes` selects. Free tier
+allowances are 100,000 requests/day and 13,000 GB-s/day of Durable Object
+compute, with incoming WebSocket messages billed at 20:1.
 
-For demo purposes, free tier should be sufficient.
+Objects currently accept sockets with `accept()` rather than the Hibernation
+API, so one stays live — and accrues duration — for as long as a visitor is
+connected. That is the main thing to watch if the demos get busy. Hibernation
+would require moving the per-session tool and resource registries out of memory
+into storage.
 
-## Security
+## Monitoring
 
-- API keys stored in Deno Deploy environment variables (not in code)
-- CORS configured to only allow same-origin requests
-- WebSocket sessions auto-cleanup on disconnect
-- All traffic over HTTPS
+Each Worker exposes `/health`:
 
-## Support
+```bash
+curl https://todo.demo.mcp-web.dev/health
+```
 
-For issues:
-- Check deployment logs in Deno Deploy dashboard
-- Review GitHub Actions workflow logs
+`observability.enabled` is set in every config, so logs are available in the
+Cloudflare dashboard under Workers & Pages → the Worker → Logs. Live tail:
+
+```bash
+cd demos/deploy
+npx wrangler tail --config todo/wrangler.jsonc
+```
+
+## Troubleshooting
+
+**Frontend loads but never connects.** Check the browser console for the
+WebSocket URL. It must point at the same host the Worker serves, which comes
+from `bridgeUrl` in `mcp-web.config.ts` — and that file has to be copied into
+the demo directory before the frontend build.
+
+**`GET /` returns JSON instead of the app.** Something is sending
+`Accept: application/json`; the bridge claims those. Browsers send
+`text/html`, so this only shows up with `curl`.
+
+**WebSocket upgrade returns index.html.** `run_worker_first` is missing `"/"`
+in that demo's `wrangler.jsonc`, so asset routing answered before the Worker.
+
+**Agent callbacks 404.** The query index binding is missing. Only the checkers
+config declares `MCP_WEB_QUERY_INDEX`, and only its `worker.ts` exports the
+`MCPWebQueryIndex` class.
+
+**Deploy fails on the assets directory.** The frontend has not been built. Run
+`pnpm build` in `demos/<demo>` first.

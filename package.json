@@ -7,9 +7,8 @@
   "scripts": {
     "prepare": "lefthook install || true",
     "build": "pnpm -r build",
-    "build:packages": "pnpm --filter './packages/*' build",
+    "build:packages": "pnpm --filter './packages/**' build",
     "build:demos": "tsx scripts/build-demos.ts",
-    "bundle:servers": "tsx scripts/bundle-servers.ts",
     "build:docs": "pnpm -C docs run build",
     "build:api-refs": "tsx scripts/generate-all-api-docs.ts docs/api/ && tsx scripts/generate-all-api-docs.ts agents/skills/mcp-web/ --prefix api-reference-",
     "dev": "pnpm -r dev",
@@ -42,7 +41,8 @@
     "openai": "^7.62.0",
     "sirv": "^3.0.2",
     "tsx": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "wrangler": "catalog:"
   },
   "engines": {
     "node": ">=24.0.0",
