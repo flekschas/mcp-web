@@ -35,7 +35,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
-    "@sveltejs/vite-plugin-svelte": "^6.2.4",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@tailwindcss/vite": "catalog:",
     "@tsconfig/svelte": "^5.0.9",
     "@types/node": "catalog:",
