@@ -1,4 +1,3 @@
-@ -1,442 +0,0 @@
 # MCP-Web Examples
 
 Detailed examples and patterns for building MCP-Web applications.
@@ -27,7 +26,7 @@ const [getSettings, setSettings, cleanup] = mcp.addStateTools({
 
 ### Pattern 2: Collection with Expanded Tools
 
-Arrays or records that grow over time:
+Arrays or records that grow over time. **Note:** Usually prefer `codeMode` (see Pattern 10) over expanded tools. Use `expand: true` only when AI cannot execute code.
 
 ```typescript
 import { id, system } from '@mcp-web/core';
@@ -321,6 +320,150 @@ the same name, `connect()` rejects with an error and no reconnection is
 attempted. The slot allocator above prevents this by assigning the first
 available slot.
 
+### Pattern 10: Code Mode for Large State
+
+Use `codeMode` when state is large or grows over time. AI writes a JavaScript
+program that runs in a sandbox:
+
+```typescript
+import { createCodeMode } from '@mcp-web/tools/code';
+
+const [getApp, codeApp, cleanup] = mcp.addStateTools({
+  name: 'todo_app',
+  description: 'Todo application state',
+  schema: AppSchema,
+  get: () => store.app,
+  set: (value) => { store.app = value; },
+  codeMode: createCodeMode(),
+});
+
+// AI calls code_app with a program like:
+// const app = await get_todo_app();
+// for (const todo of app.todos) {
+//   if (todo.tags.includes('errand')) todo.priority = 5;
+// }
+// await set_todo_app(app);
+```
+
+When `get()` returns a value that `structuredClone` cannot copy (e.g., a
+Svelte proxy), use `$state.snapshot()`:
+
+```typescript
+get: () => $state.snapshot(app),  // Plain copy, not a proxy
+```
+
+Failed programs are rolled back to the snapshot.
+
+### Pattern 11: Combining States with addCodeTool
+
+Combine multiple state tools and custom tools into a single code tool:
+
+```typescript
+import {
+  CodeTool,
+  combineTransactions,
+  stateTransaction,
+  createStateTools,
+} from '@mcp-web/tools/code';
+
+const todoTools = createStateTools({
+  name: 'todos',
+  description: 'All todo items',
+  schema: TodoListSchema,
+  get: () => store.todos,
+  set: (value) => store.todos = value,
+});
+
+const settingsTools = createStateTools({
+  name: 'settings',
+  description: 'App settings',
+  schema: SettingsSchema,
+  get: () => store.settings,
+  set: (value) => store.settings = value,
+});
+
+const archiveCompleted = mcp.createTool({
+  name: 'archive_completed',
+  description: 'Archive all completed todos',
+  handler: () => { /* ... */ },
+});
+
+// Combine into single code tool
+mcp.addCodeTool(new CodeTool({
+  tools: [
+    ...todoTools.tools,
+    ...settingsTools.tools,
+    archiveCompleted.definition,
+  ],
+  transaction: combineTransactions(
+    stateTransaction(() => store.todos, (v) => store.todos = v),
+    stateTransaction(() => store.settings, (v) => store.settings = v),
+  ),
+}));
+```
+
+### Pattern 12: DOM Query Tool
+
+Let AI inspect the page structure:
+
+```typescript
+import { DOMQueryTool } from '@mcp-web/tools/dom';
+
+// Add the tool - no configuration needed
+mcp.addTool(new DOMQueryTool());
+
+// AI can call: dom_query({ selector: 'button.primary' })
+// Returns: array of elements with tag, id, class, text, attributes
+```
+
+Prefer state tools over DOM queries for reading application data. Use DOM
+query for questions about the rendered UI (visibility, layout).
+
+### Pattern 13: Screenshot Tool
+
+Let AI see the visual state of your app:
+
+```typescript
+import { ScreenshotTool } from '@mcp-web/tools/screenshot';
+
+mcp.addTool(new ScreenshotTool({
+  name: 'screenshot',
+  description: 'Take a screenshot of the app',
+  format: 'png',  // 'png', 'jpeg', or 'webp'
+}));
+
+// AI can capture full page or specific element:
+// screenshot({ elementSelector: '#game-board' })
+```
+
+### Pattern 14: Python Analysis Tool
+
+Let AI analyze data with Python libraries:
+
+```typescript
+import { PythonTool } from '@mcp-web/tools/python';
+
+const pythonTool = new PythonTool(
+  // Function that returns data available to Python scripts
+  () => ({ 
+    todos: store.todos,
+    projects: store.projects,
+  }),
+  {
+    name: 'analyze_data',
+    description: 'Analyze todos and projects with Python',
+  },
+);
+
+mcp.addTool(pythonTool);
+
+// Cleanup when done
+// mcp.removeTool('analyze_data');
+// pythonTool.destroy();
+```
+
+Scripts time out after 30 seconds. Pyodide loads from CDN on first use.
+
 ## Demo: Checkers Game
 
 The checkers demo (`demos/checkers/`) exemplifies these patterns:
@@ -437,7 +580,7 @@ export const useAppStore = defineStore('app', () => {
 // mcp.ts
 const store = useAppStore();
 
-const [getTodos, todoTools, cleanup] = mcp.addStateTools({
+const [getTodos, setTodos, cleanup] = mcp.addStateTools({
   name: 'todos',
   description: 'All todo items in the app',
   schema: TodoListSchema,
@@ -466,7 +609,7 @@ export const useStore = create<AppState>((set) => ({
 }));
 
 // mcp.ts (outside component for global state)
-const [getTodos, todoTools, cleanup] = mcp.addStateTools({
+const [getTodos, setTodos, cleanup] = mcp.addStateTools({
   name: 'todos',
   description: 'All todo items in the app',
   schema: TodoListSchema,
@@ -490,12 +633,12 @@ export const state = {
 };
 
 // mcp.ts
-const [getTodos, todoTools, cleanup] = mcp.addStateTools({
+const [getTodos, codeTodos, cleanup] = mcp.addStateTools({
   name: 'todos',
   description: 'All todo items in the app',
   schema: TodoListSchema,
   get: () => state.todos,
   set: (value) => { state.todos = value; },
-  expand: true,
+  codeMode: createCodeMode(),  // Preferred over expand: true
 });
 ```

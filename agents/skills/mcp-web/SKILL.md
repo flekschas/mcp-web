@@ -100,14 +100,13 @@ import { getDefaultStore } from 'jotai';
 
 const store = getDefaultStore();
 
-// Expose state - returns [getter, setter, cleanup]
-mcpWeb.addStateTools({
+// Expose state - returns [getter, setter | codeTool | setter[], cleanup]
+const [getTodos, setTodos, cleanupTodos] = mcpWeb.addStateTools({
   name: 'todos',
   description: 'List of all todo items',
   get: () => store.get(todosAtom),
   set: (value) => store.set(todosAtom, value),
   schema: TodosSchema,
-  expand: true,  // For collections
 });
 
 // Add actions for complex operations
@@ -132,7 +131,7 @@ mcpWeb.addTool({
 - Updating multiple states atomically
 - Operations with side effects
 
-## Large State: Code Mode
+## Code Mode (Recommended for Large State)
 
 When state is large or grows, add `codeMode: createCodeMode()` (from
 `@mcp-web/tools/code`). AI then gets the getter and a `code_<name>` tool that
@@ -142,7 +141,7 @@ writes the change, never the whole state:
 ```typescript
 import { createCodeMode } from '@mcp-web/tools/code';
 
-mcpWeb.addStateTools({
+const [getApp, codeApp, cleanup] = mcpWeb.addStateTools({
   name: 'todo_app',
   description: 'Todo application state',
   schema: AppSchema,
@@ -156,11 +155,32 @@ When a program fails, the state is restored from a snapshot, so `get` must
 return a value `structuredClone` can copy (e.g. `$state.snapshot(app)` in
 Svelte).
 
-`expand: true` instead generates add/set/delete tools for arrays and records.
-Usually code mode makes it unnecessary. Use it when AI-written code can't run,
-or when the schema is too large to describe as one type (then combine it with
-`codeMode`). See [efficient state tools](https://mcp-web.dev/efficient-state-tools)
-and the [code tool](https://mcp-web.dev/tools/code).
+### Combining Multiple States with addCodeTool
+
+To combine several states, or state tools with hand-crafted tools, use `addCodeTool()`:
+
+```typescript
+import { CodeTool, combineTransactions, stateTransaction } from '@mcp-web/tools/code';
+
+const todoTools = createStateTools({ name: 'todos', /* ...config */ });
+const settingsTools = createStateTools({ name: 'settings', /* ...config */ });
+
+mcpWeb.addCodeTool(new CodeTool({
+  tools: [
+    ...todoTools.tools,
+    ...settingsTools.tools,
+    archiveCompleted.definition,
+  ],
+  transaction: combineTransactions(
+    stateTransaction(() => store.todos, (v) => store.todos = v),
+    stateTransaction(() => store.settings, (v) => store.settings = v),
+  ),
+}));
+```
+
+### Expanded Tools (Alternative)
+
+`expand: true` generates add/set/delete tools for arrays and records. Usually code mode makes it unnecessary. Use it when AI-written code can't run, or when the schema is too large to describe as one type (then combine it with `codeMode`). See [efficient state tools](https://mcp-web.dev/efficient-state-tools).
 
 ### System-Generated Fields
 
@@ -174,6 +194,37 @@ const TodoSchema = z.object({
   created_at: system(z.number().default(() => Date.now())),
   title: z.string(),  // User-visible
 });
+```
+
+## Built-in Tools
+
+The `@mcp-web/tools` package provides ready-to-use tools:
+
+- **Code Tool** (`@mcp-web/tools/code`): JavaScript program execution for state manipulation. Use via `codeMode` or `addCodeTool()`.
+- **DOM Query** (`@mcp-web/tools/dom`): Inspect page markup with CSS selectors.
+- **Screenshot** (`@mcp-web/tools/screenshot`): Capture pages or elements as images.
+- **Python** (`@mcp-web/tools/python`): Run Python scripts (Pyodide) for data analysis.
+
+```typescript
+import { DOMQueryTool } from '@mcp-web/tools/dom';
+import { ScreenshotTool } from '@mcp-web/tools/screenshot';
+import { PythonTool } from '@mcp-web/tools/python';
+
+// DOM Query - AI inspects page structure
+mcpWeb.addTool(new DOMQueryTool());
+
+// Screenshot - AI sees the UI
+mcpWeb.addTool(new ScreenshotTool({
+  name: 'screenshot',
+  description: 'Take a screenshot of the app',
+}));
+
+// Python - AI analyzes data
+const pythonTool = new PythonTool(
+  () => ({ todos: store.todos }),
+  { name: 'analyze_todos', description: 'Analyze todos with Python' }
+);
+mcpWeb.addTool(pythonTool);
 ```
 
 ## Key Design Rules
@@ -330,6 +381,7 @@ new MCPWebBridge(MCP_WEB_CONFIG);
 - Keep schemas in `schemas.ts`, types in `types.ts` (separate files)
 - Co-locate related code in single files when under ~100 lines each
 - Use `onConnectionStateChange()` to react to connection changes
+- Use `addCodeTool()` to combine multiple states into one code tool
 
 ❌ **Don't:**
 - Expose derived values as state tools
