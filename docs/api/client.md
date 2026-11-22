@@ -98,6 +98,12 @@ Claude Desktop. It connects to stdin/stdout for MCP communication.
 
 Cannot be called on contextualized client instances.
 
+### BridgeList
+
+*Type* — `packages/client/src/bridge-notifications.ts`
+
+The MCP lists the bridge sends `list_changed` notifications for.
+
 ### MCPWebClientConfig
 
 *Type* — `packages/client/src/types.ts`
@@ -136,6 +142,23 @@ z.infer<typeof ImageContentSchema>
 
 ```ts
 z.infer<typeof ContentSchema>
+```
+
+### watchBridgeNotifications
+
+*Function* — `packages/client/src/bridge-notifications.ts`
+
+Keeps an MCP session with the bridge open and listens to its notification
+stream, reconnecting with a backoff until the returned stop function is
+called.
+
+```ts
+watchBridgeNotifications({
+  url,
+  authToken,
+  timeout,
+  onListChanged,
+}: WatchBridgeNotificationsOptions): () => void
 ```
 
 ### JsonRpcResponseSchema

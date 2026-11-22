@@ -175,6 +175,7 @@ export class MCPWebBridgeNode {
           if (isSSEResponse(response)) {
             // Set headers for SSE
             res.writeHead(response.status, response.headers);
+            res.flushHeaders();
 
             // Create writer function that sends SSE-formatted data
             const writer = (data: string): void => {
