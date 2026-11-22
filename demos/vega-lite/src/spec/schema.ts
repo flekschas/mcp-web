@@ -18,9 +18,8 @@ const property = (description: string) =>
  * official JSON Schema instead.
  */
 export const vegaLiteSpecShape = z.looseObject({
-  $schema: property(
-    'string, e.g. "https://vega.github.io/schema/vega-lite/v6.json"',
-  ),
+  // `$schema` is left out because Claude rejects property names with `$`.
+  // The loose object still accepts it.
   title: property('string | { text, subtitle?, anchor?, fontSize?, ... }'),
   description: property('string'),
   data: property(
