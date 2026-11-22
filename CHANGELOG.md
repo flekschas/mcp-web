@@ -1,3 +1,41 @@
+## v0.2.0
+
+`@mcp-web/tools`:
+
+- feat: add a code tool (`@mcp-web/tools/code`) that lets AI write a short JavaScript program that calls your tools as functions, instead of calling them one by one. Programs run in a sandboxed iframe by default, and every call goes through the same handler and Zod validation as a direct tool call ([#14](https://github.com/flekschas/mcp-web/pull/14))
+- feat: `createCodeMode()` to expose state tools through a code tool, and `CodeTool` to wrap any set of tools
+- feat: roll back the state when a program fails, via `stateTransaction()` and `combineTransactions()`
+- feat: report all invalid calls of a program at once, with optional `hints` to help AI fix them
+- feat: `signatures: 'lookup'` option to keep the tool description short for large tool sets
+- feat: `patch` option to let AI fix a failed program by sending line edits
+- feat: `WorkerExecutor` (`@mcp-web/tools/code/worker`) to run programs in Node, and `FunctionExecutor` for tests
+
+`@mcp-web/core`:
+
+- feat: `codeMode` option for `addStateTools()` and `createStateTools()`, which registers the getter and a code tool instead of the individual state tools ([#14](https://github.com/flekschas/mcp-web/pull/14))
+- feat: `addCodeTool()` to register a `CodeTool`
+- feat: `zodSchemasToTools()` to generate tools from several Zod schemas
+- fix: `removeTool()` and `removeResource()` now tell the bridge, so removed tools and resources disappear for AI ([#16](https://github.com/flekschas/mcp-web/pull/16))
+
+`@mcp-web/bridge`:
+
+- feat: add a Cloudflare Workers adapter, `createCloudflareBridge` from `@mcp-web/bridge/cloudflare` ([#10](https://github.com/flekschas/mcp-web/pull/10))
+- fix: notify MCP clients when tools or resources are removed ([#16](https://github.com/flekschas/mcp-web/pull/16))
+- chore: remove the Deno and PartyKit adapters ([#8](https://github.com/flekschas/mcp-web/pull/8), [#10](https://github.com/flekschas/mcp-web/pull/10))
+
+`@mcp-web/client`:
+
+- fix: forward tool and resource list changes from the bridge to the MCP host, so AI apps pick up tools added or removed after connecting ([#17](https://github.com/flekschas/mcp-web/pull/17))
+
+`@mcp-web/decompose-zod-schema`:
+
+- feat: auto-detect arrays and records in split paths (`'todos'` instead of `'todos[]'`) and support deep paths through array elements (`'views.tracks.top'`) ([#14](https://github.com/flekschas/mcp-web/pull/14))
+- feat: export `getSchemaAtDeepPath`
+
+`@mcp-web/mcpb`:
+
+- chore: retire the package ([#4](https://github.com/flekschas/mcp-web/pull/4))
+
 ## v0.1.3
 
 `@mcp-web/bridge`:
