@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitepress'
+import llmstxt from 'vitepress-plugin-llms'
 
 import pkg from '../../package.json' with { type: 'json' };
 
@@ -117,5 +118,8 @@ export default defineConfig({
   },
   sitemap: {
     hostname: 'https://mcp-web.dev'
+  },
+  vite: {
+    plugins: [llmstxt()]
   }
 })
