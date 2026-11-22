@@ -143,6 +143,20 @@ tool: {
   }
 ```
 
+### UnregisterToolMessage
+
+*Interface* — `packages/bridge/src/types.ts`
+
+**Properties:**
+
+```ts
+type: 'unregister-tool'
+```
+
+```ts
+toolName: string
+```
+
 ### RegisterResourceMessage
 
 *Interface* — `packages/bridge/src/types.ts`
@@ -155,6 +169,20 @@ type: 'register-resource'
 
 ```ts
 resource: ResourceMetadata
+```
+
+### UnregisterResourceMessage
+
+*Interface* — `packages/bridge/src/types.ts`
+
+**Properties:**
+
+```ts
+type: 'unregister-resource'
+```
+
+```ts
+uri: string
 ```
 
 ### ResourceReadMessage
@@ -468,7 +496,9 @@ resources: Map<string, ResourceMetadata>
 ```ts
 | AuthenticateMessage
   | RegisterToolMessage
+  | UnregisterToolMessage
   | RegisterResourceMessage
+  | UnregisterResourceMessage
   | ActivityMessage
   | ToolResponseMessage
   | ResourceResponseMessage

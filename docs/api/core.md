@@ -233,9 +233,10 @@ The tools it wraps are not registered on their own by this call.
 removeTool(name: string): void
 ```
 
-Removes a registered tool.
+Removes a tool from this browser session.
 
-After removal, AI agents will no longer be able to call this tool.
+When connected, the bridge updates the session's tool list and notifies
+subscribed MCP clients.
 Useful for dynamically disabling features or cleaning up when tools are no longer needed.
 
 ```ts
@@ -251,9 +252,10 @@ The handler function is called when the AI requests the resource content.
 removeResource(uri: string): void
 ```
 
-Removes a registered resource.
+Removes a resource from this browser session.
 
-After removal, AI agents will no longer be able to read this resource.
+When connected, the bridge updates the session's resource list and
+notifies subscribed MCP clients.
 
 ```ts
 addApp(app: AppDefinition | CreatedApp): AppDefinition
