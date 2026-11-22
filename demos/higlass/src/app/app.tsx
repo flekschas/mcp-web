@@ -2,6 +2,7 @@ import { useAtomValue, useSetAtom } from 'jotai';
 import { Help } from '../help/help.tsx';
 import { helpModalOpenAtom } from '../help/states.ts';
 import { HiGlass } from '../higlass/higlass.tsx';
+import { codeMode, setCodeMode } from '../mcp/code-mode.ts';
 import { mcpStatusAtom } from '../mcp/states.ts';
 
 export function App() {
@@ -19,6 +20,27 @@ export function App() {
           <strong className="font-bold">MCP-Web:</strong> HiGlass
         </h1>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={codeMode}
+            title="Offer the tools through one code tool. Reloads the page."
+            className="flex items-center gap-2 p-2 border border-zinc-800 rounded hover:bg-zinc-800 hover:text-white transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-0"
+            onClick={() => setCodeMode(!codeMode)}
+          >
+            <span
+              className={`relative w-6 h-3.5 rounded-full transition-colors ${
+                codeMode ? 'bg-green-500' : 'bg-zinc-700'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 w-2.5 h-2.5 rounded-full bg-white transition-all ${
+                  codeMode ? 'left-3' : 'left-0.5'
+                }`}
+              />
+            </span>
+            Code mode
+          </button>
           <button
             type="button"
             className="flex items-center gap-2 p-2 border border-zinc-800 rounded hover:bg-zinc-800 hover:text-white transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-0"
