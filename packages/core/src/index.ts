@@ -8,8 +8,8 @@ export type { ZodSchemasToToolsOptions } from './zod-schemas-to-tools.js';
 // Export state grouping helper
 export { groupState } from './group-state.js';
 export type { StateTriple, StateTriples, GroupedState } from './group-state.js';
+export type { CodeMode, CodeToolLike } from '@mcp-web/types';
 export type {
-  CodeToolLike,
   ContextItem,
   EphemeralContext,
   QueryRequest,
@@ -35,4 +35,8 @@ export type {
 
 // Re-export app-related types from @mcp-web/types for convenience
 export { isCreatedApp } from '@mcp-web/types';
-export type { AppDefinition, CreatedApp, ToolRegistrationError } from '@mcp-web/types';
+export type {
+  AppDefinition,
+  CreatedApp,
+  ToolRegistrationError,
+} from '@mcp-web/types';

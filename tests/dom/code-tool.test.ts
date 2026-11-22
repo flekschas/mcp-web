@@ -84,3 +84,48 @@ test('fails on an error without a message', async ({ page }) => {
   expect(fromHandler.error).toBeDefined();
   expect(fromHandler.result).toBeUndefined();
 });
+
+test('destroy removes the sandbox, and the next run builds it anew', async ({
+  page,
+}) => {
+  const counts = await page.evaluate(async () => {
+    const before = await window.__test.execute('await double({ n: 1 })');
+    const built = window.__test.iframeCount();
+    window.__test.destroy();
+    const destroyed = window.__test.iframeCount();
+    const after = await window.__test.execute('await double({ n: 2 })');
+    return {
+      before,
+      built,
+      destroyed,
+      after,
+      rebuilt: window.__test.iframeCount(),
+    };
+  });
+
+  expect(counts).toEqual({
+    before: { result: 2 },
+    built: 1,
+    destroyed: 0,
+    after: { result: 4 },
+    rebuilt: 1,
+  });
+});
+
+test('destroy fails a running program right away', async ({ page }) => {
+  const outcome = await page.evaluate(async () => {
+    const started = Date.now();
+    const run = window.__test.execute(
+      'await new Promise((resolve) => setTimeout(resolve, 10_000))',
+    );
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    window.__test.destroy();
+    const result = await run;
+    return { error: result.error, ms: Date.now() - started };
+  });
+
+  expect(outcome.error).toContain(
+    'The sandbox was stopped before the program finished.',
+  );
+  expect(outcome.ms).toBeLessThan(2_000);
+});

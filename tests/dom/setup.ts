@@ -68,6 +68,8 @@ declare global {
         code: string,
       ) => Promise<{ result?: unknown; error?: string }>;
       lookUp: (names: string[]) => unknown;
+      destroy: () => void;
+      iframeCount: () => number;
     };
   }
 }
@@ -77,4 +79,6 @@ window.__test = {
   executeTimeout: (code: string) => timeoutCodeTool.handler({ code }),
   executeLookup: (code: string) => lookupCodeTool.handler({ code }),
   lookUp: (names: string[]) => lookupCodeTool.lookupTool?.handler({ names }),
+  destroy: () => codeTool.destroy(),
+  iframeCount: () => document.querySelectorAll('iframe').length,
 };

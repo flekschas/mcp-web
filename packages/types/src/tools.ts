@@ -72,6 +72,31 @@ export const ToolDefinitionZodSchema = ToolDefinitionBaseSchema.extend({
 /** Tool definition type for tools with Zod schemas (inferred from schema) */
 export type ToolDefinitionZod = z.infer<typeof ToolDefinitionZodSchema>;
 
+/**
+ * A code tool, such as a `CodeTool` from `@mcp-web/tools/code`: a tool, with
+ * the lookup tool that returns its function signatures when it has one.
+ */
+export type CodeToolLike = ToolDefinitionZod & {
+  lookupTool?: ToolDefinitionZod | null;
+  /** Tears down the sandbox. Called when the code tool is removed. */
+  destroy?(): void;
+};
+
+/**
+ * Builds a code tool over a state's generated tools. `createCodeMode` from
+ * `@mcp-web/tools/code` returns one.
+ */
+export type CodeMode = <T>(state: {
+  /** The state's name, as in `get_<name>`. */
+  name: string;
+  /** The state's getter, which is also registered on its own. */
+  getter: ToolDefinitionZod;
+  /** All the state's generated tools, including the getter. */
+  tools: ToolDefinitionZod[];
+  get: () => T;
+  set: (value: T) => void;
+}) => CodeToolLike;
+
 /** Schema for tool definitions with JSON Schema */
 export const ToolDefinitionJsonSchema = ToolDefinitionBaseSchema.extend({
   /** The input schema for the tool (JSON Schema). */

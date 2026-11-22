@@ -27,6 +27,8 @@ export class IframeExecutor implements CodeExecutor {
    */
   #activeExecutionId: string | null = null;
   #callTool: ExecutionRequest['callTool'] | null = null;
+  /** Fails each run that has not received its result yet. */
+  #pending = new Set<() => void>();
 
   constructor() {
     this.#readyPromise = new Promise<void>((resolve) => {
@@ -101,10 +103,6 @@ export class IframeExecutor implements CodeExecutor {
 
   async execute(request: ExecutionRequest): Promise<unknown> {
     this.#ensureIframe(request.functionNames);
-    await this.#readyPromise;
-
-    this.#activeExecutionId = request.executionId;
-    this.#callTool = request.callTool;
 
     return new Promise<unknown>((resolve, reject) => {
       const listener = (event: MessageEvent) => {
@@ -120,28 +118,45 @@ export class IframeExecutor implements CodeExecutor {
 
       const cleanup = () => {
         window.removeEventListener('message', listener);
+        this.#pending.delete(abort);
         // Past this point the program is answered, so any further call it makes
         // is a stray from a run that is over.
         this.#activeExecutionId = null;
       };
 
-      window.addEventListener('message', listener);
-      this.#post({
-        type: 'execute',
-        id: request.executionId,
-        code: request.code,
+      const abort = () => {
+        cleanup();
+        reject(
+          new Error('The sandbox was stopped before the program finished.'),
+        );
+      };
+      this.#pending.add(abort);
+
+      void this.#readyPromise.then(() => {
+        if (!this.#pending.has(abort)) return;
+        this.#activeExecutionId = request.executionId;
+        this.#callTool = request.callTool;
+        window.addEventListener('message', listener);
+        this.#post({
+          type: 'execute',
+          id: request.executionId,
+          code: request.code,
+        });
       });
     });
   }
 
+  /** Removes the iframe and fails the runs still waiting on it. */
   destroy(): void {
+    for (const abort of [...this.#pending]) abort();
     this.#activeExecutionId = null;
     this.#callTool = null;
+    // Nothing was built yet, so there is nothing to remove, and outside a
+    // browser there is no `window` to remove it from.
+    if (!this.#iframe) return;
     window.removeEventListener('message', this.#handleMessage);
-    if (this.#iframe) {
-      this.#iframe.remove();
-      this.#iframe = null;
-    }
+    this.#iframe.remove();
+    this.#iframe = null;
     this.#builtFor = null;
     this.#readyPromise = new Promise<void>((resolve) => {
       this.#resolveReady = resolve;

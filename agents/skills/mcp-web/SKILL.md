@@ -132,20 +132,35 @@ mcpWeb.addTool({
 - Updating multiple states atomically
 - Operations with side effects
 
-## Expanded Tools for Collections
+## Large State: Code Mode
 
-Use `expand: true` when state includes arrays or records that grow:
+When state is large or grows, add `codeMode: createCodeMode()` (from
+`@mcp-web/tools/code`). AI then gets the getter and a `code_<name>` tool that
+runs a program, which reads, changes, and writes the state in a sandbox. AI only
+writes the change, never the whole state:
 
 ```typescript
+import { createCodeMode } from '@mcp-web/tools/code';
+
 mcpWeb.addStateTools({
   name: 'todo_app',
   description: 'Todo application state',
-  schema: AppSchema,  // Contains arrays/records
+  schema: AppSchema,
   get: () => store.app,
   set: (value) => { store.app = value; },
-  expand: true,  // Generates add/set/delete tools for collections
+  codeMode: createCodeMode(),
 });
 ```
+
+When a program fails, the state is restored from a snapshot, so `get` must
+return a value `structuredClone` can copy (e.g. `$state.snapshot(app)` in
+Svelte).
+
+`expand: true` instead generates add/set/delete tools for arrays and records.
+Usually code mode makes it unnecessary. Use it when AI-written code can't run,
+or when the schema is too large to describe as one type (then combine it with
+`codeMode`). See [efficient state tools](https://mcp-web.dev/efficient-state-tools)
+and the [code tool](https://mcp-web.dev/tools/code).
 
 ### System-Generated Fields
 
@@ -166,7 +181,7 @@ const TodoSchema = z.object({
 ### Schema Design
 - **Size**: 5-20 properties per setter tool
 - **Depth**: Keep schemas flat
-- **Collections**: Use `expand: true` for arrays/records
+- **Large state**: Use `codeMode`; `expand: true` only for narrow cases
 - **Descriptions**: Use `.describe()` on objects and properties
 
 ### State Architecture
@@ -309,7 +324,7 @@ new MCPWebBridge(MCP_WEB_CONFIG);
 - Describe schemas extensively
 - Use state tools for fixed-shape data
 - Use action tools for operations
-- Use `expand: true` for growing collections
+- Use `codeMode` for large or growing state
 - Mark system fields with `system()`
 - Use `nullable()` instead of `optional()`
 - Keep schemas in `schemas.ts`, types in `types.ts` (separate files)
@@ -320,7 +335,7 @@ new MCPWebBridge(MCP_WEB_CONFIG);
 - Expose derived values as state tools
 - Use `optional()` for fields
 - Create one tool per atomic variable (group related state)
-- Expose entire large state as single tool (split or expand)
+- Expose entire large state as a plain setter (use `codeMode`)
 - Mix Zod schemas and TypeScript type definitions in the same file
 - Create overly granular file structures (one atom per file, one tool per file)
 - Import `Bridge` from `@mcp-web/bridge` (use `MCPWebBridge`)

@@ -118,6 +118,74 @@ describe('generateCodeToolDescription', () => {
     expect(description).toContain('number');
   });
 
+  test('writes a nullable field as a union with null', () => {
+    const tools = [
+      {
+        name: 'add_todo',
+        description: 'Add a todo',
+        handler: () => ({ success: true }),
+        inputSchema: z.object({
+          projectId: z.string().nullable().default(null),
+        }),
+      },
+    ];
+
+    const description = generateCodeToolDescription(tools);
+
+    expect(description).toContain('projectId?: string | null');
+  });
+
+  test('parenthesizes union item types in arrays', () => {
+    const tools = [
+      {
+        name: 'set_tags',
+        description: 'Set tags',
+        handler: () => ({ success: true }),
+        inputSchema: z.object({
+          tags: z.array(z.string().nullable()),
+          sizes: z.array(z.enum(['small', 'large'])),
+        }),
+      },
+    ];
+
+    const description = generateCodeToolDescription(tools);
+
+    expect(description).toContain('tags: (string | null)[]');
+    expect(description).toContain("sizes: ('small' | 'large')[]");
+  });
+
+  test('leaves object item types with nullable fields unwrapped', () => {
+    const tools = [
+      {
+        name: 'set_todos',
+        description: 'Set todos',
+        handler: () => ({ success: true }),
+        inputSchema: z.object({
+          todos: z.array(z.object({ projectId: z.string().nullable() })),
+        }),
+      },
+    ];
+
+    const description = generateCodeToolDescription(tools);
+
+    expect(description).toMatch(/todos: \{[^()]*projectId: string \| null \}\[\]/);
+  });
+
+  test('keeps the value type of records', () => {
+    const tools = [
+      {
+        name: 'set_scores',
+        description: 'Set scores',
+        handler: () => ({ success: true }),
+        inputSchema: z.object({ scores: z.record(z.string(), z.number()) }),
+      },
+    ];
+
+    const description = generateCodeToolDescription(tools);
+
+    expect(description).toContain('scores: Record<string, number>');
+  });
+
   test('handles tools without input schemas', () => {
     const tools = [
       {
@@ -300,6 +368,20 @@ describe('TypeScript validity of generated code', () => {
           title: z.string(),
           count: z.number(),
           active: z.boolean(),
+        }),
+      },
+    ]);
+  });
+
+  test('tool with nullable array items and records', () => {
+    assertValidTypeScript([
+      {
+        name: 'set_tags',
+        description: 'Set tags',
+        handler: () => ({ success: true }),
+        inputSchema: z.object({
+          tags: z.array(z.string().nullable()),
+          scores: z.record(z.string(), z.number().nullable()),
         }),
       },
     ]);

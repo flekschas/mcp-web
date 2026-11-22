@@ -303,12 +303,12 @@ The action vs setter also nicely maps to zod schemas:
 - `z.array(z.any())`: length can vary
 - `z.map()`, `z.set()`: items can be added/removed
 
-::: tip Expanded Tools for Large Schemas
-For schemas with collections (arrays, records) that grow over time, consider
-using `expand: true` to generate targeted tools for efficient state
-manipulation.
+::: tip Efficient Tools for Large State
+For state that is large or grows over time, such as collections of todos,
+consider code mode, which lets AI change the state with a short program
+instead of sending it whole.
 
-See our [Expanded Tools Guide](/expanded-state-tools) for details.
+See our [Efficient State Tools guide](/efficient-state-tools) for details.
 :::
 
 ::: tip Handling Optional Fields

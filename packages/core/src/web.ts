@@ -7,6 +7,8 @@ import type {
 import type { SplitPlan } from '@mcp-web/decompose-zod-schema';
 import type {
   AppDefinition,
+  CodeMode,
+  CodeToolLike,
   CreatedApp,
   MCPWebConfig,
   MCPWebConfigOutput,
@@ -33,17 +35,16 @@ import {
 import type { z } from 'zod';
 import {
   type CreatedStateTools,
+  type CreatedStateToolsBasic,
+  type CreatedStateToolsExpanded,
+  type CreateStateToolsConfig,
   createStateTools,
   isCreatedStateTools,
 } from './create-state-tools.js';
 import { type CreatedTool, isCreatedTool } from './create-tool.js';
 import { QueryResponse } from './query.js';
 import { QueryRequestSchema, QueryResponseResultSchema } from './schemas.js';
-import type {
-  CodeToolLike,
-  QueryRequest,
-  QueryResponseResult,
-} from './types.js';
+import type { QueryRequest, QueryResponseResult } from './types.js';
 import { toJSONSchema, toToolMetadataJson } from './utils.js';
 
 /**
@@ -1076,30 +1077,50 @@ export class MCPWeb {
    * ```
    */
   addCodeTool(code: CodeToolLike): () => void {
-    const tools = code.lookupTool ? [code, code.lookupTool] : [code];
-    if (tools.length === 2 && tools[0].name === tools[1].name) {
-      throw new Error(
-        `The code tool and its lookup tool are both named ${code.name}.`,
-      );
-    }
+    return this.#addCodeToolGroup(code, []);
+  }
+
+  /**
+   * Registers a code tool with its lookup tool and `others` as one group:
+   * either all of them or, when one is refused here, none. A connected bridge
+   * still receives each tool on its own and can refuse one of them.
+   *
+   * The returned function takes out only what this call registered, so calling
+   * it again, or after the names were registered anew, leaves the newer tools
+   * alone. It also tears down the code tool's sandbox.
+   */
+  #addCodeToolGroup(code: CodeToolLike, others: ToolDefinition[]): () => void {
+    const tools = [
+      code,
+      ...(code.lookupTool ? [code.lookupTool] : []),
+      ...others,
+    ];
+    const names = new Set<string>();
     for (const tool of tools) {
+      if (names.has(tool.name)) {
+        throw new Error(`Two of the tools to register are named ${tool.name}.`);
+      }
+      names.add(tool.name);
       if (this.tools.has(tool.name)) {
         throw new Error(`A tool named ${tool.name} is already registered.`);
       }
     }
 
-    // Both are prepared before either is registered, so a tool that is
-    // refused leaves nothing behind, not even with a connected bridge.
+    // All are prepared before any is registered, so a tool refused here
+    // leaves nothing behind.
     const registered = tools.map((tool) => this.#prepareTool(tool));
     for (const tool of registered) this.#storeTool(tool);
 
-    // Removes only what this call registered, so calling it again, or after
-    // the names were registered anew, leaves the newer tools alone.
-    return () => {
+    let removed = false;
+    const remove = () => {
+      if (removed) return;
+      removed = true;
       for (const tool of registered) {
         if (this.tools.get(tool.name) === tool) this.removeTool(tool.name);
       }
+      code.destroy?.();
     };
+    return remove;
   }
 
   /**
@@ -1376,6 +1397,8 @@ export class MCPWeb {
    * @returns Tuple of [getter tool, setter tool(s), cleanup function]
    * - Without schemaSplit and expand: [ToolDefinition, ToolDefinition, () => void]
    * - With schemaSplit or expand: [ToolDefinition, ToolDefinition[], () => void]
+   * - With codeMode: [ToolDefinition, ToolDefinition, () => void], where the
+   *   second tool is the code tool
    *
    * @example
    * ```typescript
@@ -1421,97 +1444,95 @@ export class MCPWeb {
    *   schema: AppSchema,
    *   expand: true
    * });
+   *
+   * // With code mode (returns the getter and the code tool)
+   * import { createCodeMode } from '@mcp-web/tools/code';
+   *
+   * const [getApp, code, cleanup] = mcp.addStateTools({
+   *   name: 'app',
+   *   description: 'App state',
+   *   get: () => appState,
+   *   set: (val) => { appState = val },
+   *   schema: AppSchema,
+   *   expand: true,
+   *   codeMode: createCodeMode(),
+   * });
    * ```
    */
   // Overload: CreatedStateTools (basic)
   addStateTools<T>(
-    created: CreatedStateTools<T> & { isExpanded: false },
+    created: CreatedStateToolsBasic<T> & { codeMode: false },
   ): [ToolDefinition, ToolDefinition, () => void];
   // Overload: CreatedStateTools (expanded)
   addStateTools<T>(
-    created: CreatedStateTools<T> & { isExpanded: true },
+    created: CreatedStateToolsExpanded<T> & { codeMode: false },
   ): [ToolDefinition, ToolDefinition[], () => void];
-  // Overload: CreatedStateTools (generic - for when isExpanded is unknown at compile time)
+  // Overload: CreatedStateTools (code mode) → getter and code tool
+  addStateTools<T>(
+    created: CreatedStateTools<T> & { codeMode: true },
+  ): [ToolDefinition, ToolDefinition, () => void];
+  // Overload: CreatedStateTools (generic - for when the shape is unknown at compile time)
   addStateTools<T>(
     created: CreatedStateTools<T>,
   ): [ToolDefinition, ToolDefinition | ToolDefinition[], () => void];
   // Overload: No schemaSplit, no expand → single setter
-  addStateTools<T>(options: {
-    name: string;
-    description: string;
-    get: () => T;
-    set: (value: T) => void;
-    schema: z.ZodType<T>;
-    schemaSplit?: undefined;
-    expand?: false;
-  }): [ToolDefinition, ToolDefinition, () => void];
+  addStateTools<T>(
+    options: CreateStateToolsConfig<T> & {
+      schemaSplit?: undefined;
+      expand?: false;
+      codeMode?: undefined;
+    },
+  ): [ToolDefinition, ToolDefinition, () => void];
   // Overload: With schemaSplit or expand → array of setters
-  addStateTools<T>(options: {
-    name: string;
-    description: string;
-    get: () => T;
-    set: (value: T) => void;
-    schema: z.ZodType<T>;
-    schemaSplit: SplitPlan;
-    expand?: boolean;
-  }): [ToolDefinition, ToolDefinition[], () => void];
-  addStateTools<T>(options: {
-    name: string;
-    description: string;
-    get: () => T;
-    set: (value: T) => void;
-    schema: z.ZodType<T>;
-    schemaSplit?: SplitPlan;
-    expand: true;
-  }): [ToolDefinition, ToolDefinition[], () => void];
+  addStateTools<T>(
+    options: CreateStateToolsConfig<T> & {
+      schemaSplit: SplitPlan;
+      codeMode?: undefined;
+    },
+  ): [ToolDefinition, ToolDefinition[], () => void];
+  addStateTools<T>(
+    options: CreateStateToolsConfig<T> & {
+      expand: true;
+      codeMode?: undefined;
+    },
+  ): [ToolDefinition, ToolDefinition[], () => void];
+  // Overload: With codeMode → getter and code tool
+  addStateTools<T>(
+    options: CreateStateToolsConfig<T> & { codeMode: CodeMode },
+  ): [ToolDefinition, ToolDefinition, () => void];
+  // Overload: codeMode not known at compile time
+  addStateTools<T>(
+    options: CreateStateToolsConfig<T>,
+  ): [ToolDefinition, ToolDefinition | ToolDefinition[], () => void];
   // Implementation
   addStateTools<T>(
-    optionsOrCreated:
-      | {
-          name: string;
-          description: string;
-          get: () => T;
-          set: (value: T) => void;
-          schema: z.ZodType<T>;
-          schemaSplit?: SplitPlan;
-          expand?: boolean;
-        }
-      | CreatedStateTools<T>,
+    optionsOrCreated: CreateStateToolsConfig<T> | CreatedStateTools<T>,
   ): [ToolDefinition, ToolDefinition | ToolDefinition[], () => void] {
-    // Handle CreatedStateTools
-    if (isCreatedStateTools(optionsOrCreated)) {
-      const created = optionsOrCreated;
-      const registeredTools: ToolDefinition[] = [];
+    const created: CreatedStateTools<T> = isCreatedStateTools(optionsOrCreated)
+      ? (optionsOrCreated as CreatedStateTools<T>)
+      : createStateTools(optionsOrCreated as CreateStateToolsConfig<T>);
+    const { codeMode, get, name, set } = created.config;
 
-      // Register all tools
-      for (const tool of created.tools) {
-        registeredTools.push(this.addTool(tool));
+    // In code mode the code tool offers all the state tools. The getter is
+    // also registered on its own, so reading the state needs no program.
+    if (codeMode) {
+      if (!created.getter) {
+        throw new Error(
+          `The schema of ${name} generated no tools, so there is nothing for code mode to offer.`,
+        );
       }
-
-      // Build cleanup function
-      const cleanup = () => {
-        for (const tool of registeredTools) {
-          this.removeTool(tool.name);
-        }
-      };
-
-      // Return tuple based on isExpanded
-      if (created.isExpanded) {
-        return [registeredTools[0], registeredTools.slice(1), cleanup];
-      }
-      return [registeredTools[0], registeredTools[1], cleanup];
+      const code = codeMode({
+        name,
+        getter: created.getter,
+        tools: created.tools,
+        get,
+        set,
+      });
+      const remove = this.#addCodeToolGroup(code, [created.getter]);
+      return [created.getter, code, remove];
     }
 
-    // Delegate to createStateTools for tool generation, then register
-    const created = createStateTools(
-      optionsOrCreated as Parameters<typeof createStateTools>[0],
-    );
-    const registeredTools: ToolDefinition[] = [];
-
-    for (const tool of created.tools) {
-      registeredTools.push(this.addTool(tool));
-    }
-
+    const registeredTools = created.tools.map((tool) => this.addTool(tool));
     const cleanup = () => {
       for (const tool of registeredTools) {
         this.removeTool(tool.name);

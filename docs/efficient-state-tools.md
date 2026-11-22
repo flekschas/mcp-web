@@ -1,20 +1,21 @@
-# Expanded Tools for Efficiently Manipulating State
+# Efficient State Tools
 
-Wouldn't it be nice if we could expose any schema as a set of tools for AI
-to efficiently and effectively generate and update frontend state? Then all we'd
+Wouldn't it be nice if we could expose any schema as tools for AI to
+efficiently and effectively generate and update frontend state? Then all we'd
 have to do to make a frontend app fully controllable by AI is to define a
 well-described Zod schema for the app state.
 
-With MCP-Web you can automatically generate an expanded set of tools that offers
-more targeted tools for manipulating state with collections like arrays and
-records.
+The simplest way to expose state is a getter and a setter. This works well for
+small states, but as the state grows, every change gets more expensive: to
+update one todo, AI has to send the whole state back. This guide shows two ways
+to keep changes small, code mode and expanded tools, and when to use which.
 
 ::: info Prior Knowledge
 This guide assumes you know about Zod schemas and how to develop with
 [declarative reactive state](/declarative-reactive-state).
 :::
 
-## Example
+## The Problem
 
 Imagine you have the following todo app state schema:
 
@@ -59,7 +60,7 @@ import { MCP_WEB_CONFIG } from '../mcp-web.config';
 const mcp = new MCPWeb(MCP_WEB_CONFIG);
 
 mcp.addStateTools({
-  name: 'todo_app',
+  name: 'app',
   description: 'Todo app',
   get: () => store.app,
   set: (value) => { store.app = value; },
@@ -67,13 +68,70 @@ mcp.addStateTools({
 });
 ```
 
-While this can work for small schemas, this doesn't scale with larger schemas.
-For instance, with every new _todo_, AI needs to generate more and more tokens
-for simple operations like adding or updating a todo. It'd be much more
-efficient and less error prone to have targeted tools.
+While this can work for small schemas, it doesn't scale. To make a todo urgent,
+AI has to call `get_app`, then send every todo, project, and setting back to
+`set_app`, just to change one number. The more todos the app holds, the more
+tokens each change costs, and the more chances AI has to change something by
+accident.
 
-If we break this schema up into fixed-shape and varying-shape sub-schemas, we
-get:
+There are two ways to fix this:
+
+- **Code mode** lets AI change the state with a short program. The program
+  reads and writes the state, so AI only writes the change.
+- **Expanded tools** break the state into targeted tools, such as one for
+  adding a todo, so each call only carries what changes.
+
+Usually, code mode is all you need. Expanded tools are useful in a few narrow
+cases, described in [When to Use Which](#when-to-use-which).
+
+## Code Mode
+
+Add `codeMode` to your state tools:
+
+```typescript{1,10}
+import { createCodeMode } from '@mcp-web/tools/code';
+
+mcp.addStateTools({
+  name: 'app',
+  description: 'Todo app',
+  get: () => store.app,
+  set: (value) => { store.app = value; },
+  schema: AppSchema,
+  codeMode: createCodeMode(),
+});
+```
+
+MCP-Web now registers two tools: `get_app`, to read the state, and `code_app`,
+which runs a JavaScript program that can call `get_app` and `set_app` as
+functions. To make all errands urgent and sort by priority, AI sends:
+
+```javascript
+const app = await get_app();
+
+for (const todo of app.todos) {
+  if (todo.tags.includes('errand')) todo.priority = 5;
+}
+app.sortBy = 'priority';
+
+await set_app(app);
+```
+
+The program runs in a sandbox next to your app, so the state never has to pass
+through AI. However large the state is, AI only writes the few lines that
+change it. If the program fails, for example because `set_app` rejects the new
+state, MCP-Web restores the state as it was before the program ran.
+
+To let programs add todos without making up IDs and timestamps, give those
+fields a default (see [System-Generated Props](#system-generated-props)).
+
+See the [code tool](/tools/code) for how programs run, how errors are reported,
+and which options `createCodeMode()` takes.
+
+## Expanded Tools
+
+Expanded tools take the other route: instead of one setter for the whole state,
+they offer targeted tools for each part. If we break this schema up into
+fixed-shape and varying-shape sub-schemas, we get:
 
 **Fixed Shape:**
 
@@ -96,7 +154,7 @@ We can do this by setting `expand` to `true`:
 
 ```typescript{7}
 mcp.addStateTools({
-  name: 'todo_app',
+  name: 'app',
   description: 'Todo app',
   get: () => store.app,
   set: (value) => { store.app = value; },
@@ -148,6 +206,27 @@ Notice that `get_app()` returns the **full state** (including collections) while
 
 Use `get_app({ excludeCollections: true })` for a lighter response when you only need settings.
 :::
+
+## When to Use Which
+
+Usually, code mode is enough, and expanded tools aren't needed. They help in a
+few narrow cases:
+
+- **You can't run AI-written code.** Expanded tools keep each change small
+  without code mode.
+- **Your schema is too large or unusual to describe as one type.** Code mode
+  describes the state to AI as one type that `set_app` accepts. Expanded tools
+  split it into small, focused functions instead. In our experiments with
+  chart specifications, splitting helped only for the format models knew
+  least, and lowered quality or raised costs for the others.
+
+You can combine both: with `expand: true` and `codeMode`, AI calls the expanded
+tools as functions in a program. This makes sense for the large-schema case
+above, especially with
+[signature lookup](/tools/code#large-tool-sets) so AI only reads the functions
+it needs.
+
+The rest of this guide covers expanded tools in detail.
 
 ## System-Generated Props
 

@@ -33,6 +33,15 @@ function jsonSchemaToTypeString(
     return options.map((o) => jsonSchemaToTypeString(o, indent)).join(' | ');
   }
 
+  // Zod writes a nullable primitive as `type: ['string', 'null']`.
+  if (Array.isArray(schema.type)) {
+    return (schema.type as string[])
+      .map((member) =>
+        jsonSchemaToTypeString({ ...schema, type: member }, indent),
+      )
+      .join(' | ');
+  }
+
   if (type === 'string') return 'string';
   if (type === 'number' || type === 'integer') return 'number';
   if (type === 'boolean') return 'boolean';
@@ -41,7 +50,8 @@ function jsonSchemaToTypeString(
   if (type === 'array') {
     const items = schema.items as Record<string, unknown> | undefined;
     if (items) {
-      return `${jsonSchemaToTypeString(items, indent)}[]`;
+      const itemType = jsonSchemaToTypeString(items, indent);
+      return hasTopLevelUnion(itemType) ? `(${itemType})[]` : `${itemType}[]`;
     }
     return 'unknown[]';
   }
@@ -51,7 +61,10 @@ function jsonSchemaToTypeString(
       | Record<string, Record<string, unknown>>
       | undefined;
     if (!properties || Object.keys(properties).length === 0) {
-      return 'Record<string, unknown>';
+      const valueSchema = schema.additionalProperties;
+      return typeof valueSchema === 'object' && valueSchema !== null
+        ? `Record<string, ${jsonSchemaToTypeString(valueSchema as Record<string, unknown>, indent)}>`
+        : 'Record<string, unknown>';
     }
 
     const required = (schema.required as string[]) ?? [];
@@ -73,6 +86,18 @@ function jsonSchemaToTypeString(
   }
 
   return 'unknown';
+}
+
+/** Whether `type` is a union outside any braces, e.g. `string | null`. */
+function hasTopLevelUnion(type: string): boolean {
+  let depth = 0;
+  for (let i = 0; i < type.length; i++) {
+    const char = type[i];
+    if (char === '{' || char === '(' || char === '<') depth++;
+    else if (char === '}' || char === ')' || char === '>') depth--;
+    else if (depth === 0 && type.startsWith(' | ', i)) return true;
+  }
+  return false;
 }
 
 /**

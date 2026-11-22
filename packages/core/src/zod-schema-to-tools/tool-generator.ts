@@ -69,6 +69,8 @@ export function generateToolsForSchema(
       tools.push(...generateArrayTools(options));
     } else if (shape.subtype === 'record') {
       tools.push(...generateRecordTools(options));
+    } else if (shape.subtype === 'object') {
+      tools.push(...generateMixedObjectTools(options, shape));
     }
   } else if (shape.type === 'mixed') {
     // Mixed: objects with both fixed and dynamic props

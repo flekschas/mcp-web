@@ -1,6 +1,6 @@
 import type { DecomposedSchema, SplitPlan } from '@mcp-web/decompose-zod-schema';
 import { decomposeSchema, getSchemaAtDeepPath } from '@mcp-web/decompose-zod-schema';
-import type { ToolDefinitionZod } from '@mcp-web/types';
+import type { CodeMode, ToolDefinitionZod } from '@mcp-web/types';
 import { ZodObject, type ZodType, z } from 'zod';
 import { generateBasicStateTools } from './zod-schema-to-tools/index.js';
 import { generateToolsForSchema } from './zod-schema-to-tools/index.js';
@@ -32,6 +32,15 @@ export interface CreateStateToolsConfig<T> {
   schemaSplit?: SplitPlan;
   /** When true, generates expanded tools for arrays and records. */
   expand?: boolean;
+  /**
+   * Offers the generated tools through one code tool, so AI can combine them
+   * in a program. The getter is also registered on its own. Create it with
+   * `createCodeMode` from `@mcp-web/tools/code`.
+   *
+   * A failed program's changes to this state are undone by restoring a
+   * snapshot, so `get` must return a value `structuredClone` can copy.
+   */
+  codeMode?: CodeMode;
 }
 
 /**
@@ -47,10 +56,12 @@ export interface CreatedStateToolsBasic<T> {
   readonly setters: ToolDefinitionZod;
   /** All tool definitions as an array. */
   readonly tools: ToolDefinitionZod[];
-  /** The original config. */
-  readonly config: CreateStateToolsConfig<T>;
+  /** A frozen copy of the config, so it keeps matching these tools. */
+  readonly config: Readonly<CreateStateToolsConfig<T>>;
   /** Whether this uses expanded/decomposed tools. */
   readonly isExpanded: false;
+  /** Whether the tools are offered through a code tool (`config.codeMode`). */
+  readonly codeMode: boolean;
 }
 
 /**
@@ -66,10 +77,12 @@ export interface CreatedStateToolsExpanded<T> {
   readonly setters: ToolDefinitionZod[];
   /** All tool definitions as an array. */
   readonly tools: ToolDefinitionZod[];
-  /** The original config. */
-  readonly config: CreateStateToolsConfig<T>;
+  /** A frozen copy of the config, so it keeps matching these tools. */
+  readonly config: Readonly<CreateStateToolsConfig<T>>;
   /** Whether this uses expanded/decomposed tools. */
   readonly isExpanded: true;
+  /** Whether the tools are offered through a code tool (`config.codeMode`). */
+  readonly codeMode: boolean;
 }
 
 /** Union type for created state tools. */
@@ -79,19 +92,32 @@ export type CreatedStateTools<T> = CreatedStateToolsBasic<T> | CreatedStateTools
 export function createStateTools<T>(config: CreateStateToolsConfig<T> & {
   schemaSplit?: undefined;
   expand?: false;
-}): CreatedStateToolsBasic<T>;
+  codeMode?: undefined;
+}): CreatedStateToolsBasic<T> & { readonly codeMode: false };
 
 // Overload: With schemaSplit → array of setters
 export function createStateTools<T>(config: CreateStateToolsConfig<T> & {
   schemaSplit: SplitPlan;
   expand?: boolean;
-}): CreatedStateToolsExpanded<T>;
+  codeMode?: undefined;
+}): CreatedStateToolsExpanded<T> & { readonly codeMode: false };
 
 // Overload: With expand → array of setters
 export function createStateTools<T>(config: CreateStateToolsConfig<T> & {
   schemaSplit?: SplitPlan;
   expand: true;
-}): CreatedStateToolsExpanded<T>;
+  codeMode?: undefined;
+}): CreatedStateToolsExpanded<T> & { readonly codeMode: false };
+
+// Overload: With codeMode → tools for a code tool
+export function createStateTools<T>(
+  config: CreateStateToolsConfig<T> & { codeMode: CodeMode },
+): CreatedStateTools<T> & { readonly codeMode: true };
+
+// Overload: codeMode not known at compile time
+export function createStateTools<T>(
+  config: CreateStateToolsConfig<T>,
+): CreatedStateTools<T>;
 
 /**
  * Creates state tool definitions without registering them.
@@ -147,8 +173,9 @@ export function createStateTools<T>(config: CreateStateToolsConfig<T> & {
  * ```
  */
 export function createStateTools<T>(
-  config: CreateStateToolsConfig<T>
+  input: CreateStateToolsConfig<T>
 ): CreatedStateTools<T> {
+  const config = Object.freeze({ ...input });
   const { name, description, get, set, schema, schemaSplit, expand } = config;
   assertNoTransforms(schema, name);
   const allTools: ToolDefinitionZod[] = [];
@@ -345,6 +372,7 @@ export function createStateTools<T>(
         tools: allTools,
         config,
         isExpanded: true,
+        codeMode: config.codeMode !== undefined,
       };
     } else {
       // Expanded without decomposition: generate tools for full schema
@@ -370,6 +398,7 @@ export function createStateTools<T>(
         tools: allTools,
         config,
         isExpanded: true,
+        codeMode: config.codeMode !== undefined,
       };
     }
   } else if (shouldDecompose) {
@@ -392,6 +421,7 @@ export function createStateTools<T>(
       tools: allTools,
       config,
       isExpanded: true,
+      codeMode: config.codeMode !== undefined,
     };
   } else {
     // Basic mode: simple get/set tools
@@ -412,6 +442,7 @@ export function createStateTools<T>(
       tools: allTools,
       config,
       isExpanded: false,
+      codeMode: config.codeMode !== undefined,
     };
   }
 }

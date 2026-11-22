@@ -275,7 +275,7 @@ After removal, AI agents will no longer be able to invoke this app.
 This also removes the associated tool and resource.
 
 ```ts
-addStateTools<T>(created: CreatedStateTools<T> & { isExpanded: false }): [ToolDefinition, ToolDefinition, () => void]
+addStateTools<T>(created: CreatedStateToolsBasic<T> & { codeMode: false }): [ToolDefinition, ToolDefinition, () => void]
 ```
 
 Add state management tools with optional expanded tool generation.
@@ -285,7 +285,11 @@ arrays and records instead of a single setter.
 Can also accept pre-created state tools from `createStateTools()`.
 
 ```ts
-addStateTools<T>(created: CreatedStateTools<T> & { isExpanded: true }): [ToolDefinition, ToolDefinition[], () => void]
+addStateTools<T>(created: CreatedStateToolsExpanded<T> & { codeMode: false }): [ToolDefinition, ToolDefinition[], () => void]
+```
+
+```ts
+addStateTools<T>(created: CreatedStateTools<T> & { codeMode: true }): [ToolDefinition, ToolDefinition, () => void]
 ```
 
 ```ts
@@ -293,52 +297,37 @@ addStateTools<T>(created: CreatedStateTools<T>): [ToolDefinition, ToolDefinition
 ```
 
 ```ts
-addStateTools<T>(options: {
-    name: string;
-    description: string;
-    get: () => T;
-    set: (value: T) => void;
-    schema: z.ZodType<T>;
-    schemaSplit?: undefined;
-    expand?: false;
-  }): [ToolDefinition, ToolDefinition, () => void]
+addStateTools<T>(options: CreateStateToolsConfig<T> & {
+      schemaSplit?: undefined;
+      expand?: false;
+      codeMode?: undefined;
+    }): [ToolDefinition, ToolDefinition, () => void]
 ```
 
 ```ts
-addStateTools<T>(options: {
-    name: string;
-    description: string;
-    get: () => T;
-    set: (value: T) => void;
-    schema: z.ZodType<T>;
-    schemaSplit: SplitPlan;
-    expand?: boolean;
-  }): [ToolDefinition, ToolDefinition[], () => void]
+addStateTools<T>(options: CreateStateToolsConfig<T> & {
+      schemaSplit: SplitPlan;
+      codeMode?: undefined;
+    }): [ToolDefinition, ToolDefinition[], () => void]
 ```
 
 ```ts
-addStateTools<T>(options: {
-    name: string;
-    description: string;
-    get: () => T;
-    set: (value: T) => void;
-    schema: z.ZodType<T>;
-    schemaSplit?: SplitPlan;
-    expand: true;
-  }): [ToolDefinition, ToolDefinition[], () => void]
+addStateTools<T>(options: CreateStateToolsConfig<T> & {
+      expand: true;
+      codeMode?: undefined;
+    }): [ToolDefinition, ToolDefinition[], () => void]
 ```
 
 ```ts
-addStateTools<T>(optionsOrCreated: | {
-          name: string;
-          description: string;
-          get: () => T;
-          set: (value: T) => void;
-          schema: z.ZodType<T>;
-          schemaSplit?: SplitPlan;
-          expand?: boolean;
-        }
-      | CreatedStateTools<T>): [ToolDefinition, ToolDefinition | ToolDefinition[], () => void]
+addStateTools<T>(options: CreateStateToolsConfig<T> & { codeMode: CodeMode }): [ToolDefinition, ToolDefinition, () => void]
+```
+
+```ts
+addStateTools<T>(options: CreateStateToolsConfig<T>): [ToolDefinition, ToolDefinition | ToolDefinition[], () => void]
+```
+
+```ts
+addStateTools<T>(optionsOrCreated: CreateStateToolsConfig<T> | CreatedStateTools<T>): [ToolDefinition, ToolDefinition | ToolDefinition[], () => void]
 ```
 
 ```ts
@@ -429,6 +418,17 @@ expand?: boolean
 
 When true, generates expanded tools for arrays and records.
 
+```ts
+codeMode?: CodeMode
+```
+
+Offers the generated tools through one code tool, so AI can combine them
+in a program. The getter is also registered on its own. Create it with
+`createCodeMode` from `@mcp-web/tools/code`.
+
+A failed program's changes to this state are undone by restoring a
+snapshot, so `get` must return a value `structuredClone` can copy.
+
 ### `CreatedStateToolsBasic<T>`
 
 *Interface* — `packages/core/src/create-state-tools.ts`
@@ -463,16 +463,22 @@ tools: ToolDefinitionZod[]
 All tool definitions as an array.
 
 ```ts
-config: CreateStateToolsConfig<T>
+config: Readonly<CreateStateToolsConfig<T>>
 ```
 
-The original config.
+A frozen copy of the config, so it keeps matching these tools.
 
 ```ts
 isExpanded: false
 ```
 
 Whether this uses expanded/decomposed tools.
+
+```ts
+codeMode: boolean
+```
+
+Whether the tools are offered through a code tool (`config.codeMode`).
 
 ### `CreatedStateToolsExpanded<T>`
 
@@ -508,16 +514,22 @@ tools: ToolDefinitionZod[]
 All tool definitions as an array.
 
 ```ts
-config: CreateStateToolsConfig<T>
+config: Readonly<CreateStateToolsConfig<T>>
 ```
 
-The original config.
+A frozen copy of the config, so it keeps matching these tools.
 
 ```ts
 isExpanded: true
 ```
 
 Whether this uses expanded/decomposed tools.
+
+```ts
+codeMode: boolean
+```
+
+Whether the tools are offered through a code tool (`config.codeMode`).
 
 ### `CreateToolConfig<TInput, TOutput>`
 
@@ -730,19 +742,12 @@ z.infer<typeof ContextItemSchema>
 z.infer<typeof EphemeralContextSchema>
 ```
 
-### CodeToolLike
-
-*Type* — `packages/core/src/types.ts`
-
-A code tool, such as a `CodeTool` from `@mcp-web/tools/code`: a tool, with
-the lookup tool that returns its function signatures when it has one.
-
 ### createStateTools
 
 *Function* — `packages/core/src/create-state-tools.ts`
 
 ```ts
-createStateTools<T>(config: CreateStateToolsConfig<...>): CreatedStateToolsBasic<T>
+createStateTools<T>(config: CreateStateToolsConfig<...>): CreatedStateToolsBasic<...>
 ```
 
 ### isCreatedStateTools

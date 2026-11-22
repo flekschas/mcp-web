@@ -1,4 +1,4 @@
-import type { ToolDefinitionZod } from '@mcp-web/types';
+import type { CodeMode, ToolDefinitionZod } from '@mcp-web/types';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { BaseTool } from '../base.js';
@@ -14,7 +14,7 @@ import {
   resolvePatchedCode,
   summarizeOps,
 } from './patch.js';
-import type { Transaction } from './transaction.js';
+import { stateTransaction, type Transaction } from './transaction.js';
 import type { CodeRunRecord, CodeToolOptions } from './types.js';
 import { validateAndTransformCode } from './validate.js';
 
@@ -816,6 +816,56 @@ export class CodeTool extends BaseTool<
   destroy(): void {
     this.#executor.destroy();
   }
+}
+
+/**
+ * Code mode for `addStateTools` and `createStateTools`: their tools are offered
+ * through one code tool, with a transaction over the state.
+ *
+ * The code tool is named `code_<name>` unless `options.name` says otherwise.
+ * Its generated description asks AI to read the state with the getter first;
+ * a custom `options.description` replaces that too.
+ *
+ * `options.executor` creates the executor for each code tool, so code tools
+ * from one `createCodeMode` never share one.
+ *
+ * ```ts
+ * mcp.addStateTools({
+ *   name: 'app',
+ *   description: 'Todo app',
+ *   get: () => store.app,
+ *   set: (value) => { store.app = value; },
+ *   schema: AppSchema,
+ *   expand: true,
+ *   codeMode: createCodeMode(),
+ * });
+ * ```
+ *
+ * @param options - The `CodeTool` options other than the tools and the
+ *   transaction, which come from the state. `executor` is a function that
+ *   creates one, e.g. `() => new WorkerExecutor()`.
+ */
+export function createCodeMode(
+  options: Omit<CodeToolOptions, 'tools' | 'transaction' | 'executor'> & {
+    executor?: () => CodeExecutor;
+  } = {},
+): CodeMode {
+  return ({ name, getter, tools, get, set }) => {
+    const readFirst = `Read the current state with the \`${getter.name}\` tool before changing it.`;
+    return new CodeTool({
+      ...options,
+      name: options.name ?? `code_${name}`,
+      executor: options.executor?.(),
+      hints: {
+        ...options.hints,
+        description: [readFirst, options.hints?.description]
+          .filter(Boolean)
+          .join('\n'),
+      },
+      tools,
+      transaction: stateTransaction(get, set),
+    });
+  };
 }
 
 export type { CodeExecutor, ExecutionRequest } from './executor.js';

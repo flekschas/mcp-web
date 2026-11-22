@@ -740,6 +740,43 @@ test('generateToolsForSchema() - mixed object generates root get/set + collectio
   expect(toolNames).toContain('delete_app_projects');
 });
 
+test('generateToolsForSchema() - object with only collections generates root get + collection tools', async () => {
+  let state = { todos: ['a'] as string[], projects: {} as Record<string, string> };
+  const schema = z.object({
+    todos: z.array(z.string()),
+    projects: z.record(z.string(), z.string()),
+  });
+
+  const result = generateToolsForSchema(
+    {
+      name: 'app',
+      description: 'app',
+      get: () => state,
+      set: (value) => {
+        state = value as typeof state;
+      },
+      schema,
+    },
+    mockMCPWeb
+  );
+
+  // Root get + todos (4 tools) + projects (3 tools); no fixed props to set
+  expect(result.tools.map((t) => t.name).sort()).toEqual([
+    'add_app_todos',
+    'delete_app_projects',
+    'delete_app_todos',
+    'get_app',
+    'get_app_projects',
+    'get_app_todos',
+    'set_app_projects',
+    'set_app_todos',
+  ]);
+
+  const add = result.tools.find((t) => t.name === 'add_app_todos')!;
+  await add.handler({ value: 'b' });
+  expect(state.todos).toEqual(['a', 'b']);
+});
+
 test('generateToolsForSchema() - mixed object root get returns full state', async () => {
   let state = {
     name: 'App',
@@ -868,35 +905,6 @@ test('generateToolsForSchema() - mixed object generates separate tools for each 
   expect(toolNames).toContain('get_app_projects');
   expect(toolNames).toContain('set_app_projects');
   expect(toolNames).toContain('delete_app_projects');
-});
-
-test('generateToolsForSchema() - object with only dynamic props generates no tools (edge case)', () => {
-  let state = {
-    todos: [] as string[],
-    projects: {} as Record<string, { name: string }>,
-  };
-  const schema = z.object({
-    todos: z.array(z.string()),
-    projects: z.record(z.string(), z.object({ name: z.string() })),
-  });
-
-  const result = generateToolsForSchema(
-    {
-      name: 'app',
-      description: 'app',
-      get: () => state,
-      set: (value) => {
-        state = value as typeof state;
-      },
-      schema,
-    },
-    mockMCPWeb
-  );
-
-  // Object with only dynamic props is type:'dynamic' and subtype:'object'
-  // This case is not handled in the tool generator, so no tools are generated
-  // (This is an edge case - normally you'd want mixed object behavior)
-  expect(result.tools).toHaveLength(0);
 });
 
 // ============================================================================
