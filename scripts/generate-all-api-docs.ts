@@ -1,5 +1,5 @@
 /**
- * Generates all API documentation with a customizable output directory.
+ * Generates the API reference pages for the docs site.
  *
  * @example
  * ```bash

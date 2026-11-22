@@ -1,4 +1,10 @@
-export { id, system } from './schema-helpers.js';
+export {
+  getOptionalOnlyKeys,
+  id,
+  isOptionalAndNullable,
+  isOptionalNotNullable,
+  system,
+} from './schema-helpers.js';
 
 export { generateToolsForSchema } from './tool-generator.js';
 

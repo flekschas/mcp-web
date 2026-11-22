@@ -10,6 +10,14 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
+    "./code": {
+      "import": "./dist/code/index.js",
+      "types": "./dist/code/index.d.ts"
+    },
+    "./code/worker": {
+      "import": "./dist/code/worker-executor.js",
+      "types": "./dist/code/worker-executor.d.ts"
+    },
     "./python": {
       "import": "./dist/python/index.js",
       "types": "./dist/python/index.d.ts"
@@ -29,11 +37,13 @@
   },
   "dependencies": {
     "@mcp-web/types": "workspace:*",
+    "acorn": "^8.14.0",
     "html-to-image": "^1.11.13",
     "uuid": "^14.0.3",
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@types/node": "catalog:",
     "typescript": "catalog:"
   },
   "repository": {

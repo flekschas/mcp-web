@@ -427,3 +427,70 @@ test('generateFixedShapeTools() - set returns success response with value', asyn
     age: 31,
   });
 });
+
+// ============================================================================
+// Optional-to-Nullable Conversion
+// ============================================================================
+
+test('generateFixedShapeTools() - set clears optional-only field with null', async () => {
+  let state = {
+    name: 'Alice',
+    email: 'alice@example.com' as string | undefined,
+  };
+  const schema = z.object({
+    name: z.string(),
+    email: z.string().optional(),
+  });
+  const shape = analyzeSchemaShape(schema);
+
+  const tools = generateFixedShapeTools(
+    {
+      name: 'user',
+      description: 'user data',
+      get: () => state,
+      set: (value) => {
+        state = value as typeof state;
+      },
+      schema,
+    },
+    shape,
+  );
+
+  const setter = tools[1];
+  await setter.handler({ email: null });
+
+  expect(state.email).toBeUndefined();
+  expect(state.name).toBe('Alice');
+});
+
+test('generateFixedShapeTools() - set input schema accepts null for optional-only fields', () => {
+  let state = {
+    name: 'Alice',
+    email: 'test@example.com' as string | undefined,
+  };
+  const schema = z.object({
+    name: z.string(),
+    email: z.string().optional(),
+  });
+  const shape = analyzeSchemaShape(schema);
+
+  const tools = generateFixedShapeTools(
+    {
+      name: 'user',
+      description: 'user data',
+      get: () => state,
+      set: (value) => {
+        state = value as typeof state;
+      },
+      schema,
+    },
+    shape,
+  );
+
+  const setter = tools[1];
+  const inputSchema = setter.inputSchema as z.ZodObject<z.ZodRawShape>;
+
+  expect(inputSchema.safeParse({ email: null }).success).toBe(true);
+  expect(inputSchema.safeParse({ email: 'test' }).success).toBe(true);
+  expect(inputSchema.safeParse({}).success).toBe(true);
+});

@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { isKeyField, unwrapSchema } from './schema-helpers.js';
+import {
+  isKeyField,
+  isOptionalAndNullable,
+  unwrapSchema,
+} from './schema-helpers.js';
 import type { KeyFieldResult, SchemaShape } from './types.js';
 
 /**
@@ -14,6 +18,7 @@ export function analyzeSchemaShape(schema: z.ZodTypeAny): SchemaShape {
     subtype: 'unknown',
     hasOptionalFields: false,
     optionalPaths: [],
+    optionalAndNullablePaths: [],
     fixedPaths: [],
     dynamicPaths: [],
   };
@@ -61,6 +66,11 @@ export function analyzeSchemaShape(schema: z.ZodTypeAny): SchemaShape {
       if (zodField instanceof z.ZodOptional) {
         result.hasOptionalFields = true;
         result.optionalPaths.push(key);
+      }
+
+      // Check for fields that are both optional and nullable
+      if (isOptionalAndNullable(zodField)) {
+        result.optionalAndNullablePaths.push(key);
       }
 
       // Check if field is dynamic (array or record)

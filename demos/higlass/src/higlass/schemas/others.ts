@@ -15,6 +15,7 @@ export const higlassTilesetSearchResultSchema = z.object({
     name: z.string().describe('The name of the tileset'),
     description: z.string().describe('The description of the tileset'),
     coordSystem: z.string().describe('The coordinate system of the tileset'),
+    server: z.string().describe('The server URL where this tileset is hosted. Use this as the `server` property when adding a track.'),
   })),
 });
 

@@ -18,5 +18,6 @@ export type {
   SplitPlan,
   SuggestionStrategy,
 } from './types.js';
-export { conditionalEnumSplit } from './utils.js';
+export { conditionalEnumSplit, getSchemaAtDeepPath } from './utils.js';
+export type { DeepPathResult, DeepPathSegment } from './utils.js';
 export { validatePlan } from './validate.js';

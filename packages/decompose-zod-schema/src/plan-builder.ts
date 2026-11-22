@@ -6,13 +6,15 @@ import { conditionalEnumSplit } from './utils.js';
  * Fluent builder for constructing schema decomposition plans.
  *
  * Provides a more ergonomic API for building complex split plans compared
- * to manually constructing arrays.
+ * to manually constructing arrays. Array and record paths are auto-detected
+ * from the schema — use `addSplit()` for all path types.
  *
  * @example
  * ```typescript
  * const plan = new PlanBuilder()
  *   .addSplit('settings')
- *   .addArraySplit('todos')
+ *   .addSplit('todos')           // auto-detected as array from schema
+ *   .addSplit('views.tracks.top') // nested path through array elements
  *   .addEnumSplit('category', 50)
  *   .build();
  *
@@ -23,8 +25,9 @@ export class PlanBuilder {
   private plan: SplitPlan = [];
 
   /**
-   * Adds a simple path split.
-   * @param path - Dot-notation path to the property (e.g., 'user.profile')
+   * Adds a path split. Works for all property types — objects, arrays,
+   * records, and nested paths through collections.
+   * @param path - Dot-notation path to the property (e.g., 'user.profile', 'todos', 'views.tracks.top')
    */
   addSplit(path: string): this {
     this.plan.push(path);
@@ -78,24 +81,6 @@ export class PlanBuilder {
    */
   addEntireEnumSlice(path: string): this {
     this.plan.push(`${path}[:]`);
-    return this;
-  }
-
-  /**
-   * Adds an array split for item-by-item operations.
-   * @param path - Path to the array property
-   */
-  addArraySplit(path: string): this {
-    this.plan.push(`${path}[]`);
-    return this;
-  }
-
-  /**
-   * Adds a record split for key-value operations.
-   * @param path - Path to the record property
-   */
-  addRecordSplit(path: string): this {
-    this.plan.push(`${path}{}`);
     return this;
   }
 

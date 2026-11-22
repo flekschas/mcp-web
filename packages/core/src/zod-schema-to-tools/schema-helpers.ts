@@ -55,6 +55,75 @@ export function system<T extends z.ZodTypeAny>(schema: T): T {
 }
 
 /**
+ * Checks if a field is optional() but NOT nullable().
+ * These fields need special handling in set input schemas:
+ * the tool input adds nullable() so the AI can pass null to clear,
+ * and the handler converts null back to undefined.
+ */
+export function isOptionalNotNullable(field: z.ZodTypeAny): boolean {
+  let hasOptional = false;
+  let hasNullable = false;
+  let current = field;
+
+  while (
+    current instanceof z.ZodDefault ||
+    current instanceof z.ZodOptional ||
+    current instanceof z.ZodNullable
+  ) {
+    if (current instanceof z.ZodOptional) hasOptional = true;
+    if (current instanceof z.ZodNullable) hasNullable = true;
+    const def = current.def as unknown as { innerType?: z.ZodTypeAny };
+    current = def.innerType || current;
+  }
+
+  return hasOptional && !hasNullable;
+}
+
+/**
+ * Checks if a field is both optional() AND nullable().
+ * These fields are ambiguous in partial updates because null is
+ * already a valid state value, so it can't be used as a "clear" signal.
+ */
+export function isOptionalAndNullable(field: z.ZodTypeAny): boolean {
+  let hasOptional = false;
+  let hasNullable = false;
+  let current = field;
+
+  while (
+    current instanceof z.ZodDefault ||
+    current instanceof z.ZodOptional ||
+    current instanceof z.ZodNullable
+  ) {
+    if (current instanceof z.ZodOptional) hasOptional = true;
+    if (current instanceof z.ZodNullable) hasNullable = true;
+    const def = current.def as unknown as { innerType?: z.ZodTypeAny };
+    current = def.innerType || current;
+  }
+
+  return hasOptional && hasNullable;
+}
+
+/**
+ * Returns the keys of fields that are optional() but NOT nullable().
+ * These fields need null→undefined conversion after deepMerge.
+ */
+export function getOptionalOnlyKeys(
+  schema: z.ZodObject<z.ZodRawShape>,
+): Set<string> {
+  const keys = new Set<string>();
+
+  for (const [key, field] of Object.entries(schema.shape)) {
+    const zodField = field as z.ZodTypeAny;
+    if (isSystemField(zodField)) continue;
+    if (isOptionalNotNullable(zodField)) {
+      keys.add(key);
+    }
+  }
+
+  return keys;
+}
+
+/**
  * Checks if a field is marked with id().
  */
 export function isKeyField(field: z.ZodTypeAny): boolean {
@@ -141,6 +210,8 @@ export function deriveAddInputSchema(schema: z.ZodObject<z.ZodRawShape>): z.ZodO
  * Derives an input schema for set operations (partial updates).
  * - system() fields are excluded
  * - all other fields become optional
+ * - optional-only fields (optional but not nullable) become nullable + optional,
+ *   so the AI can pass null to signal "clear this field"
  */
 export function deriveSetInputSchema(schema: z.ZodObject<z.ZodRawShape>): z.ZodObject<z.ZodRawShape> {
   const inputShape: Record<string, z.ZodTypeAny> = {};
@@ -150,8 +221,14 @@ export function deriveSetInputSchema(schema: z.ZodObject<z.ZodRawShape>): z.ZodO
     // Skip system fields entirely
     if (isSystemField(zodField)) continue;
 
-    // All fields optional for partial updates
-    inputShape[key] = unwrapDefault(zodField).optional();
+    if (isOptionalNotNullable(zodField)) {
+      // Strip all wrappers, re-apply as nullable + optional
+      // This gives AI three unambiguous choices: omit (keep), null (clear), value (set)
+      inputShape[key] = unwrapSchema(zodField).nullable().optional();
+    } else {
+      // All fields optional for partial updates
+      inputShape[key] = unwrapDefault(zodField).optional();
+    }
   }
 
   return z.object(inputShape as z.ZodRawShape);
