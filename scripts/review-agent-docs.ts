@@ -36,6 +36,12 @@ const FILES = {
   examplesMd: join(REPO_ROOT, 'agents/skills/mcp-web/examples.md'),
 };
 
+const EDITABLE_PATHS = [
+  'agents/AGENTS.md',
+  'agents/skills/mcp-web/SKILL.md',
+  'agents/skills/mcp-web/examples.md',
+];
+
 // Generated API reference docs (read-only, for context)
 const API_DOCS_DIR = join(REPO_ROOT, 'docs/api');
 const API_DOCS = [
@@ -171,33 +177,25 @@ ${currentExamplesMd}
 3. If updates are needed, provide the complete new content for each file that needs changes
 4. Do NOT modify docs/api/*.md files - those are auto-generated
 
-Respond in the following JSON format:
+Respond in the following format, with raw (unescaped) content in each block:
 
-\`\`\`json
-{
-  "analysis": "Brief explanation of what changed and why updates are/aren't needed",
-  "edits": [
-    {
-      "path": "agents/AGENTS.md",
-      "content": "... complete file content ..."
-    }
-  ],
-  "summary": "Bullet points summarizing the changes made (for PR description)"
-}
-\`\`\`
+<review-analysis>
+Brief explanation of what changed and why updates are/aren't needed
+</review-analysis>
 
-If no changes are needed, return an empty edits array:
+<review-file path="agents/AGENTS.md">
+... complete file content ...
+</review-file>
 
-\`\`\`json
-{
-  "analysis": "The documentation is already up to date because...",
-  "edits": [],
-  "summary": "No changes needed."
-}
-\`\`\`
+<review-summary>
+Bullet points summarizing the changes made (for PR description)
+</review-summary>
+
+If no changes are needed, leave out the \`review-file\` blocks and write
+"No changes needed." as the summary.
 
 Important:
-- Only include files in \`edits\` that actually need changes
+- Only include \`review-file\` blocks for files that actually need changes
 - Provide the COMPLETE file content, not just the changed parts
 - Keep AGENTS.md concise (50-100 lines)
 - Ensure examples in examples.md are accurate and compile
@@ -244,25 +242,37 @@ async function runReview(): Promise<ReviewResult> {
     throw new Error('No text response from API');
   }
 
-  // Parse JSON from response
-  const jsonMatch = textContent.match(/```json\n([\s\S]*?)\n```/);
-  if (!jsonMatch) {
-    console.error('Response:', textContent);
-    throw new Error('Could not parse JSON from response');
+  const result = parseResponse(textContent);
+  console.log('Analysis:', result.analysis);
+  return result;
+}
+
+// File contents come back as raw text in tagged blocks rather than JSON
+// strings, so a single bad escape in a long Markdown file can't break parsing.
+function parseResponse(text: string): ReviewResult & { analysis: string } {
+  const analysis = text.match(
+    /<review-analysis>([\s\S]*?)<\/review-analysis>/,
+  )?.[1];
+  const summary = text.match(
+    /<review-summary>([\s\S]*?)<\/review-summary>/,
+  )?.[1];
+  if (analysis === undefined || summary === undefined) {
+    console.error('Response:', text);
+    throw new Error('Could not parse analysis and summary from response');
   }
 
-  const result = JSON.parse(jsonMatch[1]) as {
-    analysis: string;
-    edits: FileEdit[];
-    summary: string;
-  };
+  const edits = [
+    ...text.matchAll(
+      /<review-file path="([^"]+)">\n?([\s\S]*?)<\/review-file>/g,
+    ),
+  ].map(([, path, content]) => {
+    if (!EDITABLE_PATHS.includes(path)) {
+      throw new Error(`Response tried to edit a file it may not: ${path}`);
+    }
+    return { path, content: `${content.trimEnd()}\n` };
+  });
 
-  console.log('Analysis:', result.analysis);
-
-  return {
-    edits: result.edits,
-    summary: result.summary,
-  };
+  return { analysis: analysis.trim(), edits, summary: summary.trim() };
 }
 
 async function main() {
