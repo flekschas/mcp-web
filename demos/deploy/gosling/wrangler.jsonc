@@ -1,0 +1,39 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "mcp-web-gosling",
+  "main": "worker.ts",
+  "compatibility_date": "2026-08-01",
+  "assets": {
+    "directory": "../../gosling/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    // The bridge answers WebSocket upgrades and SSE streams on "/", both of
+    // which are GETs that asset routing would otherwise swallow. Everything
+    // else is served straight from assets and never bills a Worker request.
+    "run_worker_first": ["/", "/health"]
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "MCP_WEB_BRIDGE",
+        "class_name": "MCPWebBridgeObject"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      // SQLite-backed objects are the only kind available on the free plan
+      "new_sqlite_classes": ["MCPWebBridgeObject"]
+    }
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "routes": [
+    {
+      "pattern": "gosling.demo.mcp-web.dev",
+      "custom_domain": true
+    }
+  ]
+}

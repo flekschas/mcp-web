@@ -8,10 +8,16 @@
     "deploy:higlass": "wrangler deploy --config higlass/wrangler.jsonc",
     "deploy:checkers": "wrangler deploy --config checkers/wrangler.jsonc",
     "deploy:checkers-agent": "wrangler deploy --config checkers/wrangler.agent.jsonc",
+    "deploy:vega-lite": "wrangler deploy --config vega-lite/wrangler.jsonc",
+    "deploy:gosling": "wrangler deploy --config gosling/wrangler.jsonc",
+    "deploy:genomespy": "wrangler deploy --config genomespy/wrangler.jsonc",
     "dev:todo": "wrangler dev --config todo/wrangler.jsonc",
     "dev:higlass": "wrangler dev --config higlass/wrangler.jsonc",
     "dev:checkers": "wrangler dev --config checkers/wrangler.jsonc",
-    "dev:checkers-agent": "wrangler dev --config checkers/wrangler.agent.jsonc"
+    "dev:checkers-agent": "wrangler dev --config checkers/wrangler.agent.jsonc",
+    "dev:vega-lite": "wrangler dev --config vega-lite/wrangler.jsonc",
+    "dev:gosling": "wrangler dev --config gosling/wrangler.jsonc",
+    "dev:genomespy": "wrangler dev --config genomespy/wrangler.jsonc"
   },
   "dependencies": {
     "@mcp-web/bridge": "workspace:*"

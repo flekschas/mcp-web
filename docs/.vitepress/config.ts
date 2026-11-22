@@ -1,12 +1,12 @@
-import { defineConfig } from 'vitepress'
-import llmstxt from 'vitepress-plugin-llms'
+import { defineConfig } from 'vitepress';
+import llmstxt from 'vitepress-plugin-llms';
 
 import pkg from '../../package.json' with { type: 'json' };
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
-  title: "MCP-Web",
-  description: "Expose frontend state and actions as MCP tools for AI agents",
+  title: 'MCP-Web',
+  description: 'Expose frontend state and actions as MCP tools for AI agents',
   lastUpdated: true,
   cleanUrls: true,
   head: [
@@ -18,11 +18,11 @@ export default defineConfig({
     [
       'script',
       {
-        'async': '',
+        async: '',
         src: 'https://cdn.counter.dev/script.js',
         'data-id': 'c0cd84ef-1b57-4616-a6db-c26306f866b7',
         'data-utcoffset': '-4',
-      }
+      },
     ],
   ],
   themeConfig: {
@@ -37,14 +37,14 @@ export default defineConfig({
         items: [
           {
             text: 'npm',
-            link: 'https://www.npmjs.com/package/@mcp-web/core'
+            link: 'https://www.npmjs.com/package/@mcp-web/core',
           },
           {
             text: 'Changelog',
-            link: 'https://github.com/flekschas/mcp-web/blob/main/CHANGELOG.md'
-          }
-        ]
-      }
+            link: 'https://github.com/flekschas/mcp-web/blob/main/CHANGELOG.md',
+          },
+        ],
+      },
     ],
 
     sidebar: {
@@ -59,16 +59,19 @@ export default defineConfig({
             { text: 'Integrations', link: '/integrations' },
             { text: 'Efficient State Tools', link: '/efficient-state-tools' },
             { text: 'Large Schemas', link: '/large-schema' },
-          ]
+          ],
         },
         {
           text: 'Learn',
           items: [
             { text: 'MCP-Web Architecture', link: '/architecture' },
-            { text: 'Declarative & Reactive State', link: '/declarative-reactive-state' },
+            {
+              text: 'Declarative & Reactive State',
+              link: '/declarative-reactive-state',
+            },
             { text: 'Designing State Tools', link: '/designing-state-tools' },
             { text: 'MCP-Web vs WebMCP vs AG-UI', link: '/comparison' },
-          ]
+          ],
         },
         {
           text: 'Tools',
@@ -77,7 +80,7 @@ export default defineConfig({
             { text: 'Screenshot', link: '/tools/screenshot' },
             { text: 'DOM Query', link: '/tools/dom' },
             { text: 'Python', link: '/tools/python' },
-          ]
+          ],
         },
         {
           text: 'Examples',
@@ -85,7 +88,10 @@ export default defineConfig({
             { text: 'Todo', link: '/demos/todo' },
             { text: 'Checkers', link: '/demos/checkers' },
             { text: 'HiGlass', link: '/demos/higlass' },
-          ]
+            { text: 'Vega-Lite', link: '/demos/vega-lite' },
+            { text: 'Gosling', link: '/demos/gosling' },
+            { text: 'GenomeSpy', link: '/demos/genomespy' },
+          ],
         },
         {
           text: 'API Reference',
@@ -107,28 +113,29 @@ export default defineConfig({
             { text: 'Tools', link: '/api/tools' },
             { text: 'Integrations', link: '/api/integrations' },
             { text: 'Decompose Zod Schema', link: '/api/decompose-zod-schema' },
-          ]
+          ],
         },
-      ]
+      ],
     },
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/flekschas/mcp-web/' }
+      { icon: 'github', link: 'https://github.com/flekschas/mcp-web/' },
     ],
 
     footer: {
-      message: '<a id="footer-message" href="/made-with-love">Made with <span id="footer-heart-mount"></span> by Fritz and Claude</a>',
-    }
+      message:
+        '<a id="footer-message" href="/made-with-love">Made with <span id="footer-heart-mount"></span> by Fritz and Claude</a>',
+    },
   },
   markdown: {
     image: {
-      lazyLoading: true
-    }
+      lazyLoading: true,
+    },
   },
   sitemap: {
-    hostname: 'https://mcp-web.dev'
+    hostname: 'https://mcp-web.dev',
   },
   vite: {
-    plugins: [llmstxt()]
-  }
-})
+    plugins: [llmstxt()],
+  },
+});

@@ -1,7 +1,7 @@
 # MCP-Web Demos Deployment
 
-Deployment configuration for the MCP-Web demos (HiGlass, Todo, Checkers) on
-Cloudflare Workers.
+Deployment configuration for the MCP-Web demos (HiGlass, Todo, Checkers,
+Vega-Lite, Gosling, GenomeSpy) on Cloudflare Workers.
 
 > For local development use the `demos/<demo>` directories, which have
 > hot-reload. This directory is for deployment.
@@ -31,12 +31,15 @@ WebSocket sessions and the MCP client requests that target them. An object is
 evicted once nothing is connected to it, and nothing wakes it again until the
 next request.
 
-| Deployment | Domain |
-|---|---|
-| `mcp-web-higlass` | `higlass.demo.mcp-web.dev` |
-| `mcp-web-todo` | `todo.demo.mcp-web.dev` |
-| `mcp-web-checkers` | `checkers.demo.mcp-web.dev` |
+| Deployment               | Domain                            |
+| ------------------------ | --------------------------------- |
+| `mcp-web-higlass`        | `higlass.demo.mcp-web.dev`        |
+| `mcp-web-todo`           | `todo.demo.mcp-web.dev`           |
+| `mcp-web-checkers`       | `checkers.demo.mcp-web.dev`       |
 | `mcp-web-checkers-agent` | `checkers-agent.demo.mcp-web.dev` |
+| `mcp-web-vega-lite`      | `vega-lite.demo.mcp-web.dev`      |
+| `mcp-web-gosling`        | `gosling.demo.mcp-web.dev`        |
+| `mcp-web-genomespy`      | `genomespy.demo.mcp-web.dev`      |
 
 ## Directory Structure
 
@@ -48,6 +51,9 @@ demos/deploy/
 │   ├── wrangler.jsonc
 │   └── mcp-web.config.ts      # Bridge config, also copied into the frontend build
 ├── todo/                      # same shape
+├── vega-lite/                 # same shape
+├── gosling/                   # same shape
+├── genomespy/                 # same shape
 └── checkers/
     ├── worker.ts              # Bridge worker
     ├── agent-worker.ts        # AI agent worker
@@ -73,7 +79,8 @@ cd demos/deploy
 pnpm dev:todo        # http://localhost:8787
 ```
 
-The same works for `dev:higlass`, `dev:checkers`, and `dev:checkers-agent`.
+The same works for `dev:higlass`, `dev:checkers`, `dev:checkers-agent`,
+`dev:vega-lite`, `dev:gosling`, and `dev:genomespy`.
 `wrangler dev` runs the real workerd runtime with local Durable Objects, so
 behaviour matches production closely.
 
