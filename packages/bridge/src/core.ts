@@ -65,6 +65,10 @@ import type {
   WebSocketConnection,
 } from './runtime/types.js';
 import { jsonResponse, sseResponse } from './runtime/types.js';
+import type {
+  UnregisterResourceMessage,
+  UnregisterToolMessage,
+} from './types.js';
 import { VERSION } from './version.js';
 
 const SessionNotSpecifiedErrorDetails =
@@ -143,7 +147,9 @@ interface ToolResponseMessage {
 type FrontendMessage =
   | AuthenticateMessage
   | RegisterToolMessage
+  | UnregisterToolMessage
   | RegisterResourceMessage
+  | UnregisterResourceMessage
   | ActivityMessage
   | ToolResponseMessage
   | ResourceResponseMessage
@@ -514,8 +520,14 @@ export class MCPWebBridge {
       case 'register-tool':
         this.#handleToolRegistration(sessionId, message);
         break;
+      case 'unregister-tool':
+        this.#handleToolUnregistration(sessionId, message);
+        break;
       case 'register-resource':
         this.#handleResourceRegistration(sessionId, message);
+        break;
+      case 'unregister-resource':
+        this.#handleResourceUnregistration(sessionId, message);
         break;
       case 'activity':
         this.#handleActivity(sessionId, message);
@@ -609,6 +621,10 @@ export class MCPWebBridge {
     sessionIds.add(sessionId);
     this.#tokenSessionIds.set(authToken, sessionIds);
 
+    // A new session changes the listings even before it registers anything.
+    this.#notifyListChanged(authToken, 'tools');
+    this.#notifyListChanged(authToken, 'resources');
+
     ws.send(
       JSON.stringify({
         type: 'authenticated',
@@ -645,6 +661,11 @@ export class MCPWebBridge {
             console.warn(
               `Tool schema conflict: '${toolName}' registered by session ${siblingId} has a different schema. Rejecting registration from session ${sessionId}.`,
             );
+            // The frontend drops a rejected tool, so an earlier registration
+            // of it in this session no longer has a handler.
+            if (session.tools.delete(toolName)) {
+              this.#notifyListChanged(session.authToken, 'tools');
+            }
             session.ws.send(
               JSON.stringify({
                 type: 'tool-registration-error',
@@ -663,7 +684,17 @@ export class MCPWebBridge {
     session.tools.set(message.tool.name, message.tool);
 
     // Notify connected MCP clients (Claude Desktop) about tool changes
-    this.#notifyToolsChanged(session.authToken);
+    this.#notifyListChanged(session.authToken, 'tools');
+  }
+
+  #handleToolUnregistration(
+    sessionId: string,
+    message: UnregisterToolMessage,
+  ): void {
+    const session = this.#sessions.get(sessionId);
+    if (!session?.tools.delete(message.toolName)) return;
+
+    this.#notifyListChanged(session.authToken, 'tools');
   }
 
   #handleResourceRegistration(
@@ -678,6 +709,17 @@ export class MCPWebBridge {
 
     console.log('registering resource for session', sessionId, message);
     session.resources.set(message.resource.uri, message.resource);
+    this.#notifyListChanged(session.authToken, 'resources');
+  }
+
+  #handleResourceUnregistration(
+    sessionId: string,
+    message: UnregisterResourceMessage,
+  ): void {
+    const session = this.#sessions.get(sessionId);
+    if (!session?.resources.delete(message.uri)) return;
+
+    this.#notifyListChanged(session.authToken, 'resources');
   }
 
   #handleActivity(sessionId: string, message: ActivityMessage): void {
@@ -1606,7 +1648,7 @@ export class MCPWebBridge {
       protocolVersion: '2024-11-05',
       capabilities: {
         tools: { listChanged: true },
-        resources: {},
+        resources: { listChanged: true },
         prompts: {},
       },
       serverInfo: {
@@ -2200,8 +2242,9 @@ export class MCPWebBridge {
         }
       }
 
-      // Notify connected MCP clients about tool changes (tools removed)
-      this.#notifyToolsChanged(session.authToken);
+      // The session's tools and resources are gone with it.
+      this.#notifyListChanged(session.authToken, 'tools');
+      this.#notifyListChanged(session.authToken, 'resources');
     }
     this.#sessions.delete(sessionId);
   }
@@ -2255,18 +2298,17 @@ export class MCPWebBridge {
   }
 
   /**
-   * Notifies all connected MCP clients (Claude Desktop) about tool changes.
-   * Sends `notifications/tools/list_changed` via SSE to clients with matching auth token.
+   * Sends `notifications/<list>/list_changed` via SSE to the MCP sessions
+   * (e.g., Claude Desktop) with a matching auth token.
    */
-  #notifyToolsChanged(authToken: string): void {
+  #notifyListChanged(authToken: string, list: 'tools' | 'resources'): void {
+    const notification = JSON.stringify({
+      jsonrpc: '2.0',
+      method: `notifications/${list}/list_changed`,
+    });
     for (const mcpSession of this.#mcpSessions.values()) {
-      // Only notify sessions with matching auth token
       if (mcpSession.authToken === authToken && mcpSession.sseWriter) {
-        const notification = {
-          jsonrpc: '2.0',
-          method: 'notifications/tools/list_changed',
-        };
-        mcpSession.sseWriter(JSON.stringify(notification));
+        mcpSession.sseWriter(notification);
       }
     }
   }

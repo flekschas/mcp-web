@@ -48,9 +48,19 @@ export interface RegisterToolMessage {
   };
 }
 
+export interface UnregisterToolMessage {
+  type: 'unregister-tool';
+  toolName: string;
+}
+
 export interface RegisterResourceMessage {
   type: 'register-resource';
   resource: ResourceMetadata;
+}
+
+export interface UnregisterResourceMessage {
+  type: 'unregister-resource';
+  uri: string;
 }
 
 export interface ResourceReadMessage {
@@ -97,7 +107,9 @@ export interface ToolResponseMessage {
 export type FrontendMessage =
   | AuthenticateMessage
   | RegisterToolMessage
+  | UnregisterToolMessage
   | RegisterResourceMessage
+  | UnregisterResourceMessage
   | ActivityMessage
   | ToolResponseMessage
   | ResourceResponseMessage

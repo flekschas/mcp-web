@@ -91,4 +91,6 @@ export type {
   ToolRegistrationErrorMessage,
   ToolResponseMessage,
   TrackedToolCall,
+  UnregisterResourceMessage,
+  UnregisterToolMessage,
 } from './types.js';

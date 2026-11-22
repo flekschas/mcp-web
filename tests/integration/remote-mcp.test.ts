@@ -10,6 +10,7 @@ import { spawn } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MCPWeb } from '@mcp-web/core';
+import { createCodeMode, FunctionExecutor } from '@mcp-web/tools/code';
 import type { MCPWebConfig } from '@mcp-web/types';
 import { z } from 'zod';
 import { killProcess } from '../helpers/kill-process';
@@ -106,7 +107,7 @@ describe('Remote MCP Integration - Initialize', () => {
       protocolVersion: '2024-11-05',
       capabilities: {
         tools: { listChanged: true },
-        resources: {},
+        resources: { listChanged: true },
         prompts: {},
       },
       serverInfo: {
@@ -542,5 +543,397 @@ describe('Remote MCP Integration - Session Lifecycle', () => {
 
     expect(text).toContain('MCP session not found');
     reader.cancel();
+  });
+});
+
+describe('Remote MCP Integration - Tool and Resource Removal', () => {
+  type List = 'tools' | 'resources';
+
+  const countListChanged = (text: string, list: List) =>
+    text.split(`notifications/${list}/list_changed`).length - 1;
+
+  /**
+   * Opens the SSE stream of an MCP session and collects what arrives. The
+   * bridge sends the headers once the stream is set up, so notifications sent
+   * after this resolves are not missed.
+   */
+  async function openSSE(sessionId: string) {
+    const controller = new AbortController();
+    const response = await fetch(`http://localhost:${BRIDGE_PORT}`, {
+      method: 'GET',
+      headers: {
+        Accept: 'text/event-stream',
+        'Mcp-Session-Id': sessionId,
+      },
+      signal: controller.signal,
+    });
+    expect(response.status).toBe(200);
+
+    let text = '';
+    const reader = (response.body as ReadableStream<Uint8Array>).getReader();
+    const decoder = new TextDecoder();
+    const reading = (async () => {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        text += decoder.decode(value);
+      }
+    })().catch((error) => {
+      if (!controller.signal.aborted) throw error;
+    });
+
+    return {
+      count: (list: List) => countListChanged(text, list),
+      async waitFor(list: List, count: number, timeoutMs = 2000) {
+        const deadline = Date.now() + timeoutMs;
+        while (countListChanged(text, list) < count && Date.now() < deadline) {
+          await new Promise((resolve) => setTimeout(resolve, 20));
+        }
+        return countListChanged(text, list);
+      },
+      async close() {
+        controller.abort();
+        await reading;
+      },
+    };
+  }
+
+  type SSE = Awaited<ReturnType<typeof openSSE>>;
+
+  /**
+   * Resolves once everything `mcpWeb` sent earlier has reached the SSE stream.
+   * The bridge handles a socket's messages in order and writes notifications
+   * in order, so the fence's own notification arrives last. The fence changes
+   * `list`, so only the other list's count can be checked after it.
+   */
+  async function fence(mcpWeb: MCPWeb, sse: SSE, list: List) {
+    const count = sse.count(list);
+    if (list === 'tools') {
+      mcpWeb.addTool(simpleTool(`fence_${count}`));
+    } else {
+      mcpWeb.addResource({
+        uri: `test://fence/${count}`,
+        name: 'fence',
+        handler: () => '',
+      });
+    }
+    expect(await sse.waitFor(list, count + 1)).toBe(count + 1);
+  }
+
+  async function listNames(
+    list: List,
+    authToken: string,
+    mcpSessionId: string,
+    browserSessionId?: string,
+  ) {
+    const { body } = await mcpRequest(
+      `${list}/list`,
+      browserSessionId ? { _meta: { sessionId: browserSessionId } } : {},
+      {
+        Authorization: `Bearer ${authToken}`,
+        'Mcp-Session-Id': mcpSessionId,
+      },
+    );
+    const result = (
+      body as { result: Record<List, Array<{ name: string; uri?: string }>> }
+    ).result[list];
+    return result.map((item) =>
+      list === 'tools' ? item.name : (item.uri ?? ''),
+    );
+  }
+
+  async function waitForNames(
+    list: List,
+    authToken: string,
+    mcpSessionId: string,
+    accept: (names: string[]) => boolean,
+    browserSessionId?: string,
+  ) {
+    const deadline = Date.now() + 2000;
+    let names = await listNames(
+      list,
+      authToken,
+      mcpSessionId,
+      browserSessionId,
+    );
+    while (!accept(names) && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      names = await listNames(list, authToken, mcpSessionId, browserSessionId);
+    }
+    return names;
+  }
+
+  const simpleTool = (
+    name: string,
+    inputSchema: z.ZodObject = z.object({}),
+  ) => ({
+    name,
+    description: `The ${name} tool`,
+    inputSchema,
+    outputSchema: z.object({ ok: z.boolean() }),
+    handler: async () => ({ ok: true }),
+  });
+
+  test('removeTool drops the tool and sends one list_changed', async () => {
+    const authToken = 'remove-tool-token';
+    const mcpWeb = new MCPWeb({ ...mcpWebConfig, authToken });
+    mcpWeb.addTool(simpleTool('keep_me'));
+    mcpWeb.addTool(simpleTool('drop_me'));
+    await mcpWeb.connect();
+
+    const { sessionId } = await initializeMcpSession(authToken);
+    const registered = await waitForNames(
+      'tools',
+      authToken,
+      sessionId,
+      (names) => names.includes('drop_me'),
+    );
+    expect(registered).toEqual(expect.arrayContaining(['keep_me', 'drop_me']));
+
+    const sse = await openSSE(sessionId);
+
+    mcpWeb.removeTool('drop_me');
+    expect(await sse.waitFor('tools', 1)).toBe(1);
+
+    // A second removal changes nothing.
+    mcpWeb.removeTool('drop_me');
+    await fence(mcpWeb, sse, 'resources');
+    expect(sse.count('tools')).toBe(1);
+
+    const names = await listNames('tools', authToken, sessionId);
+    expect(names).toContain('keep_me');
+    expect(names).not.toContain('drop_me');
+
+    await sse.close();
+    mcpWeb.disconnect();
+  });
+
+  test('a rejected replacement drops the earlier registration of that session', async () => {
+    const authToken = 'remove-rejected-token';
+    const tabA = new MCPWeb({ ...mcpWebConfig, authToken });
+    const tabB = new MCPWeb({ ...mcpWebConfig, authToken });
+    tabA.addTool(simpleTool('shared'));
+    tabB.addTool(simpleTool('shared'));
+    await tabA.connect();
+    await tabB.connect();
+
+    const { sessionId } = await initializeMcpSession(authToken);
+    const hasShared = (names: string[]) => names.includes('shared');
+    for (const tab of [tabA, tabB]) {
+      const names = await waitForNames(
+        'tools',
+        authToken,
+        sessionId,
+        hasShared,
+        tab.sessionId,
+      );
+      expect(names).toContain('shared');
+    }
+
+    // Tab B holds the old schema, so the bridge rejects this and tab A drops
+    // the tool. The bridge drops tab A's earlier registration before it sends
+    // the rejection.
+    const rejected = new Promise((resolve) => {
+      tabA.addTool(simpleTool('shared', z.object({ other: z.string() })), {
+        onRegistrationError: resolve,
+      });
+    });
+    await rejected;
+    expect(tabA.tools.has('shared')).toBe(false);
+
+    expect(
+      await listNames('tools', authToken, sessionId, tabA.sessionId),
+    ).not.toContain('shared');
+    expect(
+      await listNames('tools', authToken, sessionId, tabB.sessionId),
+    ).toContain('shared');
+
+    tabA.disconnect();
+    tabB.disconnect();
+  });
+
+  test('the cleanup of addStateTools with codeMode removes its tools', async () => {
+    const authToken = 'remove-code-mode-token';
+    const mcpWeb = new MCPWeb({ ...mcpWebConfig, authToken });
+    let state = { count: 0, label: 'start' };
+    const [, , cleanup] = mcpWeb.addStateTools({
+      name: 'app',
+      description: 'App state',
+      get: () => state,
+      set: (value) => {
+        state = value;
+      },
+      schema: z.object({ count: z.number(), label: z.string() }),
+      expand: true,
+      codeMode: createCodeMode({ executor: () => new FunctionExecutor() }),
+    });
+    mcpWeb.addTool(simpleTool('stays'));
+    await mcpWeb.connect();
+
+    const { sessionId } = await initializeMcpSession(authToken);
+    const registered = await waitForNames(
+      'tools',
+      authToken,
+      sessionId,
+      (names) =>
+        ['get_app', 'code_app', 'stays'].every((name) => names.includes(name)),
+    );
+    expect(registered).toEqual(
+      expect.arrayContaining(['get_app', 'code_app', 'stays']),
+    );
+
+    const sse = await openSSE(sessionId);
+
+    cleanup();
+
+    const names = await waitForNames(
+      'tools',
+      authToken,
+      sessionId,
+      (toolNames) =>
+        !toolNames.includes('get_app') && !toolNames.includes('code_app'),
+    );
+    expect(names).not.toContain('get_app');
+    expect(names).not.toContain('code_app');
+    expect(names).toContain('stays');
+
+    // One notification per removed tool.
+    const removed = registered.filter((name) => !names.includes(name));
+    await fence(mcpWeb, sse, 'resources');
+    expect(sse.count('tools')).toBe(removed.length);
+
+    await sse.close();
+    mcpWeb.disconnect();
+  });
+
+  test('a tool removed while disconnected is not registered on reconnect', async () => {
+    const authToken = 'remove-offline-token';
+    const mcpWeb = new MCPWeb({ ...mcpWebConfig, authToken });
+    // Registrations replay in this order, so seeing `online` after reconnecting
+    // means the bridge has handled any replay of `offline_removed`.
+    mcpWeb.addTool(simpleTool('offline_removed'));
+    mcpWeb.addTool(simpleTool('online'));
+    await mcpWeb.connect();
+
+    const { sessionId } = await initializeMcpSession(authToken);
+    expect(
+      await waitForNames('tools', authToken, sessionId, (names) =>
+        ['offline_removed', 'online'].every((name) => names.includes(name)),
+      ),
+    ).toEqual(expect.arrayContaining(['offline_removed', 'online']));
+
+    mcpWeb.disconnect();
+    expect(
+      await waitForNames(
+        'tools',
+        authToken,
+        sessionId,
+        (names) => !names.includes('online'),
+      ),
+    ).not.toContain('online');
+    mcpWeb.removeTool('offline_removed');
+    await mcpWeb.connect();
+
+    const names = await waitForNames(
+      'tools',
+      authToken,
+      sessionId,
+      (toolNames) => toolNames.includes('online'),
+    );
+    expect(names).toContain('online');
+    expect(names).not.toContain('offline_removed');
+
+    mcpWeb.disconnect();
+  });
+
+  test('the first browser session notifies both lists', async () => {
+    const authToken = 'first-session-token';
+    const { sessionId } = await initializeMcpSession(authToken);
+    expect(await listNames('resources', authToken, sessionId)).toEqual([
+      'status://connection',
+    ]);
+    const sse = await openSSE(sessionId);
+
+    const mcpWeb = new MCPWeb({ ...mcpWebConfig, authToken });
+    await mcpWeb.connect();
+
+    expect(await sse.waitFor('tools', 1)).toBe(1);
+    expect(await sse.waitFor('resources', 1)).toBe(1);
+    expect(await listNames('resources', authToken, sessionId)).toEqual([
+      'sessions://list',
+    ]);
+
+    await sse.close();
+    mcpWeb.disconnect();
+  });
+
+  test('addResource and removeResource each send one list_changed', async () => {
+    const authToken = 'remove-resource-token';
+    const mcpWeb = new MCPWeb({ ...mcpWebConfig, authToken });
+    await mcpWeb.connect();
+
+    const { sessionId } = await initializeMcpSession(authToken);
+    const sse = await openSSE(sessionId);
+
+    const uri = 'test://removable';
+    mcpWeb.addResource({ uri, name: 'removable', handler: () => 'content' });
+    expect(await sse.waitFor('resources', 1)).toBe(1);
+    expect(await listNames('resources', authToken, sessionId)).toContain(uri);
+
+    mcpWeb.removeResource(uri);
+    expect(await sse.waitFor('resources', 2)).toBe(2);
+    expect(await listNames('resources', authToken, sessionId)).not.toContain(
+      uri,
+    );
+
+    // A second removal changes nothing.
+    mcpWeb.removeResource(uri);
+    await fence(mcpWeb, sse, 'tools');
+    expect(sse.count('resources')).toBe(2);
+
+    await sse.close();
+    mcpWeb.disconnect();
+  });
+
+  test('removeApp drops its tool and resource and notifies both lists', async () => {
+    const authToken = 'remove-app-token';
+    const mcpWeb = new MCPWeb({ ...mcpWebConfig, authToken });
+    const resourceUri = 'ui://show_stats/app.html';
+    mcpWeb.addApp({
+      name: 'show_stats',
+      description: 'Shows stats',
+      component: () => null,
+      handler: () => ({}),
+      resourceUri,
+    });
+    await mcpWeb.connect();
+
+    const { sessionId } = await initializeMcpSession(authToken);
+    expect(
+      await waitForNames('tools', authToken, sessionId, (names) =>
+        names.includes('show_stats'),
+      ),
+    ).toContain('show_stats');
+    expect(
+      await waitForNames('resources', authToken, sessionId, (uris) =>
+        uris.includes(resourceUri),
+      ),
+    ).toContain(resourceUri);
+
+    const sse = await openSSE(sessionId);
+
+    mcpWeb.removeApp('show_stats');
+    expect(await sse.waitFor('tools', 1)).toBe(1);
+    expect(await sse.waitFor('resources', 1)).toBe(1);
+
+    expect(await listNames('tools', authToken, sessionId)).not.toContain(
+      'show_stats',
+    );
+    expect(await listNames('resources', authToken, sessionId)).not.toContain(
+      resourceUri,
+    );
+
+    await sse.close();
+    mcpWeb.disconnect();
   });
 });

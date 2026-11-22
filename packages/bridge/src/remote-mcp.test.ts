@@ -692,6 +692,7 @@ describe('Remote MCP - Capabilities', () => {
       result: {
         capabilities: {
           tools: { listChanged: true },
+          resources: { listChanged: true },
         },
       },
     });

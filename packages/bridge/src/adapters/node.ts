@@ -195,6 +195,9 @@ export class MCPWebBridgeNode {
                 res.end();
               }
             });
+            // Send the headers now rather than with the first event, so the
+            // client sees the stream open once its writer is in place.
+            res.flushHeaders();
 
             // Keep connection alive with periodic comments
             const keepAlive = setInterval(() => {

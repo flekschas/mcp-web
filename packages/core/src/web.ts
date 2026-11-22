@@ -3,6 +3,8 @@ import type {
   RegisterResourceMessage,
   RegisterToolMessage,
   ToolRegistrationErrorMessage,
+  UnregisterResourceMessage,
+  UnregisterToolMessage,
 } from '@mcp-web/bridge';
 import type { SplitPlan } from '@mcp-web/decompose-zod-schema';
 import type {
@@ -1124,9 +1126,10 @@ export class MCPWeb {
   }
 
   /**
-   * Removes a registered tool.
+   * Removes a tool from this browser session.
    *
-   * After removal, AI agents will no longer be able to call this tool.
+   * When connected, the bridge updates the session's tool list and notifies
+   * subscribed MCP clients.
    * Useful for dynamically disabling features or cleaning up when tools are no longer needed.
    *
    * @param name - Name of the tool to remove
@@ -1138,8 +1141,18 @@ export class MCPWeb {
    * ```
    */
   removeTool(name: string) {
-    this.tools.delete(name);
     this.#toolRegistrationErrorCallbacks.delete(name);
+    if (!this.tools.delete(name)) return;
+
+    // Without an open socket there is nothing to tell: reconnecting
+    // registers only the remaining tools.
+    if (!this.#ws || this.#ws.readyState !== WebSocket.OPEN) return;
+    this.#ws.send(
+      JSON.stringify({
+        type: 'unregister-tool',
+        toolName: name,
+      } satisfies UnregisterToolMessage),
+    );
   }
 
   /**
@@ -1194,9 +1207,10 @@ export class MCPWeb {
   }
 
   /**
-   * Removes a registered resource.
+   * Removes a resource from this browser session.
    *
-   * After removal, AI agents will no longer be able to read this resource.
+   * When connected, the bridge updates the session's resource list and
+   * notifies subscribed MCP clients.
    *
    * @param uri - URI of the resource to remove
    *
@@ -1206,7 +1220,17 @@ export class MCPWeb {
    * ```
    */
   removeResource(uri: string) {
-    this.#resources.delete(uri);
+    if (!this.#resources.delete(uri)) return;
+
+    // Without an open socket there is nothing to tell: reconnecting
+    // registers only the remaining resources.
+    if (!this.#ws || this.#ws.readyState !== WebSocket.OPEN) return;
+    this.#ws.send(
+      JSON.stringify({
+        type: 'unregister-resource',
+        uri,
+      } satisfies UnregisterResourceMessage),
+    );
   }
 
   /**
