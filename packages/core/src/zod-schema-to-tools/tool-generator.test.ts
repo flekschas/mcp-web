@@ -740,6 +740,43 @@ test('generateToolsForSchema() - mixed object generates root get/set + collectio
   expect(toolNames).toContain('delete_app_projects');
 });
 
+test('generateToolsForSchema() - object with only collections generates root get + collection tools', async () => {
+  let state = { todos: ['a'] as string[], projects: {} as Record<string, string> };
+  const schema = z.object({
+    todos: z.array(z.string()),
+    projects: z.record(z.string(), z.string()),
+  });
+
+  const result = generateToolsForSchema(
+    {
+      name: 'app',
+      description: 'app',
+      get: () => state,
+      set: (value) => {
+        state = value as typeof state;
+      },
+      schema,
+    },
+    mockMCPWeb
+  );
+
+  // Root get + todos (4 tools) + projects (3 tools); no fixed props to set
+  expect(result.tools.map((t) => t.name).sort()).toEqual([
+    'add_app_todos',
+    'delete_app_projects',
+    'delete_app_todos',
+    'get_app',
+    'get_app_projects',
+    'get_app_todos',
+    'set_app_projects',
+    'set_app_todos',
+  ]);
+
+  const add = result.tools.find((t) => t.name === 'add_app_todos')!;
+  await add.handler({ value: 'b' });
+  expect(state.todos).toEqual(['a', 'b']);
+});
+
 test('generateToolsForSchema() - mixed object root get returns full state', async () => {
   let state = {
     name: 'App',
@@ -870,40 +907,11 @@ test('generateToolsForSchema() - mixed object generates separate tools for each 
   expect(toolNames).toContain('delete_app_projects');
 });
 
-test('generateToolsForSchema() - object with only dynamic props generates no tools (edge case)', () => {
-  let state = {
-    todos: [] as string[],
-    projects: {} as Record<string, { name: string }>,
-  };
-  const schema = z.object({
-    todos: z.array(z.string()),
-    projects: z.record(z.string(), z.object({ name: z.string() })),
-  });
-
-  const result = generateToolsForSchema(
-    {
-      name: 'app',
-      description: 'app',
-      get: () => state,
-      set: (value) => {
-        state = value as typeof state;
-      },
-      schema,
-    },
-    mockMCPWeb
-  );
-
-  // Object with only dynamic props is type:'dynamic' and subtype:'object'
-  // This case is not handled in the tool generator, so no tools are generated
-  // (This is an edge case - normally you'd want mixed object behavior)
-  expect(result.tools).toHaveLength(0);
-});
-
 // ============================================================================
 // Warnings
 // ============================================================================
 
-test('generateToolsForSchema() - warns about optional fields', () => {
+test('generateToolsForSchema() - no warning for optional-only fields (handled automatically)', () => {
   let state = { name: 'Test', email: undefined as string | undefined };
   const schema = z.object({
     name: z.string(),
@@ -920,11 +928,100 @@ test('generateToolsForSchema() - warns about optional fields', () => {
       },
       schema,
     },
-    mockMCPWeb
+    mockMCPWeb,
+  );
+
+  expect(result.warnings).toHaveLength(0);
+});
+
+test('generateToolsForSchema() - warns about optional+nullable fields', () => {
+  let state = {
+    name: 'Test',
+    bio: null as string | null | undefined,
+  };
+  const schema = z.object({
+    name: z.string(),
+    bio: z.string().nullable().optional(),
+  });
+
+  const result = generateToolsForSchema(
+    {
+      name: 'user',
+      description: 'user',
+      get: () => state,
+      set: (value) => {
+        state = value as typeof state;
+      },
+      schema,
+    },
+    mockMCPWeb,
   );
 
   expect(result.warnings).toHaveLength(1);
+  expect(result.warnings[0]).toContain('bio');
   expect(result.warnings[0]).toContain('optional()');
-  expect(result.warnings[0]).toContain('email');
   expect(result.warnings[0]).toContain('nullable()');
+});
+
+// ============================================================================
+// Optional-to-Nullable Conversion (end-to-end)
+// ============================================================================
+
+test('generateToolsForSchema() - array set clears optional-only field with null', async () => {
+  type Item = { id: string; name: string; email?: string };
+  let state: Item[] = [
+    { id: 'a', name: 'Alice', email: 'alice@example.com' },
+  ];
+  const schema = z.array(
+    z.object({
+      id: id(z.string()),
+      name: z.string(),
+      email: z.string().optional(),
+    }),
+  );
+
+  const result = generateToolsForSchema({
+    name: 'users',
+    description: 'users',
+    get: () => state,
+    set: (value) => {
+      state = value as Item[];
+    },
+    schema,
+  });
+
+  const setter = result.tools.find((t) => t.name === 'set_users')!;
+  await setter.handler({ id: 'a', value: { email: null } });
+
+  expect(state[0].email).toBeUndefined();
+  expect(state[0].name).toBe('Alice');
+});
+
+test('generateToolsForSchema() - record set clears optional-only field with null', async () => {
+  let state: Record<string, { name: string; email?: string }> = {
+    alice: { name: 'Alice', email: 'alice@example.com' },
+  };
+  const schema = z.record(
+    z.string(),
+    z.object({
+      name: z.string(),
+      email: z.string().optional(),
+    }),
+  );
+
+  const result = generateToolsForSchema({
+    name: 'users',
+    description: 'users',
+    get: () => state,
+    set: (value) => {
+      state = value as typeof state;
+    },
+    schema,
+  });
+
+  const setter = result.tools.find((t) => t.name === 'set_users')!;
+  await setter.handler({ key: 'alice', value: { email: null } });
+
+  expect(state.alice.email).toBeUndefined();
+  expect(state.alice.name).toBe('Alice');
 });

@@ -2,10 +2,13 @@
 
 export { QueryResponse } from './query.js';
 // Export schema helper functions for expanded tools
-export { id, system } from './tool-generators/index.js';
+export { id, system } from './zod-schema-to-tools/index.js';
+export { zodSchemasToTools } from './zod-schemas-to-tools.js';
+export type { ZodSchemasToToolsOptions } from './zod-schemas-to-tools.js';
 // Export state grouping helper
 export { groupState } from './group-state.js';
 export type { StateTriple, StateTriples, GroupedState } from './group-state.js';
+export type { CodeMode, CodeToolLike } from '@mcp-web/types';
 export type {
   ContextItem,
   EphemeralContext,
@@ -32,4 +35,8 @@ export type {
 
 // Re-export app-related types from @mcp-web/types for convenience
 export { isCreatedApp } from '@mcp-web/types';
-export type { AppDefinition, CreatedApp, ToolRegistrationError } from '@mcp-web/types';
+export type {
+  AppDefinition,
+  CreatedApp,
+  ToolRegistrationError,
+} from '@mcp-web/types';

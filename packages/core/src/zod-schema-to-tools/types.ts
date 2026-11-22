@@ -19,6 +19,7 @@ export interface SchemaShape {
   subtype: 'object' | 'array' | 'record' | 'primitive' | 'tuple' | 'unknown';
   hasOptionalFields: boolean;
   optionalPaths: string[];
+  optionalAndNullablePaths: string[];
   fixedPaths: string[];    // Paths to fixed-shape properties
   dynamicPaths: string[];  // Paths to arrays/records
 }

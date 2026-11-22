@@ -57,7 +57,7 @@ export default defineConfig({
             { text: 'Visual Tools', link: '/visual-tools' },
             { text: 'Structuring Your App', link: '/structuring-your-app' },
             { text: 'Integrations', link: '/integrations' },
-            { text: 'Expanded State Tools', link: '/expanded-state-tools' },
+            { text: 'Efficient State Tools', link: '/efficient-state-tools' },
             { text: 'Large Schemas', link: '/large-schema' },
           ]
         },
@@ -68,6 +68,15 @@ export default defineConfig({
             { text: 'Declarative & Reactive State', link: '/declarative-reactive-state' },
             { text: 'Designing State Tools', link: '/designing-state-tools' },
             { text: 'MCP-Web vs WebMCP vs AG-UI', link: '/comparison' },
+          ]
+        },
+        {
+          text: 'Tools',
+          items: [
+            { text: 'Code', link: '/tools/code' },
+            { text: 'Screenshot', link: '/tools/screenshot' },
+            { text: 'DOM Query', link: '/tools/dom' },
+            { text: 'Python', link: '/tools/python' },
           ]
         },
         {

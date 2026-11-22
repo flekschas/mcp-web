@@ -222,6 +222,14 @@ addTool(tool: ToolDefinition | CreatedTool, options?: {
 ```
 
 ```ts
+addCodeTool(code: CodeToolLike): () => void
+```
+
+Registers a code tool and, with `signatures: 'lookup'`, its lookup tool.
+
+The tools it wraps are not registered on their own by this call.
+
+```ts
 removeTool(name: string): void
 ```
 
@@ -267,7 +275,7 @@ After removal, AI agents will no longer be able to invoke this app.
 This also removes the associated tool and resource.
 
 ```ts
-addStateTools<T>(created: CreatedStateTools<T> & { isExpanded: false }): [ToolDefinition, ToolDefinition, () => void]
+addStateTools<T>(created: CreatedStateToolsBasic<T> & { codeMode: false }): [ToolDefinition, ToolDefinition, () => void]
 ```
 
 Add state management tools with optional expanded tool generation.
@@ -277,7 +285,11 @@ arrays and records instead of a single setter.
 Can also accept pre-created state tools from `createStateTools()`.
 
 ```ts
-addStateTools<T>(created: CreatedStateTools<T> & { isExpanded: true }): [ToolDefinition, ToolDefinition[], () => void]
+addStateTools<T>(created: CreatedStateToolsExpanded<T> & { codeMode: false }): [ToolDefinition, ToolDefinition[], () => void]
+```
+
+```ts
+addStateTools<T>(created: CreatedStateTools<T> & { codeMode: true }): [ToolDefinition, ToolDefinition, () => void]
 ```
 
 ```ts
@@ -285,52 +297,37 @@ addStateTools<T>(created: CreatedStateTools<T>): [ToolDefinition, ToolDefinition
 ```
 
 ```ts
-addStateTools<T>(options: {
-    name: string;
-    description: string;
-    get: () => T;
-    set: (value: T) => void;
-    schema: z.ZodType<T>;
-    schemaSplit?: undefined;
-    expand?: false;
-  }): [ToolDefinition, ToolDefinition, () => void]
+addStateTools<T>(options: CreateStateToolsConfig<T> & {
+      schemaSplit?: undefined;
+      expand?: false;
+      codeMode?: undefined;
+    }): [ToolDefinition, ToolDefinition, () => void]
 ```
 
 ```ts
-addStateTools<T>(options: {
-    name: string;
-    description: string;
-    get: () => T;
-    set: (value: T) => void;
-    schema: z.ZodType<T>;
-    schemaSplit: SplitPlan;
-    expand?: boolean;
-  }): [ToolDefinition, ToolDefinition[], () => void]
+addStateTools<T>(options: CreateStateToolsConfig<T> & {
+      schemaSplit: SplitPlan;
+      codeMode?: undefined;
+    }): [ToolDefinition, ToolDefinition[], () => void]
 ```
 
 ```ts
-addStateTools<T>(options: {
-    name: string;
-    description: string;
-    get: () => T;
-    set: (value: T) => void;
-    schema: z.ZodType<T>;
-    schemaSplit?: SplitPlan;
-    expand: true;
-  }): [ToolDefinition, ToolDefinition[], () => void]
+addStateTools<T>(options: CreateStateToolsConfig<T> & {
+      expand: true;
+      codeMode?: undefined;
+    }): [ToolDefinition, ToolDefinition[], () => void]
 ```
 
 ```ts
-addStateTools<T>(optionsOrCreated: | {
-          name: string;
-          description: string;
-          get: () => T;
-          set: (value: T) => void;
-          schema: z.ZodType<T>;
-          schemaSplit?: SplitPlan;
-          expand?: boolean;
-        }
-      | CreatedStateTools<T>): [ToolDefinition, ToolDefinition | ToolDefinition[], () => void]
+addStateTools<T>(options: CreateStateToolsConfig<T> & { codeMode: CodeMode }): [ToolDefinition, ToolDefinition, () => void]
+```
+
+```ts
+addStateTools<T>(options: CreateStateToolsConfig<T>): [ToolDefinition, ToolDefinition | ToolDefinition[], () => void]
+```
+
+```ts
+addStateTools<T>(optionsOrCreated: CreateStateToolsConfig<T> | CreatedStateTools<T>): [ToolDefinition, ToolDefinition | ToolDefinition[], () => void]
 ```
 
 ```ts
@@ -404,6 +401,11 @@ schema: z.ZodType<T>
 
 Zod schema for validating state values.
 
+It must not transform values, as with a transform, a pipe or
+`z.preprocess`, and any `overwrite` step must give the same value when
+applied again, as `trim()` does: generated tools validate state again
+before storing it.
+
 ```ts
 schemaSplit?: SplitPlan
 ```
@@ -415,6 +417,17 @@ expand?: boolean
 ```
 
 When true, generates expanded tools for arrays and records.
+
+```ts
+codeMode?: CodeMode
+```
+
+Offers the generated tools through one code tool, so AI can combine them
+in a program. The getter is also registered on its own. Create it with
+`createCodeMode` from `@mcp-web/tools/code`.
+
+A failed program's changes to this state are undone by restoring a
+snapshot, so `get` must return a value `structuredClone` can copy.
 
 ### `CreatedStateToolsBasic<T>`
 
@@ -450,16 +463,22 @@ tools: ToolDefinitionZod[]
 All tool definitions as an array.
 
 ```ts
-config: CreateStateToolsConfig<T>
+config: Readonly<CreateStateToolsConfig<T>>
 ```
 
-The original config.
+A frozen copy of the config, so it keeps matching these tools.
 
 ```ts
 isExpanded: false
 ```
 
 Whether this uses expanded/decomposed tools.
+
+```ts
+codeMode: boolean
+```
+
+Whether the tools are offered through a code tool (`config.codeMode`).
 
 ### `CreatedStateToolsExpanded<T>`
 
@@ -495,16 +514,22 @@ tools: ToolDefinitionZod[]
 All tool definitions as an array.
 
 ```ts
-config: CreateStateToolsConfig<T>
+config: Readonly<CreateStateToolsConfig<T>>
 ```
 
-The original config.
+A frozen copy of the config, so it keeps matching these tools.
 
 ```ts
 isExpanded: true
 ```
 
 Whether this uses expanded/decomposed tools.
+
+```ts
+codeMode: boolean
+```
+
+Whether the tools are offered through a code tool (`config.codeMode`).
 
 ### `CreateToolConfig<TInput, TOutput>`
 
@@ -578,6 +603,42 @@ config: CreateToolConfig<TInput, TOutput>
 ```
 
 The original config for type inference.
+
+### `ZodSchemasToToolsOptions<T>`
+
+*Interface* — `packages/core/src/zod-schemas-to-tools.ts`
+
+**Properties:**
+
+```ts
+schema: z.ZodType<T>
+```
+
+Zod schema describing the state shape. Same rules as `createStateTools`.
+
+```ts
+get: () => T
+```
+
+Function to get the current state value.
+
+```ts
+set: (value: T) => void
+```
+
+Function to set the state value.
+
+```ts
+name?: string
+```
+
+Name prefix for generated tools (default: 'state').
+
+```ts
+description?: string
+```
+
+Description for generated tools.
 
 ### CreatedStateTools
 
@@ -686,7 +747,7 @@ z.infer<typeof EphemeralContextSchema>
 *Function* — `packages/core/src/create-state-tools.ts`
 
 ```ts
-createStateTools<T>(config: CreateStateToolsConfig<...>): CreatedStateToolsBasic<T>
+createStateTools<T>(config: CreateStateToolsConfig<...>): CreatedStateToolsBasic<...>
 ```
 
 ### isCreatedStateTools
@@ -739,6 +800,30 @@ by exposing semantically related state through one tool set.
 
 ```ts
 groupState<T>(atoms: T): GroupedState<T>
+```
+
+### createMutex
+
+*Function* — `packages/core/src/serialize.ts`
+
+Run tasks one at a time.
+
+Needed where handlers share state that is only correct for the duration of
+one call. `createStateTools` is the case in hand: a deep-path tool carries
+the indices naming which collection element it addresses, and the generated
+`get`/`set` pair for that path reads them from one shared object, because the
+generator builds the pair once and has no per-call channel. A handler that
+awaits anywhere lets a second call overwrite the indices while the first is
+suspended, and the first then reads or writes a different element — silently,
+and to a plausible-looking place.
+
+The generated handlers happen to be synchronous today, so the interleaving
+cannot occur; this holds regardless, because nothing states that as a
+contract and a handler that starts awaiting would not look like a change to
+the state tools at all.
+
+```ts
+createMutex(): <R>(task: () => Promise<R>) => Promise<R>
 ```
 
 ### isZodSchema
@@ -801,6 +886,22 @@ Used for partial updates to state objects.
 
 ```ts
 deepMerge(target: unknown, source: unknown): unknown
+```
+
+### zodSchemasToTools
+
+*Function* — `packages/core/src/zod-schemas-to-tools.ts`
+
+Converts a Zod schema into an array of MCP tool definitions.
+
+Analyzes the schema shape and generates appropriate CRUD tools:
+- Fixed-shape objects -> get + set (with deep merge)
+- Arrays -> get + add + set + delete
+- Records -> get + set + delete
+- Mixed objects -> root get/set + collection tools
+
+```ts
+zodSchemasToTools<T>(options: ZodSchemasToToolsOptions<T>): ToolDefinitionZod[]
 ```
 
 ### EphemeralContextSchema

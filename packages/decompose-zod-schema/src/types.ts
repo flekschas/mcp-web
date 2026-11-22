@@ -19,37 +19,24 @@ export interface DecomposedSchema {
  * Supports various notations:
  * - Simple path: `'user'` - Extract the 'user' property
  * - Nested path: `'profile.bio'` - Extract nested property
+ * - Collection path: `'todos'` - Array/record type auto-detected from schema
+ * - Deep path: `'views.tracks.top'` - Path through array elements
  * - Enum chunking: `'category[50]'` - Split enum into chunks of 50
  * - Enum slice: `'category[0:50]'` - Extract enum options 0-49
- * - Array split: `'items[]'` - Split array for item operations
- * - Record split: `'records{}'` - Split record for key-value operations
  *
  * @example
  * ```typescript
  * const splits: Split[] = [
  *   'user',              // simple path
  *   'profile.bio',       // nested path
+ *   'todos',             // array (auto-detected)
+ *   'views.tracks.top',  // nested path through array
  *   'category[50]',      // enum split into max 50 chunks
  *   'category[0:50]',    // enum slice
- *   'items[]',           // array split
- *   'records{}',         // record split
  * ];
  * ```
  */
 export type Split = z.infer<typeof splitSchema>;
-
-/**
- * Parsed array split information.
- * @internal
- */
-export interface ArraySplit {
-  /** Base path to the array property. */
-  path: string;
-  /** Whether this represents array element operations. */
-  isArrayElement: boolean;
-  /** Paths to exclude from the split. */
-  excludedSubArrays: string[];
-}
 
 /**
  * Array of split specifications defining how to decompose a schema.

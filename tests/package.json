@@ -9,14 +9,18 @@
     "@mcp-web/decompose-zod-schema": "workspace:*",
     "@mcp-web/types": "workspace:*",
     "@mcp-web/core": "workspace:*",
+    "@mcp-web/tools": "workspace:*",
     "@modelcontextprotocol/sdk": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "@types/react": "catalog:",
+    "vite": "catalog:",
     "wrangler": "catalog:"
   },
   "scripts": {
-    "test": "bun test"
+    "test": "bun test",
+    "test:dom": "playwright test"
   }
 }

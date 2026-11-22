@@ -17,8 +17,8 @@ monolithic state object that can't easily be refactored.
 **Building a new app?** You likely don't need schema splitting. Instead:
 - Design your state with logical groupings from the start
   (see [Structuring Your App](/structuring-your-app))
-- Use [Expanded State Tools](/expanded-state-tools) which automatically
-  generates efficient tools based on your schema structure
+- Use [Efficient State Tools](/efficient-state-tools), which keep changes
+  small however large the state gets
 
 The opposite problem—having too many small state variables—is better solved by
 grouping related state into well-designed objects, not by splitting.
@@ -238,7 +238,7 @@ set_game_state_score({ red: 10, black: 8 })
 
 ## Combining with Expanded Tools
 
-Schema splitting can be combined with [expanded tools](/expanded-state-tools)
+Schema splitting can be combined with [expanded tools](/efficient-state-tools#expanded-tools)
 for maximum efficiency. When you use both `schemaSplit` and `expand: true`:
 
 1. **Split first**: Extract the specified props into separate tool groups

@@ -3,9 +3,12 @@ import { z } from 'zod';
 import {
   deriveAddInputSchema,
   deriveSetInputSchema,
+  getOptionalOnlyKeys,
   hasDefault,
   id,
   isKeyField,
+  isOptionalAndNullable,
+  isOptionalNotNullable,
   isSystemField,
   system,
   unwrapDefault,
@@ -293,4 +296,122 @@ test('validateSystemFields() - passes with no system fields', () => {
   });
 
   expect(() => validateSystemFields(schema)).not.toThrow();
+});
+
+// ============================================================================
+// Optional/Nullable Detection
+// ============================================================================
+
+test('isOptionalNotNullable() - true for optional-only', () => {
+  expect(isOptionalNotNullable(z.string().optional())).toBe(true);
+});
+
+test('isOptionalNotNullable() - false for nullable', () => {
+  expect(isOptionalNotNullable(z.string().nullable())).toBe(false);
+});
+
+test('isOptionalNotNullable() - false for optional+nullable', () => {
+  expect(isOptionalNotNullable(z.string().optional().nullable())).toBe(false);
+  expect(isOptionalNotNullable(z.string().nullable().optional())).toBe(false);
+});
+
+test('isOptionalNotNullable() - false for required', () => {
+  expect(isOptionalNotNullable(z.string())).toBe(false);
+});
+
+test('isOptionalNotNullable() - true for optional with default', () => {
+  expect(isOptionalNotNullable(z.string().optional().default('hi'))).toBe(
+    true,
+  );
+});
+
+test('isOptionalAndNullable() - true for optional+nullable', () => {
+  expect(isOptionalAndNullable(z.string().optional().nullable())).toBe(true);
+  expect(isOptionalAndNullable(z.string().nullable().optional())).toBe(true);
+});
+
+test('isOptionalAndNullable() - false for optional-only', () => {
+  expect(isOptionalAndNullable(z.string().optional())).toBe(false);
+});
+
+test('isOptionalAndNullable() - false for nullable-only', () => {
+  expect(isOptionalAndNullable(z.string().nullable())).toBe(false);
+});
+
+test('isOptionalAndNullable() - false for required', () => {
+  expect(isOptionalAndNullable(z.string())).toBe(false);
+});
+
+// ============================================================================
+// Optional-Only Key Detection
+// ============================================================================
+
+test('getOptionalOnlyKeys() - returns optional-not-nullable keys', () => {
+  const schema = z.object({
+    name: z.string(),
+    email: z.string().optional(),
+    bio: z.string().nullable(),
+    notes: z.string().nullable().optional(),
+  });
+  const keys = getOptionalOnlyKeys(schema);
+
+  expect(keys.has('email')).toBe(true);
+  expect(keys.has('name')).toBe(false);
+  expect(keys.has('bio')).toBe(false);
+  expect(keys.has('notes')).toBe(false);
+});
+
+test('getOptionalOnlyKeys() - excludes system fields', () => {
+  const schema = z.object({
+    id: system(z.string().optional().default('auto')),
+    name: z.string().optional(),
+  });
+  const keys = getOptionalOnlyKeys(schema);
+
+  expect(keys.has('id')).toBe(false);
+  expect(keys.has('name')).toBe(true);
+});
+
+// ============================================================================
+// Set Input Schema - Nullable Conversion
+// ============================================================================
+
+test('deriveSetInputSchema() - makes optional-only fields nullable', () => {
+  const schema = z.object({
+    name: z.string(),
+    email: z.string().optional(),
+  });
+  const setSchema = deriveSetInputSchema(schema);
+
+  // email should accept null (for clearing)
+  expect(setSchema.safeParse({ email: null }).success).toBe(true);
+  // email should still accept a string
+  expect(setSchema.safeParse({ email: 'test@example.com' }).success).toBe(
+    true,
+  );
+  // email should still be omittable
+  expect(setSchema.safeParse({}).success).toBe(true);
+});
+
+test('deriveSetInputSchema() - does not double-nullable already-nullable fields', () => {
+  const schema = z.object({
+    bio: z.string().nullable(),
+  });
+  const setSchema = deriveSetInputSchema(schema);
+
+  expect(setSchema.safeParse({ bio: null }).success).toBe(true);
+  expect(setSchema.safeParse({ bio: 'hello' }).success).toBe(true);
+  expect(setSchema.safeParse({}).success).toBe(true);
+});
+
+test('deriveSetInputSchema() - leaves required fields as non-nullable optional', () => {
+  const schema = z.object({
+    name: z.string(),
+  });
+  const setSchema = deriveSetInputSchema(schema);
+
+  // null should NOT be valid for a required (non-optional, non-nullable) field
+  expect(setSchema.safeParse({ name: null }).success).toBe(false);
+  expect(setSchema.safeParse({ name: 'Alice' }).success).toBe(true);
+  expect(setSchema.safeParse({}).success).toBe(true);
 });

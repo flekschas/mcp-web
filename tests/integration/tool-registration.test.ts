@@ -293,3 +293,30 @@ test('Mixed registration order - tools are all available', async () => {
 
   mcpWeb.disconnect();
 });
+
+test('A code tool pair that is refused registers neither tool', async () => {
+  const authToken = 'refused-code-tool-token';
+  const mcpWeb = new MCPWeb({ ...mcpWebConfig, authToken });
+  await mcpWeb.connect();
+
+  const code = {
+    name: 'code',
+    description: 'Run code',
+    inputSchema: z.object({ code: z.string() }),
+    handler: () => ({ result: null }),
+  };
+  // A transform cannot be converted to JSON Schema, so this one is refused.
+  const lookupTool = {
+    name: 'get_code_signature',
+    description: 'Look up signatures',
+    inputSchema: z.object({ names: z.string().transform((s) => s.split(',')) }),
+    handler: () => ({ signatures: {} }),
+  };
+  expect(() => mcpWeb.addCodeTool({ ...code, lookupTool })).toThrow();
+
+  const client = new MCPWebClient({ ...mcpWebClientConfig, authToken });
+  const tools = await client.listTools();
+  expect(tools.tools.map((t) => t.name)).toEqual(['list_sessions']);
+
+  mcpWeb.disconnect();
+});
