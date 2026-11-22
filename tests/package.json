@@ -14,7 +14,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@playwright/test": "^1.52.0",
+    "@playwright/test": "^1.65.1",
     "@types/react": "catalog:",
     "vite": "catalog:",
     "wrangler": "catalog:"
