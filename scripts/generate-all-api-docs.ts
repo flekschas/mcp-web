@@ -3,39 +3,17 @@
  *
  * @example
  * ```bash
- * pnpm dlx tsx scripts/generate-all-api-docs.ts docs/
- * pnpm dlx tsx scripts/generate-all-api-docs.ts agents/skills/mcp-web/
+ * pnpm dlx tsx scripts/generate-all-api-docs.ts docs/api/
  * ```
  */
 
 import { spawnSync } from "node:child_process";
 import * as path from "node:path";
 
-// Parse CLI arguments
-const args = process.argv.slice(2);
-if (args.length < 1) {
-	console.error(
-		"Usage: tsx generate-all-api-docs.ts <output-dir> [--prefix <prefix>]",
-	);
-	console.error(
-		"Examples:",
-	);
-	console.error(
-		'  tsx generate-all-api-docs.ts docs/api/',
-	);
-	console.error(
-		'  tsx generate-all-api-docs.ts agents/skills/mcp-web/ --prefix "api-reference-"',
-	);
+const OUTPUT_DIR = process.argv[2];
+if (!OUTPUT_DIR) {
+	console.error("Usage: tsx generate-all-api-docs.ts <output-dir>");
 	process.exit(1);
-}
-
-const OUTPUT_DIR = args[0];
-
-// Parse optional --prefix flag
-let filePrefix = "";
-const prefixIndex = args.indexOf("--prefix");
-if (prefixIndex !== -1 && args[prefixIndex + 1]) {
-	filePrefix = args[prefixIndex + 1];
 }
 
 // Package configurations: [source-dir, filename-base, title]
@@ -59,7 +37,7 @@ const packages: Array<[string, string, string]> = [
 
 // Generate docs for each package
 for (const [sourceDir, fileBase, title] of packages) {
-	const outputFile = `${filePrefix}${fileBase}.md`;
+	const outputFile = `${fileBase}.md`;
 	const outputPath = path.join(OUTPUT_DIR, outputFile);
 
 	console.log(`\nGenerating ${outputPath}...`);

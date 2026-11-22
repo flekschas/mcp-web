@@ -4,7 +4,8 @@
  * AI-powered agent documentation review script.
  *
  * This script uses OpenRouter with Kimi K2.5 to review agent documentation
- * and suggest updates based on changes to API reference docs.
+ * and suggest updates based on changes to the docs, including the generated
+ * API reference docs in docs/api/.
  *
  * Environment variables:
  *   - OPENROUTER_API_KEY: Required. Your OpenRouter API key.
@@ -33,27 +34,18 @@ const FILES = {
   agentsMd: join(REPO_ROOT, 'agents/AGENTS.md'),
   skillMd: join(REPO_ROOT, 'agents/skills/mcp-web/SKILL.md'),
   examplesMd: join(REPO_ROOT, 'agents/skills/mcp-web/examples.md'),
-
-  // API reference files (read-only, for context)
-  apiRefCore: join(REPO_ROOT, 'agents/skills/mcp-web/api-reference-core.md'),
-  apiRefBridge: join(
-    REPO_ROOT,
-    'agents/skills/mcp-web/api-reference-bridge.md',
-  ),
-  apiRefClient: join(
-    REPO_ROOT,
-    'agents/skills/mcp-web/api-reference-client.md',
-  ),
-  apiRefIntegrations: join(
-    REPO_ROOT,
-    'agents/skills/mcp-web/api-reference-integrations.md',
-  ),
-  apiRefTools: join(REPO_ROOT, 'agents/skills/mcp-web/api-reference-tools.md'),
-  apiRefDecompose: join(
-    REPO_ROOT,
-    'agents/skills/mcp-web/api-reference-decompose-zod-schema.md',
-  ),
 };
+
+// Generated API reference docs (read-only, for context)
+const API_DOCS_DIR = join(REPO_ROOT, 'docs/api');
+const API_DOCS = [
+  'core',
+  'bridge',
+  'client',
+  'integrations',
+  'tools',
+  'decompose-zod-schema',
+];
 
 interface FileEdit {
   path: string;
@@ -96,9 +88,7 @@ function getChangedFiles(): string[] {
       encoding: 'utf-8',
       cwd: REPO_ROOT,
     });
-    return output
-      .split('\n')
-      .filter((f) => f.includes('api-reference') || f.startsWith('docs/'));
+    return output.split('\n').filter((f) => f.startsWith('docs/'));
   } catch {
     return [];
   }
@@ -125,23 +115,15 @@ function buildPrompt(changedFiles: string[]): string {
     .join('\n\n');
 
   // Load API reference files for full context (truncated if too long)
-  const apiRefs = [
-    { name: 'core', content: readFile(FILES.apiRefCore) },
-    { name: 'bridge', content: readFile(FILES.apiRefBridge) },
-    { name: 'client', content: readFile(FILES.apiRefClient) },
-    { name: 'integrations', content: readFile(FILES.apiRefIntegrations) },
-    { name: 'tools', content: readFile(FILES.apiRefTools) },
-    { name: 'decompose', content: readFile(FILES.apiRefDecompose) },
-  ]
-    .map(({ name, content }) => {
-      // Truncate very long files to avoid token limits
-      const truncated =
-        content.length > 20000
-          ? content.slice(0, 20000) + '\n\n[... truncated ...]'
-          : content;
-      return `### api-reference-${name}.md\n${truncated}`;
-    })
-    .join('\n\n---\n\n');
+  const apiRefs = API_DOCS.map((name) => {
+    const content = readFile(join(API_DOCS_DIR, `${name}.md`));
+    // Truncate very long files to avoid token limits
+    const truncated =
+      content.length > 20000
+        ? content.slice(0, 20000) + '\n\n[... truncated ...]'
+        : content;
+    return `### docs/api/${name}.md\n${truncated}`;
+  }).join('\n\n---\n\n');
 
   return `You are an expert technical writer reviewing documentation for the MCP-Web project.
 
@@ -187,7 +169,7 @@ ${currentExamplesMd}
 1. Analyze the diffs to understand what changed in the API
 2. Check if the current AGENTS.md, SKILL.md, and examples.md accurately reflect the API
 3. If updates are needed, provide the complete new content for each file that needs changes
-4. Do NOT modify api-reference*.md files - those are auto-generated
+4. Do NOT modify docs/api/*.md files - those are auto-generated
 
 Respond in the following JSON format:
 

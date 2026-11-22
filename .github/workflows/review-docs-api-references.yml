@@ -5,9 +5,8 @@ on:
     branches:
       - main
     paths:
-      # Trigger when auto-generated API docs change
-      - 'agents/skills/mcp-web/api-reference*.md'
-      # Trigger when public docs change (may inform examples)
+      # Trigger when public docs change, including the generated API docs
+      # in docs/api/
       - 'docs/**/*.md'
 
 permissions:
@@ -39,7 +38,7 @@ jobs:
         id: changed
         run: |
           # Get files changed in this push
-          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD | grep -E '(agents/skills/mcp-web/api-reference.*\.md|docs/.*\.md)' || true)
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD | grep -E 'docs/.*\.md' || true)
           echo "files<<EOF" >> $GITHUB_OUTPUT
           echo "$CHANGED_FILES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -100,8 +99,7 @@ jobs:
           ## Summary
 
           This PR contains AI-suggested updates to agent documentation based on recent changes to:
-          - API reference docs (`api-reference*.md`)
-          - Public documentation (`docs/**/*.md`)
+          - Public documentation, including API reference docs (`docs/**/*.md`)
 
           ### Changes Suggested
 

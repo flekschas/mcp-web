@@ -328,10 +328,7 @@ new MCPWebBridge(MCP_WEB_CONFIG);
 ## Additional Resources
 
 - For complete examples, see [examples.md](examples.md)
-- For API details:
-  - `@mcp-web/core`: [api-reference-core.md](api-reference-core.md)
-  - `@mcp-web/bridge`: [api-reference-bridge.md](api-reference-bridge.md)
-  - `@mcp-web/client`: [api-reference-client.md](api-reference-client.md)
-  - `@mcp-web/integrations`: [api-reference-integrations.md](api-reference-integrations.md)
-  - `@mcp-web/tools`: [api-reference-tools.md](api-reference-tools.md)
-  - `@mcp-web/decompose-zod-schema`: [api-reference-decompose-zod-schema.md](api-reference-decompose-zod-schema.md)
+- For API details, read the installed types in
+  `node_modules/@mcp-web/<package>/dist/*.d.ts`, or fetch
+  https://mcp-web.dev/api/<package> (`core`, `bridge`, `client`, `app`,
+  `tools`, `decompose-zod-schema`, and `integrations` for `@mcp-web/react`)

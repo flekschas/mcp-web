@@ -27,8 +27,7 @@ jobs:
 
       - name: Check for uncommitted changes
         run: |
-          # Find all api*.md files in skill folders
-          API_FILES=$(find agents/skills/*/api*.md -type f 2>/dev/null || true)
+          API_FILES=$(find docs/api -name '*.md' -type f 2>/dev/null || true)
 
           if [ -z "$API_FILES" ]; then
             echo "No API reference docs found to check."
