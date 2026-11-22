@@ -59,5 +59,5 @@ pnpm --filter @mcp-web/bridge dev
 ## Documentation
 
 - **Agent docs**: `agents/` (this file + skills)
-- **API docs**: Generated via `pnpm docs:generate` to `docs/`
+- **API docs**: Generated via `pnpm build:api-refs` to `docs/api/`
 - **Package READMEs**: `packages/*/README.md`

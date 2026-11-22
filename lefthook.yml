@@ -10,8 +10,7 @@ pre-push:
         echo "Checking if API reference docs are up to date..."
         pnpm build:api-refs < /dev/null
 
-        # Find all api*.md files in skill folders
-        API_FILES=$(find agents/skills/*/api*.md -type f 2>/dev/null || true)
+        API_FILES=$(find docs/api -name '*.md' -type f 2>/dev/null || true)
 
         if [ -z "$API_FILES" ]; then
           echo "No API reference docs found to check."

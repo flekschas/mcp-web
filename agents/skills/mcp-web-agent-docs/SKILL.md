@@ -18,8 +18,7 @@ agents/
     │   └── SKILL.md
     └── mcp-web/             # MCP-Web library usage skill
         ├── SKILL.md         # Main skill document
-        ├── examples.md      # Complete code examples
-        └── api-reference-*.md  # Per-package API documentation
+        └── examples.md      # Complete code examples
 ```
 
 ## AGENTS.md Purpose & Content Guidelines
@@ -37,7 +36,7 @@ The `AGENTS.md` file serves as the **high-level entry point** for AI agents work
 - **Key entry points**: Main files an agent might need to find quickly
 
 ### DO NOT Include:
-- Detailed API documentation (belongs in mcp-web skill)
+- Detailed API documentation (lives in `docs/api/` and the package types)
 - Full code examples (belongs in mcp-web skill)
 - Implementation details of specific packages
 - Tutorial-style content
@@ -58,13 +57,9 @@ The `mcp-web` skill (`agents/skills/mcp-web/`) provides **detailed guidance** fo
 
 ### Supporting Files:
 - `examples.md` - Complete, runnable code examples
-- `api-reference-*.md` - Per-package API documentation:
-  - `api-reference-core.md` - `@mcp-web/core` (MCPWeb class, state tools)
-  - `api-reference-bridge.md` - `@mcp-web/bridge` (MCPWebBridge class)
-  - `api-reference-client.md` - `@mcp-web/client` (MCP client for Claude)
-  - `api-reference-integrations.md` - Framework integrations (Jotai, React)
-  - `api-reference-tools.md` - Built-in tools (screenshot, DOM, Python)
-  - `api-reference-decompose-zod-schema.md` - Schema decomposition utilities
+
+Generated API reference docs belong in `docs/api/` (VitePress site), not in
+the skill.
 
 ## When to Update Documentation
 
@@ -99,9 +94,8 @@ Check that documentation matches actual implementation:
 - Type definitions in `packages/types/`
 
 ### 3. Update in Order
-1. **API reference files first** - These are the source of truth
-2. **SKILL.md second** - Update patterns if APIs changed
-3. **AGENTS.md last** - Update navigation if structure changed
+1. **SKILL.md and examples.md first** - Update patterns if APIs changed
+2. **AGENTS.md last** - Update navigation if structure changed
 
 ### 4. Maintain Consistency
 - Keep terminology consistent across all files
@@ -152,8 +146,6 @@ Before finalizing documentation updates:
 - [ ] AGENTS.md contains no detailed API docs
 - [ ] All packages are listed in AGENTS.md
 - [ ] All skills are listed in AGENTS.md
-- [ ] mcp-web skill SKILL.md links to all API reference files
-- [ ] API reference files match actual package exports
 - [ ] Class names are consistent (`MCPWeb`, `MCPWebBridge`)
 - [ ] Import paths are accurate
 - [ ] Code examples compile/run correctly
