@@ -30,7 +30,14 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT_DIR = dirname(dirname(fileURLToPath(import.meta.url)));
-const DEMOS = ['higlass', 'todo', 'checkers'] as const;
+const DEMOS = [
+  'higlass',
+  'todo',
+  'checkers',
+  'vega-lite',
+  'gosling',
+  'genomespy',
+] as const;
 const CONFIG = 'mcp-web.config.ts';
 
 function formatSize(bytes: number): string {

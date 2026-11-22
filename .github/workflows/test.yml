@@ -32,6 +32,10 @@ jobs:
         run: pnpm test
         timeout-minutes: 5
 
+      - name: Test the demos
+        run: pnpm --filter './demos/*' --if-present run test
+        timeout-minutes: 5
+
       - name: Install Chromium for the DOM tests
         run: pnpm --filter @mcp-web/tests exec playwright install --with-deps chromium
 

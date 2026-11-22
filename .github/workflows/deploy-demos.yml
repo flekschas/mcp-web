@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       demo:
-        description: 'Demo to deploy (all, higlass, todo, checkers)'
+        description: 'Demo to deploy (all, higlass, todo, checkers, vega-lite, gosling, genomespy)'
         required: false
         default: 'all'
 
@@ -25,7 +25,7 @@ jobs:
       # Deploys are independent, but a failure should not hide the others
       fail-fast: false
       matrix:
-        demo: [higlass, todo, checkers]
+        demo: [higlass, todo, checkers, vega-lite, gosling, genomespy]
 
     steps:
       - uses: actions/checkout@v6
