@@ -130,7 +130,11 @@ does not: build `demos/checkers` with a `mcp-web.config.ts` whose `agentUrl` is
    settings, not secrets, so they belong in `vars` in the config.
 
 4. **Add CI secrets** to the GitHub repository: `CLOUDFLARE_API_TOKEN` (with
-   the *Edit Cloudflare Workers* template) and `CLOUDFLARE_ACCOUNT_ID`.
+   the *Edit Cloudflare Workers* template) and `CLOUDFLARE_ACCOUNT_ID`. Scope
+   the token's account resources to the account that owns the Workers and its
+   zone resources to `mcp-web.dev`, and set `CLOUDFLARE_ACCOUNT_ID` to that
+   same account (`npx wrangler whoami` prints it). A mismatch fails the deploy
+   with `No access to the specified service`.
 
 ### Manual deploy
 

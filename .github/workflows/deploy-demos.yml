@@ -53,7 +53,7 @@ jobs:
           github.event_name == 'push' ||
           inputs.demo == 'all' ||
           inputs.demo == matrix.demo
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -67,7 +67,7 @@ jobs:
             inputs.demo == 'all' ||
             inputs.demo == 'checkers'
           )
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
