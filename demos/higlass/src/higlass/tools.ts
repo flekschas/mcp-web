@@ -1,11 +1,14 @@
+import { createTool } from '@mcp-web/core';
+import { CodeTool, stateTransaction } from '@mcp-web/tools/code';
 import { getDefaultStore } from 'jotai';
 import { z } from 'zod';
+import { codeMode } from '../mcp/code-mode.ts';
 import { mcp } from '../mcp/mcp.ts';
 import {
   higlassGeneSearchResultSchema,
   higlassGeneSearchSchema,
-  higlassTilesetSearchSchema,
   higlassTilesetSearchResultSchema,
+  higlassTilesetSearchSchema,
 } from './schemas/others.ts';
 import type { HiGlassViewConfig } from './schemas/view-config.ts';
 import {
@@ -74,7 +77,7 @@ function getTracksAt(
 // Global Getter
 // ============================================================================
 
-mcp.addTool({
+const getViewConfigTool = createTool({
   name: 'higlass_get_view_config',
   description:
     'Get the current HiGlass view config describing the layout, UI, and track visualizations',
@@ -87,7 +90,7 @@ mcp.addTool({
 // View Tools
 // ============================================================================
 
-mcp.addTool({
+const addViewTool = createTool({
   name: 'higlass_add_view',
   description: 'Add a new view to the HiGlass visualization',
   inputSchema: z.object({
@@ -116,7 +119,7 @@ mcp.addTool({
   },
 });
 
-mcp.addTool({
+const setViewTool = createTool({
   name: 'higlass_set_view',
   description:
     'Update properties of an existing view (layout, initialXDomain, initialYDomain, etc.). Does NOT modify tracks — use add_track, set_track, or delete_track for that.',
@@ -126,9 +129,7 @@ mcp.addTool({
       .int()
       .min(0)
       .describe('Zero-based index of the view to update.'),
-    layout: viewLayoutSchema
-      .optional()
-      .describe('Grid layout: {x, y, w, h}'),
+    layout: viewLayoutSchema.optional().describe('Grid layout: {x, y, w, h}'),
     initialXDomain: z
       .array(z.number())
       .optional()
@@ -171,7 +172,7 @@ mcp.addTool({
   },
 });
 
-mcp.addTool({
+const deleteViewTool = createTool({
   name: 'higlass_delete_view',
   description: 'Delete a view from the HiGlass visualization',
   inputSchema: z.object({
@@ -199,15 +200,11 @@ mcp.addTool({
 // Track Tools
 // ============================================================================
 
-mcp.addTool({
+const addTrackTool = createTool({
   name: 'higlass_add_track',
   description: 'Add a track to a view at the specified position',
   inputSchema: z.object({
-    viewIndex: z
-      .number()
-      .int()
-      .min(0)
-      .describe('Zero-based index of the view'),
+    viewIndex: z.number().int().min(0).describe('Zero-based index of the view'),
     position: trackPositionSchema,
     track: trackSchema.describe('The track configuration to add'),
     index: z
@@ -250,16 +247,11 @@ mcp.addTool({
   },
 });
 
-mcp.addTool({
+const setTrackTool = createTool({
   name: 'higlass_set_track',
-  description:
-    'Update a track in a view (partial update with deep merge)',
+  description: 'Update a track in a view (partial update with deep merge)',
   inputSchema: z.object({
-    viewIndex: z
-      .number()
-      .int()
-      .min(0)
-      .describe('Zero-based index of the view'),
+    viewIndex: z.number().int().min(0).describe('Zero-based index of the view'),
     position: trackPositionSchema,
     trackIndex: z
       .number()
@@ -306,15 +298,11 @@ mcp.addTool({
   },
 });
 
-mcp.addTool({
+const deleteTrackTool = createTool({
   name: 'higlass_delete_track',
   description: 'Delete a track from a view',
   inputSchema: z.object({
-    viewIndex: z
-      .number()
-      .int()
-      .min(0)
-      .describe('Zero-based index of the view'),
+    viewIndex: z.number().int().min(0).describe('Zero-based index of the view'),
     position: trackPositionSchema,
     trackIndex: z
       .number()
@@ -355,7 +343,7 @@ mcp.addTool({
 // Lock Tools
 // ============================================================================
 
-mcp.addTool({
+const syncViewsTool = createTool({
   name: 'higlass_sync_views',
   description:
     'Synchronize views so they share the same zoom level, location, or value scale. Views in a sync group will move/zoom together.',
@@ -372,10 +360,7 @@ mcp.addTool({
     syncedViews: z.array(z.string()),
     type: lockTypeSchema,
   }),
-  handler: async ({
-    type,
-    viewIds,
-  }: { type: LockType; viewIds: string[] }) => {
+  handler: async ({ type, viewIds }: { type: LockType; viewIds: string[] }) => {
     const config = store.get(higlassViewConfigAtom);
     const lockKey = LOCK_TYPE_TO_KEY[type];
     const existing =
@@ -417,7 +402,7 @@ mcp.addTool({
   },
 });
 
-mcp.addTool({
+const unsyncViewsTool = createTool({
   name: 'higlass_unsync_views',
   description:
     'Remove synchronization between views. Can unsync specific views or all views for a lock type.',
@@ -439,7 +424,10 @@ mcp.addTool({
   handler: async ({
     type,
     viewIds,
-  }: { type: LockType; viewIds?: string[] }) => {
+  }: {
+    type: LockType;
+    viewIds?: string[];
+  }) => {
     const config = store.get(higlassViewConfigAtom);
     const lockKey = LOCK_TYPE_TO_KEY[type];
     const existing =
@@ -499,7 +487,7 @@ mcp.addTool({
 // Search Tools
 // ============================================================================
 
-mcp.addTool({
+const tilesetSearchTool = createTool({
   name: 'higlass_tileset_search',
   description:
     'Search for tilesets by name or description. Returns a list of all matching tilesets that can be visualized with HiGlass',
@@ -508,7 +496,10 @@ mcp.addTool({
   handler: async ({
     search,
     datatype,
-  }: { search: string; datatype?: string }) => {
+  }: {
+    search: string;
+    datatype?: string;
+  }) => {
     const allTilesets = await store.get(higlassTilesetsAtom);
     const searchLower = search.toLowerCase();
     const results = allTilesets.filter((tileset) => {
@@ -534,16 +525,13 @@ mcp.addTool({
   },
 });
 
-mcp.addTool({
+const geneSearchTool = createTool({
   name: 'higlass_gene_search',
   description:
     'Gene search function by view that returns a list of genes and their locations. To show a gene in HiGlass, set `intialXDomain` (and/or `initialYDomain`) to `[absoluteStart, absoluteEnd]`.',
   inputSchema: higlassGeneSearchSchema,
   outputSchema: higlassGeneSearchResultSchema,
-  handler: async ({
-    view,
-    gene,
-  }: { view?: string; gene: string }) => {
+  handler: async ({ view, gene }: { view?: string; gene: string }) => {
     let chromosomeInfo: ChromosomeInfo | undefined;
     let suggestTilesetUid = 'OHJakQICQD6gTD7skx4EWA';
     let suggestServer = 'https://higlass.io/api/v1';
@@ -610,3 +598,47 @@ mcp.addTool({
   },
 });
 
+// ============================================================================
+// Registration
+// ============================================================================
+
+const readTools = [getViewConfigTool, tilesetSearchTool, geneSearchTool].map(
+  (tool) => tool.definition,
+);
+const editTools = [
+  addViewTool,
+  setViewTool,
+  deleteViewTool,
+  addTrackTool,
+  setTrackTool,
+  deleteTrackTool,
+  syncViewsTool,
+  unsyncViewsTool,
+].map((tool) => tool.definition);
+
+// Read tools stay callable in code mode, so AI can search and inspect the view
+// without writing a program.
+for (const tool of readTools) mcp.addTool(tool);
+
+const codeHint = `Read the view config with higlass_get_view_config before changing it, so view and track indices and UIDs match the current views.
+A tileset track takes the server and uuid of a tileset search result, and its type must fit the tileset's datatype, e.g., a horizontal-bar track for a vector tileset:
+  const { tilesets } = await higlass_tileset_search({ search: 'CTCF', datatype: 'vector' });
+  const hit = tilesets[0];
+  await higlass_add_track({ viewIndex: 0, position: 'top', track: { type: 'horizontal-bar', server: hit.server, tilesetUid: hit.uuid } });`;
+
+if (codeMode) {
+  mcp.addCodeTool(
+    new CodeTool({
+      name: 'higlass_code',
+      tools: [...readTools, ...editTools],
+      // The view config contains all the state these functions edit.
+      transaction: stateTransaction(
+        () => store.get(higlassViewConfigAtom),
+        (viewConfig) => store.set(higlassViewConfigAtom, viewConfig),
+      ),
+      hints: { description: codeHint },
+    }),
+  );
+} else {
+  for (const tool of editTools) mcp.addTool(tool);
+}
