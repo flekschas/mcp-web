@@ -162,6 +162,28 @@ or when the schema is too large to describe as one type (then combine it with
 `codeMode`). See [efficient state tools](https://mcp-web.dev/efficient-state-tools)
 and the [code tool](https://mcp-web.dev/tools/code).
 
+## Code Tools for Actions
+
+To group action tools (not state tools) into a code tool for atomic execution,
+use `addCodeTool()`. Unlike `addStateTools` with `codeMode`, read-only tools
+must be registered separately with `addTool()` if you want them available
+outside the code tool:
+
+```typescript
+// Register read-only tools separately
+mcpWeb.addTool({ name: 'search_items', handler: () => {}, ... });
+
+// Group mutation tools into a code tool
+const cleanup = mcpWeb.addCodeTool({
+  name: 'batch_operations',
+  description: 'Execute multiple operations in a program',
+  // Tools are wrapped - not registered individually
+});
+```
+
+Tools that return non-serializable data (like images/screenshots) cannot be
+included in code tools and must remain as standalone tools.
+
 ### System-Generated Fields
 
 Mark auto-generated fields with `system()` to hide from AI:
@@ -325,11 +347,13 @@ new MCPWebBridge(MCP_WEB_CONFIG);
 - Use state tools for fixed-shape data
 - Use action tools for operations
 - Use `codeMode` for large or growing state
+- Use `addCodeTool` for grouping action tools into atomic operations
 - Mark system fields with `system()`
 - Use `nullable()` instead of `optional()`
 - Keep schemas in `schemas.ts`, types in `types.ts` (separate files)
 - Co-locate related code in single files when under ~100 lines each
 - Use `onConnectionStateChange()` to react to connection changes
+- Register read-only tools separately when using `addCodeTool`
 
 ❌ **Don't:**
 - Expose derived values as state tools
@@ -339,6 +363,7 @@ new MCPWebBridge(MCP_WEB_CONFIG);
 - Mix Zod schemas and TypeScript type definitions in the same file
 - Create overly granular file structures (one atom per file, one tool per file)
 - Import `Bridge` from `@mcp-web/bridge` (use `MCPWebBridge`)
+- Include screenshot/image tools in code tools (they can't return images)
 
 ## Additional Resources
 

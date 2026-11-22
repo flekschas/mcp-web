@@ -1,4 +1,3 @@
-@ -1,442 +0,0 @@
 # MCP-Web Examples
 
 Detailed examples and patterns for building MCP-Web applications.
@@ -320,6 +319,53 @@ Session names must be unique per auth token. If a second tab tries to claim
 the same name, `connect()` rejects with an error and no reconnection is
 attempted. The slot allocator above prevents this by assigning the first
 available slot.
+
+### Pattern 10: Code Tool for Grouped Actions
+
+Group multiple action tools into a single code tool for atomic execution. Unlike
+`addStateTools` with `codeMode`, read-only tools must be registered separately:
+
+```typescript
+import { MCPWeb } from '@mcp-web/core';
+
+const mcpWeb = new MCPWeb(config);
+
+// Register read-only tools separately - these remain available individually
+mcpWeb.addTool({
+  name: 'get_view_config',
+  description: 'Get current view configuration',
+  handler: () => viewConfig,
+});
+
+mcpWeb.addTool({
+  name: 'search_data',
+  description: 'Search for data items',
+  inputSchema: SearchSchema,
+  handler: (input) => performSearch(input),
+});
+
+// Group mutation tools into a code tool for atomic execution
+// Changes are wrapped in a transaction - if the program fails, state rolls back
+const cleanup = mcpWeb.addCodeTool({
+  name: 'batch_operations',
+  description: 'Execute multiple view operations in a program',
+  // The code tool wraps the underlying tools
+  // Individual mutation tools are not registered separately
+});
+
+// Tools that return non-serializable data (images, blobs) must stay outside
+mcpWeb.addTool({
+  name: 'screenshot',
+  description: 'Capture screenshot',
+  handler: () => captureImage(),  // Returns image data
+});
+```
+
+**Key differences from `addStateTools` with `codeMode`:**
+- Read-only tools must be registered separately with `addTool()`
+- Only the code tool is exposed to AI, not the individual wrapped tools
+- Useful when you have existing action tools that need atomic execution
+- State changes roll back on program failure (requires `structuredClone`-able state)
 
 ## Demo: Checkers Game
 
