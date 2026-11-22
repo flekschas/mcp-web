@@ -1,5 +1,13 @@
-import type { BridgeMessage, RegisterResourceMessage, RegisterToolMessage, ToolRegistrationErrorMessage } from '@mcp-web/bridge';
-import type { DecomposedSchema, SplitPlan } from '@mcp-web/decompose-zod-schema';
+import type {
+  BridgeMessage,
+  RegisterResourceMessage,
+  RegisterToolMessage,
+  ToolRegistrationErrorMessage,
+} from '@mcp-web/bridge';
+import type {
+  DecomposedSchema,
+  SplitPlan,
+} from '@mcp-web/decompose-zod-schema';
 import { decomposeSchema } from '@mcp-web/decompose-zod-schema';
 import type {
   AppDefinition,
@@ -16,21 +24,28 @@ import type {
 } from '@mcp-web/types';
 import {
   AppDefinitionSchema,
-  RESOURCE_MIME_TYPE,
+  deriveRoomId,
   getDefaultAppResourceUri,
   getDefaultAppUrl,
   isCreatedApp,
   McpWebConfigSchema,
   QueryMessageSchema,
+  RESOURCE_MIME_TYPE,
   ResourceDefinitionSchema,
   ToolDefinitionSchema,
 } from '@mcp-web/types';
 import { ZodObject, type z } from 'zod';
-import { type CreatedStateTools, isCreatedStateTools } from './create-state-tools.js';
+import {
+  type CreatedStateTools,
+  isCreatedStateTools,
+} from './create-state-tools.js';
 import { type CreatedTool, isCreatedTool } from './create-tool.js';
 import { QueryResponse } from './query.js';
 import { QueryRequestSchema, QueryResponseResultSchema } from './schemas.js';
-import { generateBasicStateTools, generateToolsForSchema } from './tool-generators/index.js';
+import {
+  generateBasicStateTools,
+  generateToolsForSchema,
+} from './tool-generators/index.js';
 import type { QueryRequest, QueryResponseResult } from './types.js';
 import { toJSONSchema, toToolMetadataJson } from './utils.js';
 
@@ -87,6 +102,8 @@ export class MCPWeb {
   #isConnecting = false;
   #authError: { error: string; code: string } | null = null;
   #connectionStateListeners = new Set<() => void>();
+  #roomIdPromise: Promise<string | undefined> | undefined;
+  #disconnectEpoch = 0;
 
   /** Update connected state and notify listeners on change */
   #setConnected(value: boolean) {
@@ -104,7 +121,10 @@ export class MCPWeb {
     }
   }
   #config: MCPWebConfigOutput;
-  #toolRegistrationErrorCallbacks = new Map<string, (error: ToolRegistrationError) => void>();
+  #toolRegistrationErrorCallbacks = new Map<
+    string,
+    (error: ToolRegistrationError) => void
+  >();
   #mcpConfig: {
     [serverName: string]: {
       command: 'npx';
@@ -112,8 +132,8 @@ export class MCPWeb {
       env: {
         MCP_SERVER_URL: string;
         AUTH_TOKEN: string;
-      }
-    }
+      };
+    };
   };
 
   /**
@@ -135,9 +155,10 @@ export class MCPWeb {
    */
   constructor(config: MCPWebConfig) {
     this.#config = McpWebConfigSchema.parse(config);
-    this.#bridgeUrl = this.#config.bridgeUrl
-      ?? globalThis.window?.location?.host
-      ?? 'localhost:3001';
+    this.#bridgeUrl =
+      this.#config.bridgeUrl ??
+      globalThis.window?.location?.host ??
+      'localhost:3001';
     this.#sessionId = this.#generateSessionId();
     this.#authToken = this.#resolveAuthToken(this.#config);
 
@@ -147,13 +168,15 @@ export class MCPWeb {
         args: ['@mcp-web/client'],
         env: {
           MCP_SERVER_URL: `${this.#getHttpProtocol()}//${this.#bridgeUrl}`,
-          AUTH_TOKEN: this.#authToken
-        }
-      }
+          AUTH_TOKEN: this.#authToken,
+        },
+      },
     };
 
     if (this.#config.autoConnect) {
-      this.connect();
+      this.connect().catch((error) => {
+        console.error('Auto-connect failed:', error);
+      });
     }
 
     this.setupActivityTracking();
@@ -278,9 +301,20 @@ export class MCPWeb {
     };
   }
 
-
   #getBridgeWsUrl(): string {
     return `${this.#getWsProtocol()}//${this.#bridgeUrl}`;
+  }
+
+  /**
+   * Room for this session's auth token, memoized across reconnects.
+   *
+   * Sent on the WebSocket URL so sharded bridges can pick an object at upgrade
+   * time, before the `authenticate` message arrives. Single-process bridges
+   * ignore it, and it is absent without Web Crypto.
+   */
+  #getRoomId(): Promise<string | undefined> {
+    this.#roomIdPromise ??= deriveRoomId(this.#authToken);
+    return this.#roomIdPromise;
   }
 
   #getWsProtocol(): 'ws:' | 'wss:' {
@@ -288,7 +322,9 @@ export class MCPWeb {
   }
 
   #getHttpProtocol(): 'http:' | 'https:' {
-    return globalThis.window?.location?.protocol === 'https:' ? 'https:' : 'http:';
+    return globalThis.window?.location?.protocol === 'https:'
+      ? 'https:'
+      : 'http:';
   }
 
   #generateSessionId(): string {
@@ -355,7 +391,8 @@ export class MCPWeb {
    * This method is idempotent - calling it multiple times while already connected or
    * connecting will return the same promise.
    *
-   * @returns Promise that resolves to `true` when authenticated and ready
+   * @returns Promise that resolves to `true` when authenticated and ready, or
+   *   `false` if `disconnect()` cancelled the attempt
    * @throws {Error} If WebSocket connection fails
    *
    * @example Manual Connection
@@ -378,17 +415,22 @@ export class MCPWeb {
    * }
    * ```
    */
-  async connect(): Promise<true> {
+  async connect(): Promise<boolean> {
     // Prevent duplicate connections
     if (this.#connected) {
       return Promise.resolve(true);
     }
     if (this.#isConnecting) {
+      const epoch = this.#disconnectEpoch;
       // Return a promise that resolves when the current connection completes
       return new Promise((resolve) => {
         const checkConnection = () => {
           if (this.#connected) {
             resolve(true);
+          } else if (epoch !== this.#disconnectEpoch) {
+            // A disconnect landed while waiting; opening a socket now would
+            // outlive the teardown that cancelled it.
+            resolve(false);
           } else if (!this.#isConnecting) {
             // Connection failed, try again
             this.connect().then(resolve);
@@ -402,9 +444,23 @@ export class MCPWeb {
 
     this.#setIsConnecting(true);
     this.#authError = null;
+
+    const epoch = this.#disconnectEpoch;
+    const roomId = await this.#getRoomId();
+
+    // A disconnect can land while the room is being derived. The caller asked
+    // for the teardown, so this resolves rather than rejecting. The flag stays
+    // as it is: disconnect() cleared it, and a later attempt may own it by now.
+    if (epoch !== this.#disconnectEpoch) {
+      return false;
+    }
+
     return new Promise((resolve, reject) => {
       try {
-        const wsUrl = `${this.#getBridgeWsUrl()}?session=${this.sessionId}`;
+        const query = roomId
+          ? `?session=${this.sessionId}&room=${roomId}`
+          : `?session=${this.sessionId}`;
+        const wsUrl = `${this.#getBridgeWsUrl()}${query}`;
         this.#ws = new WebSocket(wsUrl);
 
         this.#ws.onopen = () => {
@@ -430,28 +486,40 @@ export class MCPWeb {
           }
         };
 
+        // The poll below has no other stop condition, so a failed socket would
+        // leave one running per attempt while the bridge is down.
+        let failed = false;
+
         this.#ws.onerror = (error) => {
           console.error('WebSocket error:', error);
+          failed = true;
           this.#setIsConnecting(false);
           reject(error);
         };
 
         // Resolve when authenticated, reject on auth failure
         const checkConnection = () => {
+          // Already rejected by onerror.
+          if (failed) {
+            return;
+          }
+          // A disconnect during the handshake removes the socket handlers that
+          // would otherwise settle this attempt.
+          if (epoch !== this.#disconnectEpoch) {
+            resolve(false);
+            return;
+          }
           if (this.#connected) {
             this.#setIsConnecting(false);
             resolve(true);
           } else if (this.#authError) {
             this.#setIsConnecting(false);
-            reject(
-              new Error(this.#authError.error)
-            );
+            reject(new Error(this.#authError.error));
           } else {
             setTimeout(checkConnection, 100);
           }
         };
         setTimeout(checkConnection, 100);
-
       } catch (error) {
         this.#setIsConnecting(false);
         reject(error);
@@ -470,7 +538,7 @@ export class MCPWeb {
       pageTitle: globalThis.document?.title,
       sessionName: this.#config.sessionName,
       userAgent: globalThis.navigator?.userAgent,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     this.#ws.send(JSON.stringify(authMessage));
@@ -507,7 +575,7 @@ export class MCPWeb {
 
       case 'tool-registration-error':
         this.handleToolRegistrationError(
-          message as ToolRegistrationErrorMessage
+          message as ToolRegistrationErrorMessage,
         );
         break;
 
@@ -521,7 +589,10 @@ export class MCPWeb {
         break;
 
       default:
-        console.warn('Unknown message type:', (message as unknown as { type: string }).type);
+        console.warn(
+          'Unknown message type:',
+          (message as unknown as { type: string }).type,
+        );
     }
   }
 
@@ -531,14 +602,18 @@ export class MCPWeb {
     try {
       const tool = this.tools.get(toolName);
       if (!tool) {
-        this.sendToolResponse(requestId, { error: `Tool '${toolName}' not found` });
+        this.sendToolResponse(requestId, {
+          error: `Tool '${toolName}' not found`,
+        });
         return;
       }
 
       if (tool.inputZodSchema) {
         const parsedToolInput = tool.inputZodSchema.safeParse(toolInput);
         if (!parsedToolInput.success) {
-          this.sendToolResponse(requestId, { error: `Invalid input: ${parsedToolInput.error.message}` });
+          this.sendToolResponse(requestId, {
+            error: `Invalid input: ${parsedToolInput.error.message}`,
+          });
           return;
         }
       }
@@ -550,21 +625,22 @@ export class MCPWeb {
       if (tool.outputZodSchema) {
         const parsedResult = tool.outputZodSchema.safeParse(result);
         if (!parsedResult.success) {
-          this.sendToolResponse(requestId, { error: `Invalid output: ${parsedResult.error.message}` });
+          this.sendToolResponse(requestId, {
+            error: `Invalid output: ${parsedResult.error.message}`,
+          });
           return;
         }
       }
 
       // Send the raw result - the bridge will handle formatting
       this.sendToolResponse(requestId, result);
-
     } catch (error) {
       // Only log in non-test environments
       if (globalThis.process?.env?.NODE_ENV !== 'test') {
         console.debug(`Tool execution error for ${toolName}:`, error);
       }
       this.sendToolResponse(requestId, {
-        error: `Tool execution failed: ${error instanceof Error ? error.message : String(error)}`
+        error: `Tool execution failed: ${error instanceof Error ? error.message : String(error)}`,
       });
     }
   }
@@ -578,7 +654,7 @@ export class MCPWeb {
     const response = {
       type: 'tool-response',
       requestId,
-      result
+      result,
     };
 
     this.#ws.send(JSON.stringify(response));
@@ -604,7 +680,7 @@ export class MCPWeb {
         outputSchema: tool.outputJsonSchema,
         // Forward _meta (e.g., _meta.ui.resourceUri for MCP Apps)
         ...(tool._meta ? { _meta: tool._meta } : {}),
-      }
+      },
     } satisfies RegisterToolMessage;
 
     this.#ws.send(JSON.stringify(message));
@@ -628,13 +704,15 @@ export class MCPWeb {
         name: resource.name,
         description: resource.description,
         mimeType: resource.mimeType ?? 'text/html',
-      }
+      },
     } satisfies RegisterResourceMessage;
 
     this.#ws.send(JSON.stringify(message));
   }
 
-  private async handleResourceRead(message: BridgeMessage & { type: 'resource-read' }) {
+  private async handleResourceRead(
+    message: BridgeMessage & { type: 'resource-read' },
+  ) {
     const { requestId, uri } = message;
 
     try {
@@ -669,7 +747,12 @@ export class MCPWeb {
 
   private sendResourceResponse(
     requestId: string,
-    result: { content?: string; blob?: string; mimeType: string; error?: string }
+    result: {
+      content?: string;
+      blob?: string;
+      mimeType: string;
+      error?: string;
+    },
   ) {
     if (!this.#ws || this.#ws.readyState !== WebSocket.OPEN) {
       console.error('Cannot send resource response: WebSocket not connected');
@@ -699,7 +782,7 @@ export class MCPWeb {
     } else {
       // No callback registered — log a warning so the error isn't silently lost
       console.warn(
-        `Tool registration rejected by bridge: '${toolName}' — ${errorMessage}`
+        `Tool registration rejected by bridge: '${toolName}' — ${errorMessage}`,
       );
     }
   }
@@ -711,6 +794,9 @@ export class MCPWeb {
     this.#setIsConnecting(true);
     setTimeout(() => {
       if (!this.#connected && this.#ws) {
+        // connect() reads the flag as "an attempt is already running" and would
+        // only poll for it, so the intent flag is cleared before the call.
+        this.#setIsConnecting(false);
         this.connect().catch(console.error);
       } else {
         this.#setIsConnecting(false);
@@ -721,17 +807,21 @@ export class MCPWeb {
   private setupActivityTracking() {
     const updateActivity = () => {
       if (this.#ws && this.#ws.readyState === WebSocket.OPEN) {
-        this.#ws.send(JSON.stringify({
-          type: 'activity',
-          timestamp: Date.now()
-        }));
+        this.#ws.send(
+          JSON.stringify({
+            type: 'activity',
+            timestamp: Date.now(),
+          }),
+        );
       }
     };
 
     // Track user activity (only in browser environment)
     if (globalThis.document) {
-      ['click', 'scroll', 'keydown', 'mousemove'].forEach(event => {
-        globalThis.document.addEventListener(event, updateActivity, { passive: true });
+      ['click', 'scroll', 'keydown', 'mousemove'].forEach((event) => {
+        globalThis.document.addEventListener(event, updateActivity, {
+          passive: true,
+        });
       });
     }
 
@@ -763,13 +853,13 @@ export class MCPWeb {
    * @example With Pre-Created Tool
    * ```typescript
    * import { createTool } from '@mcp-web/core';
-   * 
+   *
    * const timeTool = createTool({
    *   name: 'get_current_time',
    *   description: 'Get the current time',
    *   handler: () => ({ time: new Date().toISOString() }),
    * });
-   * 
+   *
    * mcp.addTool(timeTool);
    * ```
    *
@@ -825,71 +915,100 @@ export class MCPWeb {
   // Overload: CreatedTool
   addTool<
     TInput extends z.ZodObject | undefined = undefined,
-    TOutput extends z.ZodType | undefined = undefined
-  >(tool: CreatedTool<TInput, TOutput>, options?: {
-    /** Called if the bridge rejects the tool registration (e.g., schema conflict with a sibling session). */
-    onRegistrationError?: (error: ToolRegistrationError) => void;
-  }): ToolDefinition;
+    TOutput extends z.ZodType | undefined = undefined,
+  >(
+    tool: CreatedTool<TInput, TOutput>,
+    options?: {
+      /** Called if the bridge rejects the tool registration (e.g., schema conflict with a sibling session). */
+      onRegistrationError?: (error: ToolRegistrationError) => void;
+    },
+  ): ToolDefinition;
 
   // Overload: Zod
   addTool<
     TInput extends z.ZodObject | undefined = undefined,
-    TOutput extends z.ZodType | undefined = undefined
-  >(tool: {
-    name: string;
-    description: string;
-    handler:
-      TInput extends z.ZodObject
-        ? (input: z.infer<TInput>) => TOutput extends z.ZodType
-          ? z.infer<TOutput> | Promise<z.infer<TOutput>>
-          : void | Promise<void>
+    TOutput extends z.ZodType | undefined = undefined,
+  >(
+    tool: {
+      name: string;
+      description: string;
+      handler: TInput extends z.ZodObject
+        ? (
+            input: z.infer<TInput>,
+          ) => TOutput extends z.ZodType
+            ? z.infer<TOutput> | Promise<z.infer<TOutput>>
+            : void | Promise<void>
         : TOutput extends z.ZodType
           ? () => z.infer<TOutput> | Promise<z.infer<TOutput>>
           : () => void | Promise<void>;
-    inputSchema?: TInput;
-    outputSchema?: TOutput;
-  }, options?: {
-    /** Called if the bridge rejects the tool registration (e.g., schema conflict with a sibling session). */
-    onRegistrationError?: (error: ToolRegistrationError) => void;
-  }): ToolDefinition;
+      inputSchema?: TInput;
+      outputSchema?: TOutput;
+    },
+    options?: {
+      /** Called if the bridge rejects the tool registration (e.g., schema conflict with a sibling session). */
+      onRegistrationError?: (error: ToolRegistrationError) => void;
+    },
+  ): ToolDefinition;
 
   // Overload: JSON Schema
-  addTool(tool: {
-    name: string;
-    description: string;
-    handler: (input?: unknown) => unknown | Promise<unknown> | void | Promise<void>;
-    inputSchema?: { type: string; [key: string]: unknown };
-    outputSchema?: { type: string; [key: string]: unknown };
-    _meta?: Record<string, unknown>;
-  }, options?: {
-    /** Called if the bridge rejects the tool registration (e.g., schema conflict with a sibling session). */
-    onRegistrationError?: (error: ToolRegistrationError) => void;
-  }): ToolDefinition;
+  addTool(
+    tool: {
+      name: string;
+      description: string;
+      handler: (
+        input?: unknown,
+      ) => unknown | Promise<unknown> | void | Promise<void>;
+      inputSchema?: { type: string; [key: string]: unknown };
+      outputSchema?: { type: string; [key: string]: unknown };
+      _meta?: Record<string, unknown>;
+    },
+    options?: {
+      /** Called if the bridge rejects the tool registration (e.g., schema conflict with a sibling session). */
+      onRegistrationError?: (error: ToolRegistrationError) => void;
+    },
+  ): ToolDefinition;
 
-  addTool(tool: ToolDefinition | CreatedTool, options?: {
-    onRegistrationError?: (error: ToolRegistrationError) => void;
-  }): ToolDefinition {
+  addTool(
+    tool: ToolDefinition | CreatedTool,
+    options?: {
+      onRegistrationError?: (error: ToolRegistrationError) => void;
+    },
+  ): ToolDefinition {
     // Handle CreatedTool
     if (isCreatedTool(tool)) {
       return this.addTool(tool.definition, options);
     }
     const validationResult = ToolDefinitionSchema.safeParse(tool);
     if (!validationResult.success) {
-      throw new Error(`Invalid tool definition: ${validationResult.error.message}`);
+      throw new Error(
+        `Invalid tool definition: ${validationResult.error.message}`,
+      );
     }
 
-    const isInputZodSchema = validationResult.data.inputSchema && 'safeParse' in validationResult.data.inputSchema;
-    const isOutputZodSchema = validationResult.data.outputSchema && 'safeParse' in validationResult.data.outputSchema;
+    const isInputZodSchema =
+      validationResult.data.inputSchema &&
+      'safeParse' in validationResult.data.inputSchema;
+    const isOutputZodSchema =
+      validationResult.data.outputSchema &&
+      'safeParse' in validationResult.data.outputSchema;
 
     // Create processed tool with both Zod and JSON schemas
     const processedTool: ProcessedToolDefinition = {
       ...validationResult.data,
       // Preserve _meta from original input (not in Zod schema)
       _meta: tool._meta,
-      inputZodSchema: isInputZodSchema ? (validationResult.data.inputSchema as z.ZodObject) : undefined,
-      outputZodSchema: isOutputZodSchema ? (validationResult.data.outputSchema as z.ZodType) : undefined,
-      inputJsonSchema: validationResult.data.inputSchema ? toJSONSchema(validationResult.data.inputSchema) : undefined,
-      outputJsonSchema: validationResult.data.outputSchema ? toJSONSchema(validationResult.data.outputSchema) : undefined
+      inputZodSchema: isInputZodSchema
+        ? (validationResult.data.inputSchema as z.ZodObject)
+        : undefined,
+      outputZodSchema: isOutputZodSchema
+        ? (validationResult.data.outputSchema as z.ZodType)
+        : undefined,
+      inputJsonSchema: validationResult.data.inputSchema
+        ? toJSONSchema(validationResult.data.inputSchema)
+        : undefined,
+      outputJsonSchema: validationResult.data.outputSchema
+        ? toJSONSchema(validationResult.data.outputSchema)
+        : undefined,
     };
 
     // Wrap handler with input validation if Zod schema is provided
@@ -898,7 +1017,9 @@ export class MCPWeb {
       processedTool.handler = async (input: unknown) => {
         const validationResult = processedTool.inputZodSchema?.safeParse(input);
         if (!validationResult?.success) {
-          throw new Error(`Invalid tool input: ${validationResult?.error?.message}`);
+          throw new Error(
+            `Invalid tool input: ${validationResult?.error?.message}`,
+          );
         }
         return originalHandler(validationResult?.data);
       };
@@ -910,7 +1031,7 @@ export class MCPWeb {
     if (options?.onRegistrationError) {
       this.#toolRegistrationErrorCallbacks.set(
         processedTool.name,
-        options.onRegistrationError
+        options.onRegistrationError,
       );
     }
 
@@ -977,7 +1098,9 @@ export class MCPWeb {
   addResource(resource: ResourceDefinition): ResourceDefinition {
     const validationResult = ResourceDefinitionSchema.safeParse(resource);
     if (!validationResult.success) {
-      throw new Error(`Invalid resource definition: ${validationResult.error.message}`);
+      throw new Error(
+        `Invalid resource definition: ${validationResult.error.message}`,
+      );
     }
 
     this.#resources.set(resource.uri, resource);
@@ -1078,12 +1201,15 @@ export class MCPWeb {
 
     const validationResult = AppDefinitionSchema.safeParse(app);
     if (!validationResult.success) {
-      throw new Error(`Invalid app definition: ${validationResult.error.message}`);
+      throw new Error(
+        `Invalid app definition: ${validationResult.error.message}`,
+      );
     }
 
     // Process the app with resolved defaults
     const resolvedUrl = app.url ?? getDefaultAppUrl(app.name);
-    const resolvedResourceUri = app.resourceUri ?? getDefaultAppResourceUri(app.name);
+    const resolvedResourceUri =
+      app.resourceUri ?? getDefaultAppResourceUri(app.name);
 
     const processedApp: ProcessedAppDefinition = {
       ...app,
@@ -1115,10 +1241,16 @@ export class MCPWeb {
       description: app.description,
       handler: toolHandler,
       inputSchema: app.inputSchema
-        ? (toJSONSchema(app.inputSchema) as { type: string; [key: string]: unknown })
+        ? (toJSONSchema(app.inputSchema) as {
+            type: string;
+            [key: string]: unknown;
+          })
         : undefined,
       outputSchema: app.propsSchema
-        ? (toJSONSchema(app.propsSchema) as { type: string; [key: string]: unknown })
+        ? (toJSONSchema(app.propsSchema) as {
+            type: string;
+            [key: string]: unknown;
+          })
         : undefined,
       // Include _meta.ui in tool description (per ext-apps spec)
       // so the host knows this tool has a UI before calling it
@@ -1139,7 +1271,9 @@ export class MCPWeb {
         // Fetch the HTML from the URL
         const response = await fetch(resolvedUrl);
         if (!response.ok) {
-          throw new Error(`Failed to fetch app HTML from ${resolvedUrl}: ${response.status}`);
+          throw new Error(
+            `Failed to fetch app HTML from ${resolvedUrl}: ${response.status}`,
+          );
         }
         return response.text();
       },
@@ -1197,7 +1331,7 @@ export class MCPWeb {
    *
    * // With pre-created state tools
    * import { createStateTools } from '@mcp-web/core';
-   * 
+   *
    * const todoTools = createStateTools({
    *   name: 'todos',
    *   description: 'Todo list',
@@ -1206,7 +1340,7 @@ export class MCPWeb {
    *   schema: TodosSchema,
    *   expand: true,
    * });
-   * 
+   *
    * const [getter, setters, cleanup] = mcp.addStateTools(todoTools);
    *
    * // With schema decomposition (returns array of setters)
@@ -1231,11 +1365,17 @@ export class MCPWeb {
    * ```
    */
   // Overload: CreatedStateTools (basic)
-  addStateTools<T>(created: CreatedStateTools<T> & { isExpanded: false }): [ToolDefinition, ToolDefinition, () => void];
+  addStateTools<T>(
+    created: CreatedStateTools<T> & { isExpanded: false },
+  ): [ToolDefinition, ToolDefinition, () => void];
   // Overload: CreatedStateTools (expanded)
-  addStateTools<T>(created: CreatedStateTools<T> & { isExpanded: true }): [ToolDefinition, ToolDefinition[], () => void];
+  addStateTools<T>(
+    created: CreatedStateTools<T> & { isExpanded: true },
+  ): [ToolDefinition, ToolDefinition[], () => void];
   // Overload: CreatedStateTools (generic - for when isExpanded is unknown at compile time)
-  addStateTools<T>(created: CreatedStateTools<T>): [ToolDefinition, ToolDefinition | ToolDefinition[], () => void];
+  addStateTools<T>(
+    created: CreatedStateTools<T>,
+  ): [ToolDefinition, ToolDefinition | ToolDefinition[], () => void];
   // Overload: No schemaSplit, no expand → single setter
   addStateTools<T>(options: {
     name: string;
@@ -1266,20 +1406,24 @@ export class MCPWeb {
     expand: true;
   }): [ToolDefinition, ToolDefinition[], () => void];
   // Implementation
-  addStateTools<T>(optionsOrCreated: {
-    name: string;
-    description: string;
-    get: () => T;
-    set: (value: T) => void;
-    schema: z.ZodType<T>;
-    schemaSplit?: SplitPlan;
-    expand?: boolean;
-  } | CreatedStateTools<T>): [ToolDefinition, ToolDefinition | ToolDefinition[], () => void] {
+  addStateTools<T>(
+    optionsOrCreated:
+      | {
+          name: string;
+          description: string;
+          get: () => T;
+          set: (value: T) => void;
+          schema: z.ZodType<T>;
+          schemaSplit?: SplitPlan;
+          expand?: boolean;
+        }
+      | CreatedStateTools<T>,
+  ): [ToolDefinition, ToolDefinition | ToolDefinition[], () => void] {
     // Handle CreatedStateTools
     if (isCreatedStateTools(optionsOrCreated)) {
       const created = optionsOrCreated;
       const registeredTools: ToolDefinition[] = [];
-      
+
       // Register all tools
       for (const tool of created.tools) {
         registeredTools.push(this.addTool(tool));
@@ -1309,7 +1453,8 @@ export class MCPWeb {
       schemaSplit?: SplitPlan;
       expand?: boolean;
     };
-    const { name, description, get, set, schema, schemaSplit, expand } = options;
+    const { name, description, get, set, schema, schemaSplit, expand } =
+      options;
     const allTools: ToolDefinition[] = [];
 
     // Determine if we're expanding (schemaSplit or expand flag)
@@ -1512,6 +1657,10 @@ export class MCPWeb {
    * ```
    */
   disconnect() {
+    this.#disconnectEpoch++;
+    // An attempt still in its handshake has no other way to learn it was
+    // cancelled, and a stale flag makes every later connect() wait on it.
+    this.#setIsConnecting(false);
     if (this.#ws) {
       this.#ws.onmessage = null;
       this.#ws.onopen = null;
@@ -1588,25 +1737,26 @@ export class MCPWeb {
    */
   query(request: QueryRequest, signal?: AbortSignal): QueryResponse {
     if (!this.#config.agentUrl) {
-      throw new Error('Agent URL not configured. Add agentUrl to MCPWeb config to enable queries.');
+      throw new Error(
+        'Agent URL not configured. Add agentUrl to MCPWeb config to enable queries.',
+      );
     }
 
     if (!this.#connected) {
-      throw new Error('Not connected to bridge. Ensure MCPWeb is connected before making queries.');
+      throw new Error(
+        'Not connected to bridge. Ensure MCPWeb is connected before making queries.',
+      );
     }
 
     const parsedRequest = QueryRequestSchema.parse(request);
 
-    const {
-      prompt,
-      context,
-      responseTool,
-      timeout,
-    } = parsedRequest;
+    const { prompt, context, responseTool, timeout } = parsedRequest;
 
     // Validate that responseTool is registered if provided
     if (responseTool && !this.tools.has(responseTool.name)) {
-      throw new Error(`Response tool '${responseTool.name}' is not registered. Register it with addTool() first.`);
+      throw new Error(
+        `Response tool '${responseTool.name}' is not registered. Register it with addTool() first.`,
+      );
     }
 
     // Generate a unique identifier for the query
@@ -1617,7 +1767,14 @@ export class MCPWeb {
     const effectiveSignal = signal || internalAbortController?.signal;
 
     // Create the async generator that will be wrapped in Query instance
-    const stream = this.createQueryStream(uuid, prompt, context, responseTool, timeout, effectiveSignal);
+    const stream = this.createQueryStream(
+      uuid,
+      prompt,
+      context,
+      responseTool,
+      timeout,
+      effectiveSignal,
+    );
 
     // Create cancel function that works with both external and internal AbortController
     const cancelFn = () => {
@@ -1625,10 +1782,12 @@ export class MCPWeb {
         internalAbortController.abort();
       } else if (this.#ws && this.#ws.readyState === WebSocket.OPEN) {
         // If using external signal, send cancel directly to bridge
-        this.#ws.send(JSON.stringify({
-          type: 'query_cancel',
-          uuid
-        }));
+        this.#ws.send(
+          JSON.stringify({
+            type: 'query_cancel',
+            uuid,
+          }),
+        );
       }
     };
 
@@ -1645,7 +1804,7 @@ export class MCPWeb {
     context: QueryRequest['context'],
     responseTool: QueryRequest['responseTool'],
     timeout: number,
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): AsyncIterableIterator<QueryResponseResult> {
     // Process context items
     const processedContext: ProcessedContextItem[] = [];
@@ -1657,9 +1816,11 @@ export class MCPWeb {
           processedContext.push({
             name: item.name,
             value: await item.handler(),
-            schema: item.outputSchema ? toJSONSchema(item.outputSchema) : undefined,
+            schema: item.outputSchema
+              ? toJSONSchema(item.outputSchema)
+              : undefined,
             description: item.description,
-            type: 'tool'
+            type: 'tool',
           });
         } else {
           // Ephemeral context
@@ -1668,21 +1829,23 @@ export class MCPWeb {
             value: item.value,
             schema: item.schema,
             description: item.description,
-            type: 'ephemeral'
+            type: 'ephemeral',
           });
         }
       }
     }
 
     // Convert responseTool to serializable metadata
-    const responseToolMetadata = responseTool ? toToolMetadataJson(responseTool) : undefined;
+    const responseToolMetadata = responseTool
+      ? toToolMetadataJson(responseTool)
+      : undefined;
 
     // Send query message to bridge
     const queryMessage = QueryMessageSchema.parse({
       uuid,
       prompt,
       context: processedContext,
-      responseTool: responseToolMetadata
+      responseTool: responseToolMetadata,
     } satisfies Query);
 
     this.#ws?.send(JSON.stringify(queryMessage));
@@ -1693,7 +1856,9 @@ export class MCPWeb {
     let aborted = false;
 
     const eventQueue: QueryResponseResult[] = [];
-    let resolveNext: ((value: IteratorResult<QueryResponseResult>) => void) | null = null;
+    let resolveNext:
+      | ((value: IteratorResult<QueryResponseResult>) => void)
+      | null = null;
 
     // Handle abort signal
     const handleAbort = () => {
@@ -1703,10 +1868,12 @@ export class MCPWeb {
 
       // Send cancellation message to bridge
       if (this.#ws && this.#ws.readyState === WebSocket.OPEN) {
-        this.#ws.send(JSON.stringify({
-          type: 'query_cancel',
-          uuid
-        }));
+        this.#ws.send(
+          JSON.stringify({
+            type: 'query_cancel',
+            uuid,
+          }),
+        );
       }
 
       if (timeoutId) clearTimeout(timeoutId);
@@ -1742,7 +1909,10 @@ export class MCPWeb {
         const parsedMessage = QueryResponseResultSchema.parse(message);
 
         if (parsedMessage.uuid === uuid) {
-          if (parsedMessage.type === 'query_complete' || parsedMessage.type === 'query_failure') {
+          if (
+            parsedMessage.type === 'query_complete' ||
+            parsedMessage.type === 'query_failure'
+          ) {
             completed = true;
             if (timeoutId) clearTimeout(timeoutId);
             this.#ws?.removeEventListener('message', handleMessage);

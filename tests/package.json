@@ -13,7 +13,8 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@types/react": "catalog:"
+    "@types/react": "catalog:",
+    "wrangler": "catalog:"
   },
   "scripts": {
     "test": "bun test"

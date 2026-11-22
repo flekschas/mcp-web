@@ -24,6 +24,7 @@ catalog:
   typescript: ~6.0.3
   vite: ^8.3.8
   vite-plugin-mkcert: ^2.1.0
+  wrangler: ^4.124.0
   zod: ~4.6.7
 
 onlyBuiltDependencies:
@@ -31,3 +32,4 @@ onlyBuiltDependencies:
   - '@tailwindcss/oxide'
   - esbuild
   - lefthook
+  - workerd

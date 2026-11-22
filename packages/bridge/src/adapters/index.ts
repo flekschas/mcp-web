@@ -7,17 +7,18 @@
  * Available adapters:
  * - `MCPWebBridgeNode` - Node.js (production ready)
  * - `MCPWebBridgeBun` - Bun runtime
- * - `MCPWebBridgeParty` / `createPartyKitBridge` - PartyKit / Cloudflare
+ * - `createCloudflareBridge` - Cloudflare Workers + Durable Objects
+ *
+ * The Cloudflare adapter is exported from `@mcp-web/bridge/cloudflare` because
+ * it needs Workers globals.
  */
 
-// Node.js adapter (production ready)
-export { Bridge, MCPWebBridgeNode } from './node.js';
-export type { MCPWebBridgeNodeConfig, MCPWebBridgeNodeSSLConfig } from './node.js';
-
+export type { MCPWebBridgeBunConfig } from './bun.js';
 // Bun adapter
 export { MCPWebBridgeBun } from './bun.js';
-export type { MCPWebBridgeBunConfig } from './bun.js';
-
-// PartyKit adapter
-export { AlarmScheduler, createPartyKitBridge, MCPWebBridgeParty } from './partykit.js';
-export type { MCPWebBridgePartyConfig } from './partykit.js';
+export type {
+  MCPWebBridgeNodeConfig,
+  MCPWebBridgeNodeSSLConfig,
+} from './node.js';
+// Node.js adapter (production ready)
+export { Bridge, MCPWebBridgeNode } from './node.js';

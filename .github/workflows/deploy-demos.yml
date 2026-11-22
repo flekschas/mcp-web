@@ -10,14 +10,20 @@ on:
   workflow_dispatch:
     inputs:
       demo:
-        description: 'Demo to build (all, higlass, todo, checkers)'
+        description: 'Demo to deploy (all, higlass, todo, checkers)'
         required: false
         default: 'all'
 
+concurrency:
+  group: deploy-demos
+  cancel-in-progress: false
+
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     strategy:
+      # Deploys are independent, but a failure should not hide the others
+      fail-fast: false
       matrix:
         demo: [higlass, todo, checkers]
 
@@ -34,7 +40,7 @@ jobs:
         run: pnpm install
 
       - name: Build packages
-        run: pnpm build
+        run: pnpm build:packages
 
       - name: Build demo frontend
         run: |
@@ -42,23 +48,28 @@ jobs:
           cp ../deploy/${{ matrix.demo }}/mcp-web.config.ts ./mcp-web.config.ts
           pnpm build
 
-      - name: Bundle servers
-        run: pnpm bundle:servers
-
-      - name: Upload frontend artifact
-        uses: actions/upload-artifact@v7
+      - name: Deploy bridge worker
+        if: >-
+          github.event_name == 'push' ||
+          inputs.demo == 'all' ||
+          inputs.demo == matrix.demo
+        uses: cloudflare/wrangler-action@v3
         with:
-          name: ${{ matrix.demo }}-dist
-          path: demos/${{ matrix.demo }}/dist
-          retention-days: 1
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: demos/deploy
+          command: deploy --config ${{ matrix.demo }}/wrangler.jsonc
 
-      - name: Upload server bundle artifact
-        uses: actions/upload-artifact@v7
+      - name: Deploy checkers agent worker
+        if: >-
+          matrix.demo == 'checkers' && (
+            github.event_name == 'push' ||
+            inputs.demo == 'all' ||
+            inputs.demo == 'checkers'
+          )
+        uses: cloudflare/wrangler-action@v3
         with:
-          name: ${{ matrix.demo }}-bundles
-          path: demos/deploy/${{ matrix.demo }}/*.bundle.js
-          retention-days: 1
-
-  # All demos deploy to Render automatically via demos/deploy/render.yaml Blueprint.
-  # Render watches the main branch and auto-builds/deploys on push.
-  # No GitHub Actions deploy steps needed.
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: demos/deploy
+          command: deploy --config checkers/wrangler.agent.jsonc

@@ -5,7 +5,8 @@
   "main": "dist/index.js",
   "exports": {
     ".": "./dist/index.js",
-    "./bridge": "./dist/bridge.js"
+    "./bridge": "./dist/bridge.js",
+    "./cloudflare": "./dist/adapters/cloudflare.js"
   },
   "scripts": {
     "build": "tsc",

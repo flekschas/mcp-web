@@ -44,8 +44,13 @@ GOOGLE_GENERATIVE_AI_API_KEY="your-google-api-key-here"
 OPENAI_API_KEY="your-openai-api-key-here"
 # Optionally
 MODEL_PROVIDER="anthropic"
-MODEL_NAME="claude-haiku-4-5-20251001"
+MODEL_NAME="claude-haiku-5-5"
 ```
+
+Without `MODEL_NAME` the agent uses its own default per provider and, on
+Anthropic, asks for low reasoning effort — a checkers move needs little
+deliberation. Setting `MODEL_NAME` turns that off, because not every model
+accepts the option.
 
 All port configurations are managed centrally in `shared/mcp-config.ts`:
 - Frontend: Port 3000

@@ -240,7 +240,11 @@ export class MCPWebBridgeBun {
 
               // Set up the SSE stream
               httpResponse.setup(writer, () => {
-                controller.close();
+                try {
+                  controller.close();
+                } catch {
+                  // Already closed by a cancel
+                }
               });
 
               // Keep connection alive with periodic comments

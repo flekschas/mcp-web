@@ -1,4 +1,4 @@
-import { test, expect } from 'bun:test';
+import { expect, test } from 'bun:test';
 import { McpWebConfigSchema } from '@mcp-web/types';
 
 test('Bridge config schema validates valid configuration', () => {
@@ -40,18 +40,17 @@ test('Bridge config schema uses no default bridgeUrl', () => {
   }
 });
 
-test('Bridge config schema accepts agentUrl and strips protocol', () => {
+test('Bridge config schema keeps the agentUrl protocol', () => {
   const result = McpWebConfigSchema.safeParse({
     name: 'Test Bridge',
     description: 'Test description',
     bridgeUrl: 'localhost:4001',
-    agentUrl: 'http://localhost:3003',
+    agentUrl: 'https://agent.example.com',
   });
 
   expect(result.success).toBe(true);
   if (result.success) {
-    // Protocol should be stripped by transform
-    expect(result.data.agentUrl === 'localhost:3003').toBe(true);
+    expect(result.data.agentUrl).toBe('https://agent.example.com');
   }
 });
 

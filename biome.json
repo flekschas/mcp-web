@@ -1,7 +1,13 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "files": {
-    "includes": ["**", "!node_modules/", "!!dist/", "!!**/*.svelte", "!!**/*.vue"]
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/dist",
+      "!**/*.svelte",
+      "!**/*.vue"
+    ]
   },
   "assist": { "actions": { "source": { "organizeImports": "on" } } },
   "formatter": {
@@ -17,18 +23,15 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true
+      "recommended": true,
+      "suspicious": {
+        "noUnknownAtRules": "off"
+      }
     }
   },
   "css": {
     "linter": {
-      "enabled": true,
-      "rules": {
-        "recommended": true,
-        "nursery": {
-          "unknownAtRules": "off"
-        }
-      }
+      "enabled": true
     }
   }
 }
