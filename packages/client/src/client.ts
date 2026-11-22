@@ -33,6 +33,7 @@ import {
   type ReadResourceResult,
   type Tool,
 } from '@modelcontextprotocol/sdk/types.js';
+import { watchBridgeNotifications } from './bridge-notifications.js';
 import {
   JsonRpcRequestSchema,
   JsonRpcResponseSchema,
@@ -837,6 +838,14 @@ export class MCPWebClient {
     // Fetch bridge identity before creating the MCP server
     const bridgeInfo = await this.fetchBridgeInfo();
 
+    const url = this.#config.serverUrl
+      .replace('ws:', 'http:')
+      .replace('wss:', 'https:');
+    // The bridge only notifies MCP sessions that share a frontend's token.
+    const canWatchLists =
+      Boolean(this.#config.authToken) ||
+      Boolean(new URL(url).searchParams.get('token'));
+
     this.#server = new Server(
       {
         name: bridgeInfo.name,
@@ -847,8 +856,8 @@ export class MCPWebClient {
       },
       {
         capabilities: {
-          tools: {},
-          resources: {},
+          tools: { listChanged: canWatchLists },
+          resources: { listChanged: canWatchLists },
           prompts: {},
         },
       }
@@ -856,7 +865,33 @@ export class MCPWebClient {
 
     this.setupHandlers();
 
+    const server = this.#server;
+    if (canWatchLists) {
+      // Notifications are only allowed once the host has initialized.
+      server.oninitialized = () => {
+        server.oninitialized = undefined;
+        server.onclose = watchBridgeNotifications({
+          url,
+          authToken: this.#config.authToken,
+          timeout: this.#config.timeout,
+          onListChanged: (list) => {
+            const sent =
+              list === 'tools'
+                ? server.sendToolListChanged()
+                : server.sendResourceListChanged();
+            sent.catch(() => {});
+          },
+        });
+      };
+    }
+
     const transport = new StdioServerTransport();
-    await this.#server.connect(transport);
+    await server.connect(transport);
+
+    // The host closes stdin to end the session. Close the server so the
+    // notification stream stops and the process can exit.
+    process.stdin.once('end', () => {
+      server.close().catch(() => {});
+    });
   }
 }
