@@ -152,7 +152,7 @@ before `connected` becomes `true` or the connection fails.
 **Methods:**
 
 ```ts
-connect(): Promise<true>
+connect(): Promise<boolean>
 ```
 
 Establishes connection to the bridge server.
@@ -166,9 +166,9 @@ connecting will return the same promise.
 
 ```ts
 addTool<TInput, TOutput>(tool: CreatedTool<TInput, TOutput>, options?: {
-    /** Called if the bridge rejects the tool registration (e.g., schema conflict with a sibling session). */
-    onRegistrationError?: (error: ToolRegistrationError) => void;
-  }): ToolDefinition
+      /** Called if the bridge rejects the tool registration (e.g., schema conflict with a sibling session). */
+      onRegistrationError?: (error: ToolRegistrationError) => void;
+    }): ToolDefinition
 ```
 
 Registers a tool that AI agents can call.
@@ -180,42 +180,45 @@ Can also accept pre-created tools from `createTool()`.
 
 ```ts
 addTool<TInput, TOutput>(tool: {
-    name: string;
-    description: string;
-    handler:
-      TInput extends z.ZodObject
-        ? (input: z.infer<TInput>) => TOutput extends z.ZodType
-          ? z.infer<TOutput> | Promise<z.infer<TOutput>>
-          : void | Promise<void>
+      name: string;
+      description: string;
+      handler: TInput extends z.ZodObject
+        ? (
+            input: z.infer<TInput>,
+          ) => TOutput extends z.ZodType
+            ? z.infer<TOutput> | Promise<z.infer<TOutput>>
+            : void | Promise<void>
         : TOutput extends z.ZodType
           ? () => z.infer<TOutput> | Promise<z.infer<TOutput>>
           : () => void | Promise<void>;
-    inputSchema?: TInput;
-    outputSchema?: TOutput;
-  }, options?: {
-    /** Called if the bridge rejects the tool registration (e.g., schema conflict with a sibling session). */
-    onRegistrationError?: (error: ToolRegistrationError) => void;
-  }): ToolDefinition
+      inputSchema?: TInput;
+      outputSchema?: TOutput;
+    }, options?: {
+      /** Called if the bridge rejects the tool registration (e.g., schema conflict with a sibling session). */
+      onRegistrationError?: (error: ToolRegistrationError) => void;
+    }): ToolDefinition
 ```
 
 ```ts
 addTool(tool: {
-    name: string;
-    description: string;
-    handler: (input?: unknown) => unknown | Promise<unknown> | void | Promise<void>;
-    inputSchema?: { type: string; [key: string]: unknown };
-    outputSchema?: { type: string; [key: string]: unknown };
-    _meta?: Record<string, unknown>;
-  }, options?: {
-    /** Called if the bridge rejects the tool registration (e.g., schema conflict with a sibling session). */
-    onRegistrationError?: (error: ToolRegistrationError) => void;
-  }): ToolDefinition
+      name: string;
+      description: string;
+      handler: (
+        input?: unknown,
+      ) => unknown | Promise<unknown> | void | Promise<void>;
+      inputSchema?: { type: string; [key: string]: unknown };
+      outputSchema?: { type: string; [key: string]: unknown };
+      _meta?: Record<string, unknown>;
+    }, options?: {
+      /** Called if the bridge rejects the tool registration (e.g., schema conflict with a sibling session). */
+      onRegistrationError?: (error: ToolRegistrationError) => void;
+    }): ToolDefinition
 ```
 
 ```ts
 addTool(tool: ToolDefinition | CreatedTool, options?: {
-    onRegistrationError?: (error: ToolRegistrationError) => void;
-  }): ToolDefinition
+      onRegistrationError?: (error: ToolRegistrationError) => void;
+    }): ToolDefinition
 ```
 
 ```ts
@@ -318,15 +321,16 @@ addStateTools<T>(options: {
 ```
 
 ```ts
-addStateTools<T>(optionsOrCreated: {
-    name: string;
-    description: string;
-    get: () => T;
-    set: (value: T) => void;
-    schema: z.ZodType<T>;
-    schemaSplit?: SplitPlan;
-    expand?: boolean;
-  } | CreatedStateTools<T>): [ToolDefinition, ToolDefinition | ToolDefinition[], () => void]
+addStateTools<T>(optionsOrCreated: | {
+          name: string;
+          description: string;
+          get: () => T;
+          set: (value: T) => void;
+          schema: z.ZodType<T>;
+          schemaSplit?: SplitPlan;
+          expand?: boolean;
+        }
+      | CreatedStateTools<T>): [ToolDefinition, ToolDefinition | ToolDefinition[], () => void]
 ```
 
 ```ts

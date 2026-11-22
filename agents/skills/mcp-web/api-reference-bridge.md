@@ -539,9 +539,6 @@ unknown
 
 *Variable* — `packages/bridge/src/version.ts`
 
-Package version, inlined at author time rather than read from package.json.
+Package version. Workers cannot read `package.json` at runtime.
 
-Reading package.json at runtime needs `node:fs` and `import.meta.url` path
-resolution, neither of which exist on Cloudflare Workers.
-
-Kept in sync by `scripts/bump-version.ts`.
+Updated by `scripts/bump-version.ts`.
