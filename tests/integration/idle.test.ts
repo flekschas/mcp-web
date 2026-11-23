@@ -12,6 +12,8 @@ const PORT = 4331;
 const AUTH_TOKEN = 'idle-token';
 
 let bridge: MCPWebBridgeNode | undefined;
+// Disconnected after each test, so a failed test leaves no page retrying.
+let webs: MCPWeb[] = [];
 let page: EventTarget & { visibilityState: string };
 
 const startBridge = () =>
@@ -25,13 +27,15 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+  for (const web of webs) web.disconnect();
+  webs = [];
   delete (globalThis as { document?: unknown }).document;
   await bridge?.close();
   bridge = undefined;
 });
 
 function createWeb(idleTimeoutMs: number) {
-  return new MCPWeb({
+  const web = new MCPWeb({
     name: 'Idle',
     description: 'Idle',
     bridgeUrl: `localhost:${PORT}`,
@@ -40,6 +44,8 @@ function createWeb(idleTimeoutMs: number) {
     autoConnect: false,
     idleTimeoutMs,
   });
+  webs.push(web);
+  return web;
 }
 
 const createClient = () =>
@@ -180,6 +186,7 @@ test('an automatic reconnect does not count as activity', async () => {
   await web.connect();
 
   await bridge?.close();
+  await until(() => !web.connected);
   bridge = startBridge();
 
   // The page retries after 5 s and is connected again well before its deadline.
