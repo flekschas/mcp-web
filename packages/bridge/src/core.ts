@@ -264,6 +264,16 @@ function toBase64(buffer: ArrayBuffer): string {
 }
 
 /**
+ * Whether a tool result reports a failure: an object with a set `error`, e.g.
+ * `{ error: 'Invalid move' }`. A result like `{ status: 'rendered', error:
+ * null }` is not one.
+ */
+const isErrorResult = (result: unknown): boolean =>
+  !!result &&
+  typeof result === 'object' &&
+  !!(result as { error?: unknown }).error;
+
+/**
  * Builds the query URL by appending the UUID to the agent URL.
  * If no protocol is specified, defaults to http://.
  */
@@ -1459,8 +1469,7 @@ export class MCPWebBridge {
     isError?: boolean;
     _meta?: Record<string, unknown>;
   } {
-    // Check if this is an error response
-    if (result && typeof result === 'object' && 'error' in result) {
+    if (isErrorResult(result)) {
       return {
         content: [
           {
@@ -2044,13 +2053,7 @@ export class MCPWebBridge {
                 });
 
                 if (query.responseTool === toolName) {
-                  if (
-                    !(
-                      toolResult &&
-                      typeof toolResult === 'object' &&
-                      'error' in toolResult
-                    )
-                  ) {
+                  if (!isErrorResult(toolResult)) {
                     const bridgeMessage =
                       QueryCompleteBridgeMessageSchema.parse({
                         uuid: queryId,

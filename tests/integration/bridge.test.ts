@@ -514,3 +514,31 @@ test('Allows tools with same name and identical schemas across sessions', async 
   mcpWeb1.disconnect();
   mcpWeb2.disconnect();
 });
+
+test('Only a result with a set error is reported as an error', async () => {
+  const authToken = 'error-result-test';
+  const mcpWeb = new MCPWeb({ ...mcpWebConfig, authToken });
+
+  mcpWeb.addTool({
+    name: 'render_status',
+    description: 'Returns a status with an unset error',
+    handler: async () => ({ status: 'rendered', error: null }),
+  });
+  mcpWeb.addTool({
+    name: 'bad_move',
+    description: 'Returns an error',
+    handler: async () => ({ error: 'Invalid move' }),
+  });
+
+  await mcpWeb.connect();
+
+  const client = new MCPWebClient({ ...mcpWebClientConfig, authToken });
+
+  const statusResult = await client.callTool('render_status', {}, mcpWeb.sessionId);
+  expect(statusResult.isError).toBeUndefined();
+
+  const moveResult = await client.callTool('bad_move', {}, mcpWeb.sessionId);
+  expect(moveResult.isError).toBe(true);
+
+  mcpWeb.disconnect();
+});
