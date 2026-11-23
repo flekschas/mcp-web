@@ -1,10 +1,21 @@
 import { useAtomValue, useSetAtom } from 'jotai';
+import config from '../../mcp-web.config';
 import { Help } from '../help/help.tsx';
 import { helpModalOpenAtom } from '../help/states.ts';
 import { HiGlass } from '../higlass/higlass.tsx';
 import { codeMode, setCodeMode } from '../mcp/code-mode.ts';
+import { mcp } from '../mcp/mcp.ts';
 import { mcpStatusAtom } from '../mcp/states.ts';
 import { CodeModeNotice } from './code-mode-notice.tsx';
+import { IdleCountdown } from './idle-countdown.tsx';
+
+const STATUS_COLORS = {
+  error: 'bg-red-500',
+  connecting: 'bg-yellow-500',
+  connected: 'bg-green-500',
+  disconnected: 'bg-zinc-500',
+  idle: 'bg-zinc-500',
+} as const;
 
 export function App() {
   const mcpStatus = useAtomValue(mcpStatusAtom);
@@ -47,19 +58,17 @@ export function App() {
             className="flex items-center gap-2 p-2 border border-zinc-800 rounded hover:bg-zinc-800 hover:text-white transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-0"
             onClick={handleHelpClick}
           >
-            {mcpStatus === 'error' && (
-              <span className="w-2 h-2 rounded-full bg-red-500" />
-            )}
-            {mcpStatus === 'connecting' && (
-              <span className="w-2 h-2 rounded-full bg-yellow-500" />
-            )}
-            {mcpStatus === 'connected' && (
-              <span className="w-2 h-2 rounded-full bg-green-500" />
-            )}
-            {mcpStatus === 'disconnected' && (
-              <span className="w-2 h-2 rounded-full bg-zinc-500" />
-            )}
+            <span
+              className={`w-2 h-2 rounded-full ${STATUS_COLORS[mcpStatus]}`}
+            />
             MCP
+            {config.idleTimeoutMs !== undefined && (
+              <IdleCountdown
+                mcpWeb={mcp}
+                idle={mcpStatus === 'idle'}
+                className="tabular-nums text-zinc-400"
+              />
+            )}
           </button>
         </div>
       </header>

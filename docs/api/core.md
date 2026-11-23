@@ -149,6 +149,22 @@ Whether the instance is currently attempting to connect to the bridge.
 Returns `true` during the connection/authentication handshake,
 before `connected` becomes `true` or the connection fails.
 
+```ts
+get idle(): boolean
+```
+
+Whether the connection was closed after `idleTimeoutMs` without activity.
+
+The next user interaction with the page reconnects.
+
+```ts
+get idleDisconnectAt(): number | undefined
+```
+
+Time, in milliseconds since the epoch, at which the connection closes if
+there is no activity until then. `undefined` without `idleTimeoutMs` or
+while disconnected.
+
 **Methods:**
 
 ```ts
@@ -338,7 +354,8 @@ onConnectionStateChange(listener: () => void): () => void
 
 Subscribe to connection state changes.
 
-The listener is called whenever `connected` or `connecting` changes.
+The listener is called whenever `connected`, `connecting` or `idle`
+changes.
 Returns an unsubscribe function.
 
 ```ts

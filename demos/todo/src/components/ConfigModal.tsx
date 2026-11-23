@@ -200,6 +200,12 @@ export function ConfigModal({
                 </div>
               </div>
             )}
+
+            {config.idleTimeoutMs !== undefined && (
+              <p className="text-sm opacity-60">
+                To save resources, the page disconnects after {config.idleTimeoutMs / 60_000} minutes without tool calls or use of the page. Using the page reconnects it.
+              </p>
+            )}
           </div>
         </div>
       </div>

@@ -9,14 +9,16 @@ import {
 import { useMCPWeb } from '@mcp-web/react';
 import { useAtom, useAtomValue } from 'jotai';
 import { useState } from 'react';
+import config from '../../mcp-web.config';
 import { ProjectSchema } from '../schemas';
 import { inboxCountAtom, projectCountsAtom, projectsAtom, viewAtom } from '../states';
 import { ConfigModal } from './ConfigModal';
+import { IdleCountdown } from './IdleCountdown';
 import { ProjectForm } from './ProjectForm';
 import { ProjectItem } from './ProjectItem';
 
 export function Sidebar() {
-  const { isConnected, isConnecting } = useMCPWeb();
+  const { mcpWeb, isConnected, isConnecting } = useMCPWeb();
   const [view, setView] = useAtom(viewAtom);
   const [projects, setProjects] = useAtom(projectsAtom);
   const inboxCount = useAtomValue(inboxCountAtom);
@@ -79,6 +81,13 @@ export function Sidebar() {
             {isConnecting && <MinusIcon className="w-4 h-4" />}
             {!isConnected && !isConnecting && <XMarkIcon className="w-4 h-4" />}
             MCP
+            {config.idleTimeoutMs !== undefined && (
+              <IdleCountdown
+                mcpWeb={mcpWeb}
+                idle={mcpWeb.idle}
+                className="tabular-nums opacity-60"
+              />
+            )}
           </button>
         </div>
 

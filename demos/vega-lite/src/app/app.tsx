@@ -1,20 +1,24 @@
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import config from '../../mcp-web.config';
 import { Chart } from '../chart/chart.tsx';
 import { SpecEditor } from '../editor/spec-editor.tsx';
 import { Help } from '../help/help.tsx';
 import { helpModalOpenAtom } from '../help/states.ts';
+import { mcp } from '../mcp/mcp.ts';
 import { mcpStatusAtom } from '../mcp/states.ts';
 import { EXAMPLES } from '../spec/examples.ts';
 import { checkVegaLiteSpec, type VegaLiteSpec } from '../spec/schema.ts';
 import { editorTextAtom, keptEditorText, specAtom } from '../spec/states.ts';
 import { CodeModeNotice } from './code-mode-notice.tsx';
 import { CodeModeSwitch } from './code-mode-switch.tsx';
+import { IdleCountdown } from './idle-countdown.tsx';
 
 const STATUS_COLORS = {
   error: 'bg-red-500',
   connecting: 'bg-yellow-500',
   connected: 'bg-green-500',
   disconnected: 'bg-zinc-500',
+  idle: 'bg-zinc-500',
 } as const;
 
 export function App() {
@@ -58,6 +62,13 @@ export function App() {
               className={`w-2 h-2 rounded-full ${STATUS_COLORS[mcpStatus]}`}
             />
             MCP
+            {config.idleTimeoutMs !== undefined && (
+              <IdleCountdown
+                mcpWeb={mcp}
+                idle={mcpStatus === 'idle'}
+                className="tabular-nums text-zinc-400"
+              />
+            )}
           </button>
         </div>
       </header>

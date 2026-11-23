@@ -72,6 +72,24 @@ export const McpWebConfigSchema = z.object({
     .describe(
       'Whether to automatically connect to the MCP bridge on initialization.',
     ),
+  /**
+   * Disconnect from the bridge after this many milliseconds without requests
+   * from AI or user interaction with the page. The next interaction reconnects.
+   *
+   * On hosted bridges, an open connection keeps the bridge running and billed,
+   * so this stops a forgotten tab from running it all day. Best effort: a
+   * browser can suspend a page's timers.
+   */
+  idleTimeoutMs: z
+    .number()
+    .int()
+    .positive()
+    // The longest delay `setTimeout` supports.
+    .max(2 ** 31 - 1)
+    .optional()
+    .describe(
+      'Disconnect after this many milliseconds without requests from AI or user interaction. The next interaction reconnects.',
+    ),
   /** Maximum sessions allowed per auth token. When exceeded, behavior is determined by `onSessionLimitExceeded`. */
   maxSessionsPerToken: z
     .number()

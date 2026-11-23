@@ -1361,7 +1361,7 @@ export class MCPWebBridge {
             {
               name: 'get_connection_status',
               description:
-                'Check the connection status of this MCP-Web server. Returns whether any browser sessions are currently connected. If no sessions are connected, you should tell the user to open the web app in their browser.',
+                'Check the connection status of this MCP-Web server. Returns whether any browser sessions are currently connected. If no sessions are connected, you should tell the user to open the web app in their browser, or to switch back to it.',
               inputSchema: {
                 type: 'object',
                 properties: {},
@@ -1380,7 +1380,7 @@ export class MCPWebBridge {
             content: [
               {
                 type: 'text',
-                text: 'No browser sessions are currently connected to this MCP-Web server. Please ask the user to open the web app in their browser. Once connected, tools from the web app will become available automatically.',
+                text: 'No browser sessions are currently connected to this MCP-Web server. Ask the user to open the web app in their browser, or to switch back to it if it is already open, since pages can disconnect after a while without use. Once connected, tools from the web app will become available automatically.',
               },
             ],
           };
@@ -1389,7 +1389,7 @@ export class MCPWebBridge {
             content: [
               {
                 type: 'text',
-                text: 'No browser sessions connected. Please open the web app in a browser first.',
+                text: 'No browser sessions connected. Ask the user to open the web app in a browser, or to switch back to it if it is already open.',
               },
             ],
             isError: true,

@@ -168,9 +168,22 @@ const mcp = new MCPWeb({
   bridgeUrl: 'ws://localhost:3001', // Auto-detected by default
   autoConnect: true, // Default: true
   authToken: 'custom-token', // Optional
-  persistAuthToken: true // Default: true
+  persistAuthToken: true, // Default: true
+  idleTimeoutMs: 15 * 60 * 1000 // Default: off
 });
 ```
+
+With `idleTimeoutMs`, the page disconnects after that long without requests
+from AI, like tool calls, or user interaction, and the next interaction
+reconnects. Use it with hosted bridges, which keep running while a page is
+connected. A tool call or resource read that is still running keeps the page
+connected, for at most one more timeout. `mcp.idle` tells whether the page is
+disconnected for that reason, and `mcp.idleDisconnectAt` when it will be, for
+showing a countdown.
+
+This is best effort. A browser can suspend the timers of a background page, so
+the disconnect can come late. In Chromium, a frozen page disconnects right
+away.
 
 ### Authentication
 

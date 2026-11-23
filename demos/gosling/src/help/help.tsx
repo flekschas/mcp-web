@@ -1,5 +1,6 @@
 import { useAtom, useSetAtom } from 'jotai';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import config from '../../mcp-web.config';
 import { codeMode } from '../mcp/code-mode.ts';
 import { mcp } from '../mcp/mcp.ts';
 import { EXAMPLE_PROMPTS } from '../spec/examples.ts';
@@ -169,6 +170,13 @@ export function Help() {
                       </button>
                     </div>
                   </div>
+                )}
+                {config.idleTimeoutMs !== undefined && (
+                  <p className="mt-3 text-sm text-zinc-600">
+                    To save resources, the page disconnects after{' '}
+                    {config.idleTimeoutMs / 60_000} minutes without tool calls
+                    or use of the page. Using the page reconnects it.
+                  </p>
                 )}
               </div>
 

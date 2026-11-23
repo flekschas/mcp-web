@@ -1,3 +1,14 @@
+## Next
+
+`@mcp-web/core`:
+
+- feat: `idleTimeoutMs` option to disconnect after a period without requests from AI or user interaction, and reconnect on the next interaction. Hosted bridges like the Cloudflare adapter keep running, and billing, while a page is connected. `idle` and `idleDisconnectAt` expose the state, for example to show a countdown
+- fix: report user activity to the bridge every 30 seconds instead of on every mouse move
+
+`@mcp-web/bridge` and `@mcp-web/client`:
+
+- fix: when no page is connected, tell AI to ask the user to switch back to the page, not only to open it
+
 ## v0.2.0
 
 `@mcp-web/tools`:

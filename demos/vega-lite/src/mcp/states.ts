@@ -1,10 +1,11 @@
 import { atom } from 'jotai';
 import { mcp } from './mcp';
 
-type McpStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
+type McpStatus = 'connecting' | 'connected' | 'disconnected' | 'idle' | 'error';
 
 const currentStatus = (): McpStatus => {
   if (mcp.connected) return 'connected';
+  if (mcp.idle) return 'idle';
   return mcp.connecting ? 'connecting' : 'disconnected';
 };
 

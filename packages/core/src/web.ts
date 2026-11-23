@@ -104,6 +104,11 @@ export class MCPWeb {
   #connectionStateListeners = new Set<() => void>();
   #roomIdPromise: Promise<string | undefined> | undefined;
   #disconnectEpoch = 0;
+  #lastActivityAt = Date.now();
+  #idle = false;
+  #idleTimer: ReturnType<typeof setTimeout> | undefined;
+  #pendingCalls = 0;
+  #reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 
   /** Update connected state and notify listeners on change */
   #setConnected(value: boolean) {
@@ -415,7 +420,17 @@ export class MCPWeb {
    * }
    * ```
    */
-  async connect(): Promise<boolean> {
+  connect(): Promise<boolean> {
+    this.#idle = false;
+    this.#lastActivityAt = Date.now();
+    return this.#connect();
+  }
+
+  async #connect(): Promise<boolean> {
+    if (this.#config.idleTimeoutMs && this.#idleTimer === undefined) {
+      this.#scheduleIdleCheck(this.#config.idleTimeoutMs);
+    }
+
     // Prevent duplicate connections
     if (this.#connected) {
       return Promise.resolve(true);
@@ -433,7 +448,7 @@ export class MCPWeb {
             resolve(false);
           } else if (!this.#isConnecting) {
             // Connection failed, try again
-            this.connect().then(resolve);
+            this.#connect().then(resolve);
           } else {
             setTimeout(checkConnection, 100);
           }
@@ -462,6 +477,7 @@ export class MCPWeb {
           : `?session=${this.sessionId}`;
         const wsUrl = `${this.#getBridgeWsUrl()}${query}`;
         this.#ws = new WebSocket(wsUrl);
+        this.#pendingCalls = 0;
 
         this.#ws.onopen = () => {
           // Use setTimeout to ensure WebSocket is fully ready
@@ -566,11 +582,11 @@ export class MCPWeb {
       }
 
       case 'tool-call':
-        this.handleToolCall(message);
+        this.#trackCall(this.handleToolCall(message));
         break;
 
       case 'resource-read':
-        this.handleResourceRead(message);
+        this.#trackCall(this.handleResourceRead(message));
         break;
 
       case 'tool-registration-error':
@@ -584,6 +600,7 @@ export class MCPWeb {
       case 'query_failure':
       case 'query_complete':
       case 'query_cancel':
+        this.#lastActivityAt = Date.now();
         // Query responses are handled by query-specific listeners in query() method
         // (see line ~498 where addEventListener('message') is set up per query)
         break;
@@ -792,12 +809,13 @@ export class MCPWeb {
     // Signal that we intend to reconnect so consumers (e.g. React hooks)
     // can show a "connecting" state instead of "disconnected".
     this.#setIsConnecting(true);
-    setTimeout(() => {
+    this.#reconnectTimer = setTimeout(() => {
+      this.#reconnectTimer = undefined;
       if (!this.#connected && this.#ws) {
         // connect() reads the flag as "an attempt is already running" and would
         // only poll for it, so the intent flag is cleared before the call.
         this.#setIsConnecting(false);
-        this.connect().catch(console.error);
+        this.#connect().catch(console.error);
       } else {
         this.#setIsConnecting(false);
       }
@@ -805,28 +823,91 @@ export class MCPWeb {
   }
 
   private setupActivityTracking() {
-    const updateActivity = () => {
+    const onUserActivity = () => {
+      this.#lastActivityAt = Date.now();
+      if (this.#idle) {
+        this.#idle = false;
+        this.#connect().catch(console.error);
+      }
+    };
+
+    if (globalThis.document) {
+      // Capture, so components that stop propagation still count as activity.
+      for (const event of ['pointerdown', 'pointermove', 'keydown', 'wheel']) {
+        globalThis.document.addEventListener(event, onUserActivity, {
+          passive: true,
+          capture: true,
+        });
+      }
+      globalThis.document.addEventListener('visibilitychange', () => {
+        if (globalThis.document.visibilityState === 'visible') {
+          onUserActivity();
+        }
+      });
+      // A frozen page runs no timers, so the idle check could not fire.
+      globalThis.document.addEventListener('freeze', () => {
+        if (this.#config.idleTimeoutMs) this.#goIdle();
+      });
+    }
+
+    // Reports the last activity every 30 seconds. Each message is a billed
+    // request on hosted bridges.
+    setInterval(() => {
       if (this.#ws && this.#ws.readyState === WebSocket.OPEN) {
         this.#ws.send(
           JSON.stringify({
             type: 'activity',
-            timestamp: Date.now(),
+            timestamp: this.#lastActivityAt,
           }),
         );
       }
+    }, 30000);
+  }
+
+  #scheduleIdleCheck(delay: number) {
+    this.#idleTimer = setTimeout(() => {
+      this.#idleTimer = undefined;
+      const disconnectAt = this.idleDisconnectAt;
+      if (disconnectAt === undefined) return;
+
+      const remaining = disconnectAt - Date.now();
+      if (remaining > 0) {
+        this.#scheduleIdleCheck(remaining);
+      } else {
+        this.#goIdle();
+      }
+    }, delay);
+  }
+
+  #goIdle() {
+    if (!(this.#connected || this.#isConnecting)) return;
+    this.#idle = true;
+    this.#close();
+  }
+
+  /**
+   * A call counts as activity from when it arrives until it is answered, for
+   * at most one idle timeout, and only on the socket it arrived on.
+   */
+  #trackCall(call: Promise<void>) {
+    const idleTimeout = this.#config.idleTimeoutMs;
+    if (!idleTimeout) return;
+
+    const ws = this.#ws;
+    this.#pendingCalls++;
+    this.#lastActivityAt = Date.now();
+
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(limit);
+      if (this.#ws !== ws) return;
+      this.#pendingCalls--;
+      this.#lastActivityAt = Date.now();
     };
-
-    // Track user activity (only in browser environment)
-    if (globalThis.document) {
-      ['click', 'scroll', 'keydown', 'mousemove'].forEach((event) => {
-        globalThis.document.addEventListener(event, updateActivity, {
-          passive: true,
-        });
-      });
-    }
-
-    // Periodic activity update
-    setInterval(updateActivity, 30000); // Every 30 seconds
+    const limit = setTimeout(done, idleTimeout);
+    call.then(done, done);
   }
 
   /**
@@ -1600,9 +1681,34 @@ export class MCPWeb {
   }
 
   /**
+   * Whether the connection was closed after `idleTimeoutMs` without activity.
+   *
+   * The next user interaction with the page reconnects.
+   */
+  get idle(): boolean {
+    return this.#idle;
+  }
+
+  /**
+   * Time, in milliseconds since the epoch, at which the connection closes if
+   * there is no activity until then. `undefined` without `idleTimeoutMs` or
+   * while disconnected.
+   */
+  get idleDisconnectAt(): number | undefined {
+    const idleTimeout = this.#config.idleTimeoutMs;
+    if (!idleTimeout || !(this.#connected || this.#isConnecting)) {
+      return undefined;
+    }
+    const lastActivityAt =
+      this.#pendingCalls > 0 ? Date.now() : this.#lastActivityAt;
+    return lastActivityAt + idleTimeout;
+  }
+
+  /**
    * Subscribe to connection state changes.
    *
-   * The listener is called whenever `connected` or `connecting` changes.
+   * The listener is called whenever `connected`, `connecting` or `idle`
+   * changes.
    * Returns an unsubscribe function.
    *
    * @param listener - Callback invoked on state change
@@ -1645,6 +1751,17 @@ export class MCPWeb {
    * ```
    */
   disconnect() {
+    const wasIdle = this.#idle;
+    this.#idle = false;
+    this.#close();
+    if (wasIdle) this.#notifyConnectionStateChange();
+  }
+
+  #close() {
+    clearTimeout(this.#idleTimer);
+    this.#idleTimer = undefined;
+    clearTimeout(this.#reconnectTimer);
+    this.#reconnectTimer = undefined;
     this.#disconnectEpoch++;
     // An attempt still in its handshake has no other way to learn it was
     // cancelled, and a stale flag makes every later connect() wait on it.

@@ -169,6 +169,12 @@
               <pre class="text-sm text-gray-300 overflow-x-auto pr-20"><code>{stdioConfigStr}</code></pre>
             </div>
           {/if}
+
+          {#if config.idleTimeoutMs !== undefined}
+            <p class="text-sm opacity-60">
+              To save resources, the page disconnects after {config.idleTimeoutMs / 60_000} minutes without tool calls or use of the page. Using the page reconnects it.
+            </p>
+          {/if}
         </div>
       </div>
     </div>

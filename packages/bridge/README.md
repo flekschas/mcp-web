@@ -200,7 +200,10 @@ WebSocket upgrade on `/` before the Worker sees it:
 - Bridge sessions use ordinary timers. Only the query index schedules a storage
   alarm, to sweep expired callback routes
 - Sockets are accepted with `accept()`, not the Hibernation API, so an object
-  stays live while any client is connected
+  stays live, and billed for duration, while any client is connected. A single
+  tab left open all day uses most of the daily free tier. Set `idleTimeoutMs`
+  in the frontend's `MCPWeb` config to disconnect pages nobody is using. The
+  page enforces it, so it is best effort
 - Only needed when the bridge forwards queries to an agent: bind
   `MCP_WEB_QUERY_INDEX` and export `QueryIndex`. Agent callbacks arrive on
   `/query/:uuid/*` with no auth token, and the index is how the router finds the

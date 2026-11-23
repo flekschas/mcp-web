@@ -5,28 +5,56 @@
   import { mcpWeb, gameName, releaseGameName } from './mcp-tools.js';
   import { state as gameState } from './state.svelte.js';
   import H1 from './components/H1.svelte';
+  import config from '../mcp-web.config.js';
 
   let connectionStatus = $state('connecting');
   let mcpConnection = $state(false);
   let showConfigModal = $state(false);
 
-  onMount(async () => {
-    try {
-      // Connect to MCP bridge
-      await mcpWeb.connect();
-      mcpConnection = mcpWeb.connected;
-      connectionStatus = mcpConnection ? 'connected' : 'disconnected';
+  // Only the last 10 minutes before an idle disconnect are counted down.
+  const COUNTDOWN_WINDOW_MS = 10 * 60 * 1000;
+  let now = $state(Date.now());
 
-      console.log('MCP connected:', mcpConnection);
-      console.log(`${gameName} initialized`);
-    } catch (error) {
-      console.error('Failed to connect to MCP:', error);
-      connectionStatus = 'error';
-    }
+  onMount(() => {
+    const unsubscribe = mcpWeb.onConnectionStateChange(() => {
+      mcpConnection = mcpWeb.connected;
+      if (mcpWeb.connected) connectionStatus = 'connected';
+      else if (mcpWeb.idle) connectionStatus = 'idle';
+      else connectionStatus = mcpWeb.connecting ? 'connecting' : 'disconnected';
+    });
+    // The countdown only ticks when a timeout is configured.
+    const interval =
+      config.idleTimeoutMs !== undefined
+        ? setInterval(() => (now = Date.now()), 1000)
+        : undefined;
+
+    mcpWeb.connect().then(
+      () => console.log(`${gameName} initialized`),
+      (error) => {
+        console.error('Failed to connect to MCP:', error);
+        connectionStatus = 'error';
+      },
+    );
+
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+    };
   });
 
   onDestroy(() => {
     releaseGameName();
+  });
+
+  // Time left until the page disconnects for lack of use.
+  const idleLabel = $derived.by(() => {
+    if (connectionStatus === 'idle') return 'Idle';
+    const disconnectAt = mcpWeb.idleDisconnectAt;
+    if (disconnectAt === undefined) return '';
+    const remainingMs = Math.max(0, disconnectAt - now);
+    if (remainingMs > COUNTDOWN_WINDOW_MS) return '';
+    const seconds = Math.ceil(remainingMs / 1000);
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
   });
 
   const gameOver = $derived(gameState.gameState.gameStatus !== 'playing');
@@ -55,8 +83,12 @@
             class:bg-yellow-500={connectionStatus === 'connecting'}
             class:bg-red-500={connectionStatus === 'error' ||
               connectionStatus === 'disconnected'}
+            class:bg-zinc-500={connectionStatus === 'idle'}
           ></div>
           MCP-Web
+          {#if idleLabel}
+            <span class="tabular-nums opacity-60">{idleLabel}</span>
+          {/if}
         </button>
       </div>
     </header>

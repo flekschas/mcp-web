@@ -1,22 +1,24 @@
 import { atom } from 'jotai';
-import { unwrap } from 'jotai/utils';
 import { mcp } from './mcp';
 
-export const mcpAtom = atom(mcp);
+type McpStatus = 'connecting' | 'connected' | 'disconnected' | 'idle' | 'error';
 
-export const mcpIsConnectedAsyncAtom = atom((get) => get(mcpAtom).connect());
+const currentStatus = (): McpStatus => {
+  if (mcp.connected) return 'connected';
+  if (mcp.idle) return 'idle';
+  return mcp.connecting ? 'connecting' : 'disconnected';
+};
 
-// `undefined` while the connection is pending
-const mcpIsConnectedAtom = unwrap(mcpIsConnectedAsyncAtom);
+/** The status of the bridge connection. Connects when first used. */
+export const mcpStatusAtom = atom<McpStatus>('connecting');
 
-export const mcpStatusAtom = atom((get) => {
-  try {
-    const isConnected = get(mcpIsConnectedAtom);
-    if (isConnected === undefined) {
-      return 'connecting';
-    }
-    return isConnected ? 'connected' : 'disconnected';
-  } catch {
-    return 'error';
-  }
-});
+mcpStatusAtom.onMount = (setStatus) => {
+  const unsubscribe = mcp.onConnectionStateChange(() =>
+    setStatus(currentStatus()),
+  );
+  mcp.connect().then(
+    () => setStatus(currentStatus()),
+    () => setStatus('error'),
+  );
+  return unsubscribe;
+};

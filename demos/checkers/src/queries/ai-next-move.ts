@@ -55,6 +55,9 @@ export async function queryAIForMove() {
       'Select the strongest move from the valid_moves in the game state.',
     ].join('\n');
 
+    // The page may be reconnecting after going idle.
+    if (!mcpWeb.connected) await mcpWeb.connect();
+
     const query = mcpWeb.query({
       prompt,
       context: [
