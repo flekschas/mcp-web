@@ -4,6 +4,7 @@ import { helpModalOpenAtom } from '../help/states.ts';
 import { HiGlass } from '../higlass/higlass.tsx';
 import { codeMode, setCodeMode } from '../mcp/code-mode.ts';
 import { mcpStatusAtom } from '../mcp/states.ts';
+import { CodeModeNotice } from './code-mode-notice.tsx';
 
 export function App() {
   const mcpStatus = useAtomValue(mcpStatusAtom);
@@ -68,6 +69,7 @@ export function App() {
           <HiGlass />
         </div>
         <Help />
+        <CodeModeNotice />
       </main>
     </div>
   );

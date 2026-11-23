@@ -58,4 +58,4 @@ a program. `higlass_screenshot` stays outside the code tool, because a program
 can't return an image to AI.
 
 Switching reloads the page, because the tools are registered once at startup.
-The mode is set by `?codeMode=1` in the URL.
+The browser remembers the mode.

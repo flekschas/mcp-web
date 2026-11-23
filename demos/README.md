@@ -22,8 +22,8 @@ was a remote MCP server.
 
 Demos with a **Code mode** switch in the header offer their tools either one by
 one or through one [code tool](https://mcp-web.dev/tools/code). Switching
-reloads the page with `?codeMode=1` added to or removed from the URL, so a
-link opens the demo in its mode.
+reloads the page, and the browser remembers the mode, so the demo opens in the
+mode it was last in.
 
 ### What the AI App Sees After Switching
 

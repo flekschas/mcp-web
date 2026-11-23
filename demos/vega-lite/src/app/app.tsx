@@ -7,6 +7,7 @@ import { mcpStatusAtom } from '../mcp/states.ts';
 import { EXAMPLES } from '../spec/examples.ts';
 import { checkVegaLiteSpec, type VegaLiteSpec } from '../spec/schema.ts';
 import { editorTextAtom, keptEditorText, specAtom } from '../spec/states.ts';
+import { CodeModeNotice } from './code-mode-notice.tsx';
 import { CodeModeSwitch } from './code-mode-switch.tsx';
 
 const STATUS_COLORS = {
@@ -78,6 +79,7 @@ export function App() {
           <Chart />
         </section>
         <Help />
+        <CodeModeNotice />
       </main>
     </div>
   );

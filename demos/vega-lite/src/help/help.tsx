@@ -206,22 +206,12 @@ export function Help() {
                 <h3 className="text-lg font-semibold text-zinc-900 mb-2">
                   Code Mode
                 </h3>
-                <p className="text-zinc-700 mb-3">
+                <p className="text-zinc-700">
                   Code mode is {codeMode ? 'on' : 'off'}. With code mode on, the
                   agent gets one <code>code_spec</code> tool instead of{' '}
                   <code>set_spec</code>: it changes the spec with a short
                   program, so it only writes the change. Turn it on or off with
-                  the <strong>Code mode</strong> switch in the header, or open
-                  the page with <code>?codeMode=1</code>.
-                </p>
-                <p className="text-zinc-700">
-                  Switching reloads the page and keeps your spec, including an
-                  unfinished edit. The connector URL, including its token, stays
-                  the same, so you don't need to change your configuration.
-                  Remote MCP clients get the new tool list automatically. With
-                  the stdio client, the list refreshes if your version of{' '}
-                  <code>@mcp-web/client</code> forwards tool list changes;
-                  otherwise, start a new conversation or reconnect.
+                  the <strong>Code mode</strong> switch in the header.
                 </p>
               </div>
             </div>

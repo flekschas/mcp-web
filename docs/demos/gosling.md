@@ -23,9 +23,9 @@ changes the spec, the editor shows it.
 
 - `src/mcp/code-mode.ts`: The **Code mode** switch. With code mode on, AI
   changes the spec with a short program instead of sending the whole spec back
-  (see the [code tool](/tools/code)). The mode is set by `?codeMode=1` in the
-  URL. Switching reloads the page and keeps the spec, and the connector URL
-  stays the same.
+  (see the [code tool](/tools/code)). The browser remembers the mode.
+  Switching reloads the page and keeps the spec, and the connector URL stays
+  the same.
 
 ## From JSON Schema to Zod
 

@@ -43,13 +43,14 @@ mode, the agent gets one `code_spec` tool instead of `set_spec`: it changes
 the spec with a JavaScript program that calls `get_spec` and `set_spec`, so it
 only writes the change instead of sending the whole spec back.
 
-The mode is set by the URL: `?codeMode=1` opens code mode, and the switch adds
-or removes the parameter. Switching reloads the page, since tools are
-registered once at startup. The spec and the editor's text, including an
+The browser remembers the mode in localStorage. Switching reloads the page,
+since tools are registered once at startup. The spec and the editor's text, including an
 unfinished edit, are kept across the reload, and the connector URL, including
 its token, stays the same. Remote MCP clients get the new tool list
 automatically. With the stdio client, the list refreshes if `@mcp-web/client`
-forwards tool list changes; otherwise, start a new conversation or reconnect.
+forwards tool list changes. After the reload, a dialog reminds you to refresh
+the tool list or start a new conversation if your agent still shows the old
+tools.
 
 ## How the Spec Schema Works
 

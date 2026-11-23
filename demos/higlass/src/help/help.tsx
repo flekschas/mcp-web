@@ -1,12 +1,14 @@
 import { useAtom, useSetAtom } from 'jotai';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { codeMode } from '../mcp/code-mode.ts';
 import { mcp } from '../mcp/mcp.ts';
 import { helpModalDismissedAtom, helpModalOpenAtom } from './states.ts';
 
 type ConfigTab = 'remote' | 'stdio';
 type CopyType = 'name' | 'url' | 'json' | 'example' | 'query';
 
-const exampleQuery = "In HiGlass, zoom into a 2 Mb region around the MYC gene and add CTCF and Rad21 ChIP-seq signal as horizontal bar tracks on top"
+const exampleQuery =
+  'In HiGlass, zoom into a 2 Mb region around the MYC gene and add CTCF and Rad21 ChIP-seq signal as horizontal bar tracks on top';
 
 export function Help() {
   const [isOpen, setIsOpen] = useAtom(helpModalOpenAtom);
@@ -80,8 +82,8 @@ export function Help() {
                 >
                   HiGlass
                 </a>{' '}
-                can be controlled by an AI agent through MCP tools. Follow these steps to get
-                started:
+                can be controlled by an AI agent through MCP tools. Follow these
+                steps to get started:
               </p>
 
               <div className="space-y-6">
@@ -133,7 +135,9 @@ export function Help() {
                     <div className="space-y-3">
                       {/* Name field */}
                       <div className="space-y-1">
-                        <label className="block text-xs font-medium text-zinc-600">Name</label>
+                        <label className="block text-xs font-medium text-zinc-600">
+                          Name
+                        </label>
                         <div className="flex gap-2">
                           <code className="flex-1 text-zinc-800 bg-zinc-100 border border-zinc-200 rounded px-3 py-2 text-sm font-mono overflow-x-auto whitespace-nowrap">
                             {serverName}
@@ -150,7 +154,9 @@ export function Help() {
 
                       {/* URL field */}
                       <div className="space-y-1">
-                        <label className="block text-xs font-medium text-zinc-600">URL</label>
+                        <label className="block text-xs font-medium text-zinc-600">
+                          URL
+                        </label>
                         <div className="flex gap-2">
                           <code className="flex-1 text-zinc-800 bg-zinc-100 border border-zinc-200 rounded px-3 py-2 text-sm font-mono whitespace-nowrap overflow-hidden">
                             {serverUrl}
@@ -166,7 +172,8 @@ export function Help() {
                       </div>
 
                       <p className="text-xs text-zinc-500 pt-1">
-                        Once configured, you can ask your AI agent to control HiGlass. For example:
+                        Once configured, you can ask your AI agent to control
+                        HiGlass. For example:
                       </p>
 
                       <div className="flex gap-2">
@@ -190,7 +197,9 @@ export function Help() {
                         </pre>
                         <button
                           type="button"
-                          onClick={() => copyToClipboard(stdioConfigStr, 'json')}
+                          onClick={() =>
+                            copyToClipboard(stdioConfigStr, 'json')
+                          }
                           className="absolute top-2 right-2 px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 text-xs rounded transition-colors cursor-pointer"
                         >
                           {copySuccess === 'json' ? '✓ Copied!' : 'Copy'}
@@ -198,6 +207,19 @@ export function Help() {
                       </div>
                     </div>
                   )}
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold text-zinc-900 mb-2">
+                    2. Code Mode (Optional)
+                  </h3>
+                  <p className="text-zinc-700">
+                    Code mode is {codeMode ? 'on' : 'off'}. With code mode on,
+                    the agent edits the view with one <code>higlass_code</code>{' '}
+                    tool that runs a short program, instead of separate tools
+                    like <code>higlass_add_track</code>. Turn it on or off with
+                    the <strong>Code mode</strong> switch in the header.
+                  </p>
                 </div>
               </div>
             </div>

@@ -26,8 +26,9 @@ In both modes, `higlass_get_view_config`, `higlass_tileset_search`,
 `higlass_gene_search`, and `higlass_screenshot` are also registered on their
 own, so AI can look things up or take a screenshot without writing a program.
 
-The mode is set by the URL: `http://localhost:5173/?codeMode=1` opens code
-mode, and the switch adds or removes the parameter.
+The browser remembers the mode in localStorage. After the reload, a dialog
+reminds you to refresh the tool list or start a new conversation if your agent
+still shows the old tools.
 
 See [Recording Demo Videos](../README.md#recording-demo-videos) for what a
 connected AI app sees after switching.
