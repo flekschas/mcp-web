@@ -61,3 +61,7 @@ pnpm --filter @mcp-web/bridge dev
 - **Agent docs**: `agents/` (this file + skills)
 - **API docs**: Generated via `pnpm build:api-refs` to `docs/api/`
 - **Package READMEs**: `packages/*/README.md`
+
+Before opening a PR that changes the public API, run `pnpm build:api-refs` and
+review the agent docs and skills against the code with the
+`mcp-web-agent-docs` skill.
