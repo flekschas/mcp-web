@@ -21,6 +21,7 @@
 
 - feat: add a Cloudflare Workers adapter, `createCloudflareBridge` from `@mcp-web/bridge/cloudflare` ([#10](https://github.com/flekschas/mcp-web/pull/10))
 - fix: notify MCP clients when tools or resources are removed ([#16](https://github.com/flekschas/mcp-web/pull/16))
+- fix: report a tool result as an error only when its `error` is set, so results like `{ status: 'rendered', error: null }` no longer show as failed
 - chore: remove the Deno and PartyKit adapters ([#8](https://github.com/flekschas/mcp-web/pull/8), [#10](https://github.com/flekschas/mcp-web/pull/10))
 
 `@mcp-web/client`:
