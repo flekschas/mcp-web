@@ -1,3 +1,4 @@
+import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 
 /**
@@ -5,9 +6,28 @@ import { z } from 'zod';
  *
  * This is the wire protocol type used for tool definitions in MCP communication.
  * It differs from `ToolDefinition` which includes additional client-side
- * properties like `handler` and `outputSchema` not in the MCP wire protocol.
+ * properties like `handler` that are not in the MCP wire protocol.
  */
 export type { ListToolsResult, Tool } from '@modelcontextprotocol/sdk/types.js';
+
+/**
+ * Returns the output schema when its top-level type is `object`, the only
+ * kind of output schema MCP allows.
+ */
+export const getMcpOutputSchema = (
+  schema?: z.core.JSONSchema.JSONSchema,
+): Tool['outputSchema'] =>
+  schema?.type === 'object' ? (schema as Tool['outputSchema']) : undefined;
+
+/**
+ * Whether a tool result reports a failure: an object with a set `error`, e.g.
+ * `{ error: 'Invalid move' }`. A result like `{ status: 'rendered', error:
+ * null }` is not one.
+ */
+export const isErrorResult = (result: unknown): boolean =>
+  !!result &&
+  typeof result === 'object' &&
+  !!(result as { error?: unknown }).error;
 
 /**
  * Checks the shape of a JSON Schema: the keywords the bridge and MCP clients
@@ -113,11 +133,17 @@ export const ToolDefinitionJsonSchema = ToolDefinitionBaseSchema.extend({
     .optional(),
 });
 
-/** Runtime validation schema that accepts either Zod or JSON Schema */
-export const ToolDefinitionSchema = z.union([
-  ToolDefinitionZodSchema,
-  ToolDefinitionJsonSchema,
-]);
+/** Runtime validation schema that accepts Zod or JSON Schema for each schema */
+export const ToolDefinitionSchema = ToolDefinitionBaseSchema.extend({
+  inputSchema: z.union([
+    ToolDefinitionZodSchema.shape.inputSchema,
+    ToolDefinitionJsonSchema.shape.inputSchema,
+  ]),
+  outputSchema: z.union([
+    ToolDefinitionZodSchema.shape.outputSchema,
+    ToolDefinitionJsonSchema.shape.outputSchema,
+  ]),
+});
 
 /**
  * Tool definition for client-side use with handler and optional schemas.

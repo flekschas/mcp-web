@@ -14,7 +14,9 @@ import {
   type ErroredListResourcesResult,
   type ErroredListToolsResult,
   type FatalError,
+  getMcpOutputSchema,
   InternalErrorCode,
+  isErrorResult,
   InvalidSessionErrorCode,
   type MCPWebConfig,
   type MCPWebConfigOutput,
@@ -165,6 +167,18 @@ interface ToolDefinition {
   _meta?: Record<string, unknown>;
 }
 
+interface WrappedToolResult {
+  content: Array<{
+    type: string;
+    text?: string;
+    data?: string;
+    mimeType?: string;
+  }>;
+  structuredContent?: Record<string, unknown>;
+  isError?: boolean;
+  _meta?: Record<string, unknown>;
+}
+
 interface SessionData {
   ws: WebSocketConnection;
   authToken: string;
@@ -263,15 +277,52 @@ function toBase64(buffer: ArrayBuffer): string {
   return btoa(binary);
 }
 
+/** Copies a JSON value with object keys sorted, keeping array order. */
+const sortKeys = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(sortKeys);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.keys(value)
+      .sort()
+      .map((key) => [key, sortKeys((value as Record<string, unknown>)[key])]),
+  );
+};
+
+/** Copies a schema without its root `$schema`. */
+const withoutDialect = (schema?: Record<string, unknown>) => {
+  if (!schema) return schema;
+  const { $schema: _, ...rest } = schema;
+  return rest;
+};
+
 /**
- * Whether a tool result reports a failure: an object with a set `error`, e.g.
- * `{ error: 'Invalid move' }`. A result like `{ status: 'rendered', error:
- * null }` is not one.
+ * Identifies a tool's input and output schemas, which tools with the same name
+ * must share across sessions. The root `$schema` doesn't count, so a page on
+ * an older `@mcp-web/core`, which leaves it out, can share a tool with a newer
+ * page.
  */
-const isErrorResult = (result: unknown): boolean =>
-  !!result &&
-  typeof result === 'object' &&
-  !!(result as { error?: unknown }).error;
+const getSchemaKey = (tool: ToolDefinition): string =>
+  JSON.stringify(
+    sortKeys([
+      withoutDialect(tool.inputSchema) ?? {},
+      withoutDialect(tool.outputSchema) ?? null,
+    ]),
+  );
+
+/**
+ * Turns a successful result that isn't an object into an error when the tool
+ * has an output schema, because MCP clients reject it. Pages on an older
+ * `@mcp-web/core` don't check results themselves.
+ */
+const checkResultShape = (
+  result: unknown,
+  outputSchema?: Tool['outputSchema'],
+): unknown =>
+  outputSchema &&
+  !isErrorResult(result) &&
+  (result === null || typeof result !== 'object' || Array.isArray(result))
+    ? { error: 'Invalid output: expected an object' }
+    : result;
 
 /**
  * Builds the query URL by appending the UUID to the agent URL.
@@ -655,7 +706,7 @@ export class MCPWebBridge {
     }
 
     const toolName = message.tool.name;
-    const newSchema = JSON.stringify(message.tool.inputSchema ?? {});
+    const newSchema = getSchemaKey(message.tool);
 
     // Check sibling sessions (same auth token) for schema conflicts
     const siblingSessionIds = this.#tokenSessionIds.get(session.authToken);
@@ -666,7 +717,7 @@ export class MCPWebBridge {
         if (!sibling) continue;
         const existingTool = sibling.tools.get(toolName);
         if (existingTool) {
-          const existingSchema = JSON.stringify(existingTool.inputSchema ?? {});
+          const existingSchema = getSchemaKey(existingTool);
           if (existingSchema !== newSchema) {
             console.warn(
               `Tool schema conflict: '${toolName}' registered by session ${siblingId} has a different schema. Rejecting registration from session ${sessionId}.`,
@@ -1253,10 +1304,12 @@ export class MCPWebBridge {
         case 'tools/list':
           result = await this.#handleToolsList(sessions, mcpRequest.params);
           break;
-        case 'tools/call':
-          result = await this.#handleToolCall(sessions, mcpRequest.params);
-          result = this.#wrapToolCallResult(result);
+        case 'tools/call': {
+          const { result: toolResult, outputSchema } =
+            await this.#handleToolCall(sessions, mcpRequest.params);
+          result = this.#wrapToolCallResult(toolResult, outputSchema);
           break;
+        }
         case 'resources/list':
           result = await this.#handleResourcesList(sessions, mcpRequest.params);
           break;
@@ -1452,23 +1505,45 @@ export class MCPWebBridge {
   }
 
   /**
-   * Wraps a tool call result in the MCP CallToolResult format.
-   * This ensures compatibility with both Remote MCP (direct HTTP) and STDIO clients.
+   * Wraps a tool call result in the MCP CallToolResult format, for both
+   * Remote MCP (direct HTTP) and STDIO clients.
    *
-   * If the result object contains a `_meta` field, it is extracted and placed at
-   * the top level of the CallToolResult (as required by the MCP protocol), rather
-   * than being serialized inside the JSON text content.
+   * The `_meta` field of a successful object result goes to the top level of
+   * the CallToolResult, where MCP expects it, instead of into the content.
+   *
+   * When the tool has an output schema, a successful object result is also
+   * returned as `structuredContent`. The content stays for clients that don't
+   * read structured content.
    */
-  #wrapToolCallResult(result: unknown): {
-    content: Array<{
-      type: string;
-      text?: string;
-      data?: string;
-      mimeType?: string;
-    }>;
-    isError?: boolean;
-    _meta?: Record<string, unknown>;
-  } {
+  #wrapToolCallResult(
+    result: unknown,
+    outputSchema?: Tool['outputSchema'],
+  ): WrappedToolResult {
+    if (
+      isErrorResult(result) ||
+      result === null ||
+      typeof result !== 'object' ||
+      Array.isArray(result)
+    ) {
+      return this.#toCallToolResult(result);
+    }
+
+    const { _meta, ...value } = result as Record<string, unknown>;
+    const wrapped = this.#toCallToolResult(value);
+    if (_meta && typeof _meta === 'object') {
+      wrapped._meta = _meta as Record<string, unknown>;
+    }
+    if (outputSchema) {
+      wrapped.structuredContent = value;
+    }
+    return wrapped;
+  }
+
+  /**
+   * Formats a tool result as MCP content: an error, an image for image data
+   * URLs, or text.
+   */
+  #toCallToolResult(result: unknown): WrappedToolResult {
     if (isErrorResult(result)) {
       return {
         content: [
@@ -1528,45 +1603,17 @@ export class MCPWebBridge {
         }
       }
 
-      // Extract _meta from the result object to place at the top level of CallToolResult.
-      // The MCP protocol expects _meta as a top-level field on the result object,
-      // not embedded inside the JSON text content (where the host can't find it).
-      let topLevelMeta: Record<string, unknown> | undefined;
-      let resultToSerialize = result;
-
-      if (typeof result === 'object' && '_meta' in result) {
-        const { _meta, ...rest } = result as Record<string, unknown>;
-        if (_meta && typeof _meta === 'object') {
-          topLevelMeta = _meta as Record<string, unknown>;
-        }
-        resultToSerialize = rest;
-      }
-
-      const wrapped: {
-        content: Array<{
-          type: string;
-          text?: string;
-          data?: string;
-          mimeType?: string;
-        }>;
-        _meta?: Record<string, unknown>;
-      } = {
+      return {
         content: [
           {
             type: 'text',
             text:
-              typeof resultToSerialize === 'object'
-                ? JSON.stringify(resultToSerialize, null, 2)
-                : String(resultToSerialize),
+              typeof result === 'object'
+                ? JSON.stringify(result, null, 2)
+                : String(result),
           },
         ],
       };
-
-      if (topLevelMeta) {
-        wrapped._meta = topLevelMeta;
-      }
-
-      return wrapped;
     }
 
     // null or undefined result
@@ -1757,6 +1804,7 @@ export class MCPWebBridge {
               },
               required: ['session_id', ...(tool.inputSchema?.required || [])],
             },
+            outputSchema: getMcpOutputSchema(tool.outputSchema),
             // Forward _meta (e.g., _meta.ui.resourceUri for MCP Apps)
             ...(tool._meta ? { _meta: tool._meta } : {}),
           });
@@ -1795,6 +1843,7 @@ export class MCPWebBridge {
           },
           required: tool.inputSchema?.required || [],
         },
+        outputSchema: getMcpOutputSchema(tool.outputSchema),
         // Forward _meta (e.g., _meta.ui.resourceUri for MCP Apps)
         ...(tool._meta ? { _meta: tool._meta } : {}),
       };
@@ -1807,11 +1856,11 @@ export class MCPWebBridge {
   async #handleToolCall(
     sessions: Map<string, SessionData>,
     params?: McpRequest['params'],
-  ): Promise<unknown> {
+  ): Promise<{ result: unknown; outputSchema?: Tool['outputSchema'] }> {
     const { name: toolName, arguments: toolInput, _meta } = params || {};
 
     if (!toolName) {
-      return { error: ToolNameRequiredErrorCode };
+      return { result: { error: ToolNameRequiredErrorCode } };
     }
 
     const queryId = _meta?.queryId;
@@ -1819,27 +1868,29 @@ export class MCPWebBridge {
     if (queryId) {
       const query = this.#queries.get(queryId);
       if (!query) {
-        return { error: QueryNotFoundErrorCode };
+        return { result: { error: QueryNotFoundErrorCode } };
       }
       if (query.state !== 'active') {
-        return { error: QueryNotActiveErrorCode };
+        return { result: { error: QueryNotActiveErrorCode } };
       }
 
       if (query.restrictTools && query.tools) {
         const allowed = query.tools.some((t) => t.name === toolName);
         if (!allowed) {
           return {
-            error: ToolNotAllowedErrorCode,
-            details:
-              'The query restricts the allowed tool calls. Use one of `allowed_tools`.',
-            allowed_tools: query.tools.map((t) => t.name),
+            result: {
+              error: ToolNotAllowedErrorCode,
+              details:
+                'The query restricts the allowed tool calls. Use one of `allowed_tools`.',
+              allowed_tools: query.tools.map((t) => t.name),
+            },
           };
         }
       }
     }
 
     if (toolName === 'list_sessions') {
-      return { sessions: this.#listSessions(sessions) };
+      return { result: { sessions: this.#listSessions(sessions) } };
     }
 
     const [sessionId, session] =
@@ -1849,13 +1900,16 @@ export class MCPWebBridge {
       ) || [];
 
     if (!sessionId || !session) {
-      return this.#createSessionNotFoundError(sessions);
+      return { result: this.#createSessionNotFoundError(sessions) };
     }
 
-    if (!session.tools.has(toolName)) {
+    const tool = session.tools.get(toolName);
+    if (!tool) {
       return {
-        error: ToolNotFoundErrorCode,
-        available_tools: Array.from(session.tools.keys()),
+        result: {
+          error: ToolNotFoundErrorCode,
+          available_tools: Array.from(session.tools.keys()),
+        },
       };
     }
 
@@ -1863,12 +1917,15 @@ export class MCPWebBridge {
     // parameter injected by the bridge, not an actual tool argument.
     const { session_id: _, ...forwardedInput } = toolInput || {};
 
-    return this.#forwardToolCallToSession(
+    const outputSchema = getMcpOutputSchema(tool.outputSchema);
+    const result = await this.#forwardToolCallToSession(
       sessionId,
       toolName,
       forwardedInput,
       queryId,
+      outputSchema,
     );
+    return { result, outputSchema };
   }
 
   async #handleResourcesList(
@@ -2009,6 +2066,7 @@ export class MCPWebBridge {
     toolName: string,
     toolInput?: Record<string, unknown>,
     queryId?: string,
+    outputSchema?: Tool['outputSchema'],
   ): Promise<unknown> {
     const session = this.#sessions.get(sessionId);
     if (!session || session.ws.readyState !== 'OPEN') {
@@ -2041,7 +2099,7 @@ export class MCPWebBridge {
             this.#toolResponseHandlers.delete(requestId);
             session.ws.offMessage(handleResponse);
 
-            const toolResult = message.result;
+            const toolResult = checkResultShape(message.result, outputSchema);
 
             if (queryId) {
               const query = this.#queries.get(queryId);

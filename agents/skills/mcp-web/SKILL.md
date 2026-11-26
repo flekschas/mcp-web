@@ -132,6 +132,14 @@ mcpWeb.addTool({
 - Updating multiple states atomically
 - Operations with side effects
 
+With an `outputSchema`, every result is checked against it, and a result
+that doesn't match fails the call. When the schema is an object, AI apps also
+get the result as structured data. To report a failure, throw an error; the
+output schema doesn't apply to it. A JSON Schema output schema is checked as
+draft-07, the way MCP clients check it, so write tuples with an `items` array.
+It isn't checked on a page whose Content Security Policy blocks compiling
+code; a Zod output schema always is.
+
 ## Large State: Code Mode
 
 When state is large or grows, add `codeMode: createCodeMode()` (from

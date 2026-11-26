@@ -109,6 +109,7 @@ test('Tools registered before connection are available after connecting', async 
       type: 'text',
       text: JSON.stringify({ greeting: 'Hello, Alice!' }, null, 2)
     }],
+    structuredContent: { greeting: 'Hello, Alice!' },
   });
 
   const result2 = await client.callTool('tool_before_connect_2', { value: 21 });
@@ -117,6 +118,7 @@ test('Tools registered before connection are available after connecting', async 
       type: 'text',
       text: JSON.stringify({ doubled: 42 }, null, 2)
     }],
+    structuredContent: { doubled: 42 },
   });
 
   mcpWeb.disconnect();
@@ -168,6 +170,7 @@ test('Tools registered after connection are immediately available', async () => 
       type: 'text',
       text: JSON.stringify({ upper: 'HELLO' }, null, 2)
     }],
+    structuredContent: { upper: 'HELLO' },
   });
 
   mcpWeb.disconnect();
@@ -208,6 +211,7 @@ test('Tools are removed after mcpWeb instance disconnects', async () => {
       type: 'text',
       text: JSON.stringify({ output: 'Processed: test' }, null, 2)
     }],
+    structuredContent: { output: 'Processed: test' },
   });
 
   // Now disconnect

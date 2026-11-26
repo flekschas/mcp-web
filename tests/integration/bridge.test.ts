@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MCPWebClient, type MCPWebClientConfig, type TextContent } from '@mcp-web/client';
 import { MCPWeb } from '@mcp-web/core';
+import { AjvJsonSchemaValidator } from '@modelcontextprotocol/sdk/validation/ajv';
 import {
   type MCPWebConfig,
   SessionNotSpecifiedErrorCode,
@@ -149,6 +150,7 @@ test('Tools from differently authenticated clients are isolated', async () => {
       type: 'text',
       text: JSON.stringify({ result: 'Hello, John!' }, null, 2)
     }],
+    structuredContent: { result: 'Hello, John!' },
   });
 
   const result2 = await client2.callTool('tool2', { name: 'Jane' });
@@ -157,6 +159,7 @@ test('Tools from differently authenticated clients are isolated', async () => {
       type: 'text',
       text: JSON.stringify({ result: 'Hallo, Jane!' }, null, 2)
     }],
+    structuredContent: { result: 'Hallo, Jane!' },
   });
 
   // Calling tools from a different session should fail
@@ -269,6 +272,7 @@ test('Tools from different sessions are isolated', async () => {
       type: 'text',
       text: JSON.stringify({ result: 'Hello, John!' }, null, 2)
     }],
+    structuredContent: { result: 'Hello, John!' },
   });
   const tools2Result = await client.callTool('tool2', { name: 'Jane' }, mcpWeb2.sessionId);
   expect(tools2Result).toEqual({
@@ -276,6 +280,7 @@ test('Tools from different sessions are isolated', async () => {
       type: 'text',
       text: JSON.stringify({ result: 'Hallo, Jane!' }, null, 2)
     }],
+    structuredContent: { result: 'Hallo, Jane!' },
   });
 
   // Calling tools with session_id in the arguments should also work
@@ -285,6 +290,7 @@ test('Tools from different sessions are isolated', async () => {
       type: 'text',
       text: JSON.stringify({ result: 'Hello, John!' }, null, 2)
     }],
+    structuredContent: { result: 'Hello, John!' },
   });
 
   // Calling tools without a session ID should fail
@@ -501,6 +507,7 @@ test('Allows tools with same name and identical schemas across sessions', async 
       type: 'text',
       text: JSON.stringify({ result: 'Hello, World!' }, null, 2)
     }],
+    structuredContent: { result: 'Hello, World!' },
   });
 
   const result2 = await client.callTool('shared_tool', { name: 'World' }, mcpWeb2.sessionId);
@@ -509,6 +516,7 @@ test('Allows tools with same name and identical schemas across sessions', async 
       type: 'text',
       text: JSON.stringify({ result: 'Hallo, World!' }, null, 2)
     }],
+    structuredContent: { result: 'Hallo, World!' },
   });
 
   mcpWeb1.disconnect();
@@ -539,6 +547,155 @@ test('Only a result with a set error is reported as an error', async () => {
 
   const moveResult = await client.callTool('bad_move', {}, mcpWeb.sessionId);
   expect(moveResult.isError).toBe(true);
+
+  mcpWeb.disconnect();
+});
+
+test('Tools return the output parsed by a Zod output schema', async () => {
+  const authToken = 'authToken-zod-output';
+  const mcpWeb = new MCPWeb({ ...mcpWebConfig, authToken });
+  mcpWeb.addTool({
+    name: 'get_count',
+    description: 'Get a count',
+    outputSchema: z.object({ count: z.number().default(1) }),
+    // Returns an unknown key and relies on the default
+    handler: async () => ({ extra: true }) as unknown as { count: number },
+  });
+  await mcpWeb.connect();
+
+  const client = new MCPWebClient({ ...mcpWebClientConfig, authToken });
+  const result = await client.callTool('get_count');
+
+  expect(result).toEqual({
+    content: [{ type: 'text', text: JSON.stringify({ count: 1 }, null, 2) }],
+    structuredContent: { count: 1 },
+  });
+
+  mcpWeb.disconnect();
+});
+
+test('Tools fail when the result does not match a JSON Schema output schema', async () => {
+  const authToken = 'authToken-json-output';
+  const mcpWeb = new MCPWeb({ ...mcpWebConfig, authToken });
+  const outputSchema = {
+    type: 'object',
+    properties: { count: { type: 'number' } },
+    required: ['count'],
+  };
+  mcpWeb.addTool({
+    name: 'get_wrong_count',
+    description: 'Returns the wrong shape',
+    outputSchema,
+    handler: () => ({ total: 1 }),
+  });
+  mcpWeb.addTool({
+    name: 'get_no_count',
+    description: 'Returns null',
+    outputSchema,
+    handler: () => null,
+  });
+  mcpWeb.addTool({
+    name: 'get_bad_time',
+    description: 'Returns a string that is not a date-time',
+    outputSchema: {
+      type: 'object',
+      properties: { when: { type: 'string', format: 'date-time' } },
+      required: ['when'],
+    },
+    handler: () => ({ when: 'yesterday' }),
+  });
+  await mcpWeb.connect();
+
+  const client = new MCPWebClient({ ...mcpWebClientConfig, authToken });
+  for (const name of ['get_wrong_count', 'get_no_count', 'get_bad_time']) {
+    const result = await client.callTool(name);
+    expect(result.isError).toBe(true);
+    expect(result).not.toHaveProperty('structuredContent');
+    expect((result.content[0] as TextContent).text).toContain('Invalid output');
+  }
+
+  mcpWeb.disconnect();
+});
+
+test('Tool results pass the MCP SDK check of their listed output schema', async () => {
+  const authToken = 'authToken-sdk-output';
+  const mcpWeb = new MCPWeb({ ...mcpWebConfig, authToken });
+  // Separate copies of one schema with an `$id` and an explicit `$schema`
+  const countSchema = () => ({
+    $id: 'urn:example:count',
+    $schema: 'https://json-schema.org/draft/2020-12/schema',
+    type: 'object',
+    properties: { count: { type: 'number' } },
+    required: ['count'],
+  });
+  mcpWeb.addTool({
+    name: 'get_point',
+    description: 'Get a point',
+    outputSchema: z.object({ point: z.tuple([z.number(), z.number()]) }),
+    handler: () => ({ point: [1, 2] as [number, number] }),
+  });
+  mcpWeb.addTool({
+    name: 'get_first_count',
+    description: 'Get the first count',
+    outputSchema: countSchema(),
+    handler: () => ({ count: 1 }),
+  });
+  mcpWeb.addTool({
+    name: 'get_second_count',
+    description: 'Get the second count',
+    outputSchema: countSchema(),
+    handler: () => ({ count: 2 }),
+  });
+  mcpWeb.addTool({
+    name: 'get_time',
+    description: 'Get the time',
+    outputSchema: {
+      type: 'object',
+      properties: { when: { type: 'string', format: 'date-time' } },
+      required: ['when'],
+    },
+    handler: () => ({ when: '2026-11-26T12:00:00Z' }),
+  });
+  await mcpWeb.connect();
+
+  const client = new MCPWebClient({ ...mcpWebClientConfig, authToken });
+  const { tools } = await client.listTools();
+  const validator = new AjvJsonSchemaValidator();
+  for (const name of [
+    'get_point',
+    'get_first_count',
+    'get_second_count',
+    'get_time',
+  ]) {
+    const result = await client.callTool(name);
+    expect(result.isError).toBeUndefined();
+    const outputSchema = tools.find((tool) => tool.name === name)?.outputSchema;
+    expect(outputSchema).toBeDefined();
+    const check = validator.getValidator(
+      outputSchema as Parameters<typeof validator.getValidator>[0],
+    )(result.structuredContent);
+    expect(check.errorMessage).toBeUndefined();
+  }
+
+  mcpWeb.disconnect();
+});
+
+test('Tools with an output schema send the error their handler returns', async () => {
+  const authToken = 'authToken-output-error';
+  const mcpWeb = new MCPWeb({ ...mcpWebConfig, authToken });
+  mcpWeb.addTool({
+    name: 'get_value',
+    description: 'Get a value',
+    outputSchema: z.object({ value: z.string().optional() }),
+    handler: () => ({ error: 'upstream offline' }) as { value?: string },
+  });
+  await mcpWeb.connect();
+
+  const client = new MCPWebClient({ ...mcpWebClientConfig, authToken });
+  const result = await client.callTool('get_value');
+
+  expect(result.isError).toBe(true);
+  expect((result.content[0] as TextContent).text).toContain('upstream offline');
 
   mcpWeb.disconnect();
 });

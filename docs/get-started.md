@@ -84,6 +84,14 @@ mcp.addTool({
 });
 ```
 
+With an `outputSchema`, every result is checked against it, and a result
+that doesn't match fails the call. When the schema is an object, AI apps also
+get the result as structured data. To report a failure, throw an error; the
+output schema doesn't apply to it. A JSON Schema output schema is checked as
+draft-07, the way MCP clients check it, so write tuples with an `items` array.
+It isn't checked on a page whose Content Security Policy blocks compiling
+code; a Zod output schema always is.
+
 ### 4. Exposing Application State
 
 In most cases, you want to expose some frontend state directly. Let AI agents read and modify your application state:

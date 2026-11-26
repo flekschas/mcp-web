@@ -28,6 +28,7 @@ import {
   getDefaultAppResourceUri,
   getDefaultAppUrl,
   isCreatedApp,
+  isErrorResult,
   McpWebConfigSchema,
   QueryMessageSchema,
   RESOURCE_MIME_TYPE,
@@ -47,7 +48,12 @@ import { type CreatedTool, isCreatedTool } from './create-tool.js';
 import { QueryResponse } from './query.js';
 import { QueryRequestSchema, QueryResponseResultSchema } from './schemas.js';
 import type { QueryRequest, QueryResponseResult } from './types.js';
-import { toJSONSchema, toToolMetadataJson } from './utils.js';
+import {
+  getOutputValidator,
+  toJSONSchema,
+  toOutputJSONSchema,
+  toToolMetadataJson,
+} from './utils.js';
 
 /**
  * Main class for integrating web applications with AI agents via the Model Context Protocol (MCP).
@@ -126,6 +132,10 @@ export class MCPWeb {
     }
   }
   #config: MCPWebConfigOutput;
+  #outputValidators = new WeakMap<
+    ProcessedToolDefinition,
+    (output: unknown) => unknown
+  >();
   #toolRegistrationErrorCallbacks = new Map<
     string,
     (error: ToolRegistrationError) => void
@@ -638,19 +648,23 @@ export class MCPWeb {
       // Execute the tool
       const result = await tool.handler(toolInput);
 
-      // Validate output if Zod schema is provided
-      if (tool.outputZodSchema) {
-        const parsedResult = tool.outputZodSchema.safeParse(result);
-        if (!parsedResult.success) {
+      // MCP clients reject a result that doesn't match the output schema. An
+      // error result is sent as is, so its message reaches the client.
+      let output = result;
+      const validateResult = this.#outputValidators.get(tool);
+      if (validateResult && !isErrorResult(result)) {
+        try {
+          output = validateResult(result);
+        } catch (error) {
           this.sendToolResponse(requestId, {
-            error: `Invalid output: ${parsedResult.error.message}`,
+            error: error instanceof Error ? error.message : String(error),
           });
           return;
         }
       }
 
-      // Send the raw result - the bridge will handle formatting
-      this.sendToolResponse(requestId, result);
+      // The bridge formats the result for MCP
+      this.sendToolResponse(requestId, output);
     } catch (error) {
       // Only log in non-test environments
       if (globalThis.process?.env?.NODE_ENV !== 'test') {
@@ -1094,7 +1108,7 @@ export class MCPWeb {
         ? toJSONSchema(validationResult.data.inputSchema)
         : undefined,
       outputJsonSchema: validationResult.data.outputSchema
-        ? toJSONSchema(validationResult.data.outputSchema)
+        ? toOutputJSONSchema(validationResult.data.outputSchema)
         : undefined,
     };
 
@@ -1110,6 +1124,13 @@ export class MCPWeb {
         }
         return originalHandler(validationResult?.data);
       };
+    }
+
+    const outputSchema =
+      processedTool.outputZodSchema ?? processedTool.outputJsonSchema;
+    const validateResult = outputSchema && getOutputValidator(outputSchema);
+    if (validateResult) {
+      this.#outputValidators.set(processedTool, validateResult);
     }
 
     return processedTool;
@@ -1402,9 +1423,7 @@ export class MCPWeb {
       resolvedResourceUri,
     };
 
-    this.#apps.set(app.name, processedApp);
-
-    // Create and register the tool that wraps the handler
+    // Create the tool that wraps the handler
     const toolHandler = async (input?: unknown) => {
       // Call the app's handler to get props
       const props = await processedApp.handler(input);
@@ -1420,23 +1439,15 @@ export class MCPWeb {
       };
     };
 
-    // Use the JSON Schema overload - schemas will be converted internally
-    this.addTool({
+    // The props schema is the output schema, so props are checked like any
+    // tool result. Preparing the tool can throw, so it happens before any
+    // state changes.
+    const tool = this.#prepareTool({
       name: app.name,
       description: app.description,
       handler: toolHandler,
-      inputSchema: app.inputSchema
-        ? (toJSONSchema(app.inputSchema) as {
-            type: string;
-            [key: string]: unknown;
-          })
-        : undefined,
-      outputSchema: app.propsSchema
-        ? (toJSONSchema(app.propsSchema) as {
-            type: string;
-            [key: string]: unknown;
-          })
-        : undefined,
+      inputSchema: app.inputSchema && toJSONSchema(app.inputSchema),
+      outputSchema: app.propsSchema,
       // Include _meta.ui in tool description (per ext-apps spec)
       // so the host knows this tool has a UI before calling it
       _meta: {
@@ -1445,6 +1456,9 @@ export class MCPWeb {
         },
       },
     });
+
+    this.#apps.set(app.name, processedApp);
+    this.#storeTool(tool);
 
     // Create and register the resource that serves the app HTML
     this.addResource({
