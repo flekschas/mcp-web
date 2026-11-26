@@ -177,6 +177,35 @@ test('listTools returns query tools when available', async () => {
   expect(result.tools[1].name).toBe('tool2');
 });
 
+test('listTools keeps object output schemas of query tools', async () => {
+  const client = new MCPWebClient({
+    serverUrl: 'http://localhost:3002',
+  });
+
+  const outputSchema = {
+    type: 'object' as const,
+    properties: { count: { type: 'number' } },
+  };
+  const contextClient = client.contextualize({
+    uuid: 'test-query',
+    prompt: 'test',
+    context: [],
+    tools: [
+      { name: 'get_count', description: 'Count', handler: () => {}, outputSchema },
+      {
+        name: 'get_name',
+        description: 'Name',
+        handler: () => {},
+        outputSchema: { type: 'string' },
+      },
+    ],
+  });
+  const result = await contextClient.listTools();
+
+  expect(result.tools[0].outputSchema).toEqual(outputSchema);
+  expect(result.tools[1]).not.toHaveProperty('outputSchema');
+});
+
 test('complete marks query as completed and prevents further calls', async () => {
   globalThis.fetch = (async () => {
     return new Response(JSON.stringify({}), { status: 200 });

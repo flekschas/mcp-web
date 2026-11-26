@@ -1,8 +1,17 @@
 import type { ToolMetadataJson, ToolDefinition } from '@mcp-web/types';
 import Ajv from 'ajv';
+import addFormats from 'ajv-formats';
 import { z } from 'zod';
 
-const ajv = new Ajv({ strict: false });
+// Checks JSON Schemas like the MCP TypeScript SDK client checks tool results:
+// as draft-07, with string formats, and ignoring `$schema`. Schemas aren't
+// registered by `$id`, so tools can share a schema without clashing.
+const ajv = new Ajv({
+  strict: false,
+  validateSchema: false,
+  addUsedSchema: false,
+});
+addFormats(ajv);
 
 // Type guard to check if a schema is a Zod schema
 export function isZodSchema(schema: z.ZodType<unknown> | z.core.JSONSchema.JSONSchema): schema is z.ZodType<unknown> {
@@ -21,6 +30,20 @@ export function toJSONSchema(schema: z.ZodType | z.core.JSONSchema.JSONSchema): 
     return jsonSchema;
   }
   return schema;
+}
+
+/**
+ * Converts a Zod output schema to JSON Schema draft-07, the dialect the MCP
+ * TypeScript SDK client checks tool results with. Zod's default 2020-12 output
+ * writes tuples in a form that draft-07 rejects. A JSON Schema is returned as
+ * is.
+ */
+export function toOutputJSONSchema(
+  schema: z.ZodType | z.core.JSONSchema.JSONSchema
+): z.core.JSONSchema.JSONSchema {
+  return isZodSchema(schema)
+    ? z.toJSONSchema(schema, { target: 'draft-7' })
+    : schema;
 }
 
 export function toToolZodSchema<T>(schema?: z.ZodType<T> | z.core.JSONSchema.JSONSchema): z.ZodObject {
@@ -50,26 +73,79 @@ export function validateInput<T>(
   input: unknown,
   schema: z.ZodType<T> | z.core.JSONSchema.JSONSchema
 ): T {
+  return validate(input, schema, 'input');
+}
+
+/**
+ * Validates a tool result and returns the value to send: Zod's parsed data,
+ * which drops unknown keys and fills in defaults, or the result itself for a
+ * JSON Schema.
+ *
+ * A `_meta` field is left out of the check and kept, because it carries
+ * transport data such as an MCP App's resource URI, not tool output.
+ */
+export function validateOutput(
+  output: unknown,
+  schema: z.ZodType | z.core.JSONSchema.JSONSchema
+): unknown {
+  if (!isPlainObject(output) || !('_meta' in output)) {
+    return validate(output, schema, 'output');
+  }
+  const { _meta, ...rest } = output;
+  const validOutput = validate(rest, schema, 'output');
+  return isPlainObject(validOutput) ? { ...validOutput, _meta } : validOutput;
+}
+
+/**
+ * Returns a function that validates a tool result like `validateOutput`.
+ * A JSON Schema is compiled here, so a broken schema fails before the tool
+ * runs. Returns `undefined` when the page blocks compiling, which a Content
+ * Security Policy without `unsafe-eval` does, and the result goes unchecked.
+ */
+export function getOutputValidator(
+  schema: z.ZodType | z.core.JSONSchema.JSONSchema
+): ((output: unknown) => unknown) | undefined {
+  if (!isZodSchema(schema)) {
+    try {
+      ajv.compile(schema);
+    } catch (error) {
+      if (!(error instanceof EvalError)) throw error;
+      console.warn(
+        'Tool results are not checked against JSON Schema output schemas because the page blocks compiling them. Use a Zod output schema to check them.'
+      );
+      return undefined;
+    }
+  }
+  return (output) => validateOutput(output, schema);
+}
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === 'object' && !Array.isArray(value);
+
+function validate<T>(
+  value: unknown,
+  schema: z.ZodType<T> | z.core.JSONSchema.JSONSchema,
+  kind: 'input' | 'output'
+): T {
   if (!schema) {
-    return input as T;
+    return value as T;
   }
 
   if (isZodSchema(schema)) {
-    const result = schema.safeParse(input);
+    const result = schema.safeParse(value);
     if (!result.success) {
-      throw new Error(`Invalid input: ${result.error.message}`);
+      throw new Error(`Invalid ${kind}: ${result.error.message}`);
     }
     return result.data;
   }
 
   // JSON Schema validation
-  const validate = ajv.compile(schema);
-  const isValid = validate(input);
-  if (!isValid) {
-    throw new Error(`Invalid input: ${ajv.errorsText(validate.errors)}`);
+  const validateJson = ajv.compile(schema);
+  if (!validateJson(value)) {
+    throw new Error(`Invalid ${kind}: ${ajv.errorsText(validateJson.errors)}`);
   }
 
-  return input as T;
+  return value as T;
 }
 
 /**
@@ -84,7 +160,7 @@ export function toToolMetadataJson(tool: ToolDefinition): ToolMetadataJson {
     name: tool.name,
     description: tool.description,
     inputSchema: tool.inputSchema ? toJSONSchema(tool.inputSchema as z.ZodType) : undefined,
-    outputSchema: tool.outputSchema ? toJSONSchema(tool.outputSchema as z.ZodType) : undefined,
+    outputSchema: tool.outputSchema ? toOutputJSONSchema(tool.outputSchema as z.ZodType) : undefined,
   };
 }
 

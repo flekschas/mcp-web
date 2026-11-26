@@ -861,6 +861,19 @@ isZodSchema(schema: z.ZodType<unknown> | z.core.JSONSchema.JSONSchema): schema i
 toJSONSchema(schema: z.ZodType | z.core.JSONSchema.JSONSchema): z.core.JSONSchema.JSONSchema
 ```
 
+### toOutputJSONSchema
+
+*Function* — `packages/core/src/utils.ts`
+
+Converts a Zod output schema to JSON Schema draft-07, the dialect the MCP
+TypeScript SDK client checks tool results with. Zod's default 2020-12 output
+writes tuples in a form that draft-07 rejects. A JSON Schema is returned as
+is.
+
+```ts
+toOutputJSONSchema(schema: z.ZodType | z.core.JSONSchema.JSONSchema): z.core.JSONSchema.JSONSchema
+```
+
 ### toToolZodSchema
 
 *Function* — `packages/core/src/utils.ts`
@@ -883,6 +896,34 @@ toToolSchema<T>(schema?: z.ZodType<T> | z.core.JSONSchema.JSONSchema): z.ZodObje
 
 ```ts
 validateInput<T>(input: unknown, schema: z.ZodType<T> | z.core.JSONSchema.JSONSchema): T
+```
+
+### validateOutput
+
+*Function* — `packages/core/src/utils.ts`
+
+Validates a tool result and returns the value to send: Zod's parsed data,
+which drops unknown keys and fills in defaults, or the result itself for a
+JSON Schema.
+
+A `_meta` field is left out of the check and kept, because it carries
+transport data such as an MCP App's resource URI, not tool output.
+
+```ts
+validateOutput(output: unknown, schema: z.ZodType | z.core.JSONSchema.JSONSchema): unknown
+```
+
+### getOutputValidator
+
+*Function* — `packages/core/src/utils.ts`
+
+Returns a function that validates a tool result like `validateOutput`.
+A JSON Schema is compiled here, so a broken schema fails before the tool
+runs. Returns `undefined` when the page blocks compiling, which a Content
+Security Policy without `unsafe-eval` does, and the result goes unchecked.
+
+```ts
+getOutputValidator(schema: z.ZodType | z.core.JSONSchema.JSONSchema): ((output: unknown) => unknown) | undefined
 ```
 
 ### toToolMetadataJson

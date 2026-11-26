@@ -769,3 +769,417 @@ describe('Remote MCP - Server Info', () => {
     });
   });
 });
+
+describe('Remote MCP - Structured Output', () => {
+  let bridge: MCPWebBridgeNode;
+  let wsClient: WebSocket;
+  const port = 4607;
+  const authToken = 'test-token-structured';
+
+  afterEach(async () => {
+    if (wsClient && wsClient.readyState === WebSocket.OPEN) {
+      wsClient.close();
+    }
+    if (bridge) {
+      await bridge.close();
+    }
+  });
+
+  // Connects a frontend that registers `tool` and answers every call with
+  // `result`.
+  async function connectFrontend(
+    tool: Record<string, unknown>,
+    result: unknown,
+  ): Promise<void> {
+    bridge = new MCPWebBridgeNode({
+      name: 'Test Bridge',
+      description: 'Test',
+      port,
+    });
+    wsClient = await createMockClient(port, 'session-structured');
+    await authenticateClient(wsClient, authToken);
+    wsClient.on('message', (data: Buffer) => {
+      const message = JSON.parse(data.toString());
+      if (message.type === 'tool-call') {
+        wsClient.send(
+          JSON.stringify({
+            type: 'tool-response',
+            requestId: message.requestId,
+            result,
+          }),
+        );
+      }
+    });
+    wsClient.send(JSON.stringify({ type: 'register-tool', tool }));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  const outputSchema = {
+    type: 'object',
+    properties: { message: { type: 'string' } },
+    required: ['message'],
+  };
+
+  test('tools/list includes object output schemas', async () => {
+    await connectFrontend(
+      { name: 'get_greeting', description: 'Greet', outputSchema },
+      { message: 'Hello' },
+    );
+
+    const { body } = await mcpRequest(
+      port,
+      'tools/list',
+      {},
+      {
+        Authorization: `Bearer ${authToken}`,
+      },
+    );
+    const tools = (
+      body as { result: { tools: Array<Record<string, unknown>> } }
+    ).result.tools;
+    expect(tools.find((t) => t.name === 'get_greeting')?.outputSchema).toEqual(
+      outputSchema,
+    );
+  });
+
+  test('tools/list leaves out output schemas that are not objects', async () => {
+    await connectFrontend(
+      {
+        name: 'get_name',
+        description: 'Name',
+        outputSchema: { type: 'string' },
+      },
+      'Alice',
+    );
+
+    const { body } = await mcpRequest(
+      port,
+      'tools/list',
+      {},
+      {
+        Authorization: `Bearer ${authToken}`,
+      },
+    );
+    const tools = (
+      body as { result: { tools: Array<Record<string, unknown>> } }
+    ).result.tools;
+    const tool = tools.find((t) => t.name === 'get_name');
+    expect(tool).toBeDefined();
+    expect(tool).not.toHaveProperty('outputSchema');
+  });
+
+  test('tools/call returns structured content without _meta', async () => {
+    await connectFrontend(
+      { name: 'get_greeting', description: 'Greet', outputSchema },
+      { message: 'Hello', _meta: { ui: { resourceUri: 'ui://greeting' } } },
+    );
+
+    const { body } = await mcpRequest(
+      port,
+      'tools/call',
+      { name: 'get_greeting', arguments: {} },
+      { Authorization: `Bearer ${authToken}` },
+    );
+    const result = (body as { result: Record<string, unknown> }).result;
+    expect(result.structuredContent).toEqual({ message: 'Hello' });
+    expect(result._meta).toEqual({ ui: { resourceUri: 'ui://greeting' } });
+    expect(result.content).toEqual([
+      { type: 'text', text: JSON.stringify({ message: 'Hello' }, null, 2) },
+    ]);
+  });
+
+  test('tools/call returns no structured content for errors', async () => {
+    await connectFrontend(
+      { name: 'get_greeting', description: 'Greet', outputSchema },
+      { error: 'Invalid output' },
+    );
+
+    const { body } = await mcpRequest(
+      port,
+      'tools/call',
+      { name: 'get_greeting', arguments: {} },
+      { Authorization: `Bearer ${authToken}` },
+    );
+    const result = (body as { result: Record<string, unknown> }).result;
+    expect(result.isError).toBe(true);
+    expect(result).not.toHaveProperty('structuredContent');
+  });
+
+  test.each([null, 'Hello', ['Hello']])(
+    'tools/call fails for the result %j, which does not match the output schema',
+    async (value) => {
+      await connectFrontend(
+        { name: 'get_greeting', description: 'Greet', outputSchema },
+        value,
+      );
+
+      const { body } = await mcpRequest(
+        port,
+        'tools/call',
+        { name: 'get_greeting', arguments: {} },
+        { Authorization: `Bearer ${authToken}` },
+      );
+      const result = (body as { result: Record<string, unknown> }).result;
+      expect(result.isError).toBe(true);
+      expect(result).not.toHaveProperty('structuredContent');
+    },
+  );
+
+  test('a result that does not match the output schema leaves the query active', async () => {
+    const originalFetch = globalThis.fetch;
+    // The agent accepts the query and never calls back
+    globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) =>
+      String(input).includes('localhost:9999')
+        ? Promise.resolve(new Response('{}'))
+        : originalFetch(input, init)) as typeof fetch;
+
+    try {
+      bridge = new MCPWebBridgeNode({
+        name: 'Test Bridge',
+        description: 'Test',
+        port,
+        agentUrl: 'localhost:9999',
+      });
+      wsClient = await createMockClient(port, 'session-structured');
+      await authenticateClient(wsClient, authToken);
+
+      const results: unknown[] = [null, { message: 'Hello' }];
+      const messageTypes: string[] = [];
+      wsClient.on('message', (data: Buffer) => {
+        const message = JSON.parse(data.toString());
+        messageTypes.push(message.type);
+        if (message.type === 'tool-call') {
+          wsClient.send(
+            JSON.stringify({
+              type: 'tool-response',
+              requestId: message.requestId,
+              result: results.shift(),
+            }),
+          );
+        }
+      });
+
+      const tool = { name: 'get_greeting', description: 'Greet', outputSchema };
+      wsClient.send(JSON.stringify({ type: 'register-tool', tool }));
+      wsClient.send(
+        JSON.stringify({
+          type: 'query',
+          uuid: 'query-structured',
+          prompt: 'Greet',
+          context: [],
+          responseTool: tool,
+        }),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const callResponseTool = async () => {
+        const { body } = await mcpRequest(
+          port,
+          'tools/call',
+          {
+            name: 'get_greeting',
+            arguments: {},
+            _meta: { queryId: 'query-structured' },
+          },
+          { Authorization: `Bearer ${authToken}` },
+        );
+        return (body as { result: Record<string, unknown> }).result;
+      };
+
+      expect((await callResponseTool()).isError).toBe(true);
+      expect(messageTypes).not.toContain('query_complete');
+
+      const result = await callResponseTool();
+      expect(result.structuredContent).toEqual({ message: 'Hello' });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(messageTypes).toContain('query_complete');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('tools/call returns no structured content without an output schema', async () => {
+    await connectFrontend(
+      { name: 'get_greeting', description: 'Greet' },
+      { message: 'Hello' },
+    );
+
+    const { body } = await mcpRequest(
+      port,
+      'tools/call',
+      { name: 'get_greeting', arguments: {} },
+      { Authorization: `Bearer ${authToken}` },
+    );
+    const result = (body as { result: Record<string, unknown> }).result;
+    expect(result).not.toHaveProperty('structuredContent');
+  });
+
+  test('tools/call keeps _meta and structured content for image results', async () => {
+    const imageSchema = {
+      type: 'object',
+      properties: { dataUrl: { type: 'string' } },
+      required: ['dataUrl'],
+    };
+    const dataUrl = 'data:image/png;base64,iVBORw0KGgo=';
+    await connectFrontend(
+      { name: 'get_image', description: 'Image', outputSchema: imageSchema },
+      { dataUrl, _meta: { ui: { resourceUri: 'ui://image' } } },
+    );
+
+    const { body } = await mcpRequest(
+      port,
+      'tools/call',
+      { name: 'get_image', arguments: {} },
+      { Authorization: `Bearer ${authToken}` },
+    );
+    const result = (body as { result: Record<string, unknown> }).result;
+    expect(result.content).toEqual([
+      { type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' },
+    ]);
+    expect(result.structuredContent).toEqual({ dataUrl });
+    expect(result._meta).toEqual({ ui: { resourceUri: 'ui://image' } });
+  });
+});
+
+describe('Remote MCP - Output Schemas Across Sessions', () => {
+  let bridge: MCPWebBridgeNode;
+  const wsClients: WebSocket[] = [];
+  const port = 4608;
+  const authToken = 'test-token-output-sessions';
+
+  afterEach(async () => {
+    for (const ws of wsClients.splice(0)) {
+      if (ws.readyState === WebSocket.OPEN) ws.close();
+    }
+    if (bridge) {
+      await bridge.close();
+    }
+  });
+
+  const inputSchema = { type: 'object', properties: {} };
+  const countSchema = {
+    type: 'object',
+    properties: { count: { type: 'number' } },
+    required: ['count'],
+  };
+
+  async function connectSession(sessionId: string): Promise<WebSocket> {
+    const ws = await createMockClient(port, sessionId);
+    wsClients.push(ws);
+    await authenticateClient(ws, authToken);
+    return ws;
+  }
+
+  async function registerInTwoSessions(
+    firstOutputSchema: unknown,
+    secondOutputSchema: unknown,
+  ): Promise<WebSocket> {
+    bridge = new MCPWebBridgeNode({
+      name: 'Test Bridge',
+      description: 'Test',
+      port,
+    });
+    const first = await connectSession('session-output-1');
+    first.send(
+      JSON.stringify({
+        type: 'register-tool',
+        tool: {
+          name: 'get_count',
+          description: 'Count',
+          inputSchema,
+          outputSchema: firstOutputSchema,
+        },
+      }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const second = await connectSession('session-output-2');
+    second.send(
+      JSON.stringify({
+        type: 'register-tool',
+        tool: {
+          name: 'get_count',
+          description: 'Count',
+          inputSchema,
+          outputSchema: secondOutputSchema,
+        },
+      }),
+    );
+    return second;
+  }
+
+  test('rejects the same tool with a different output schema', async () => {
+    const second = await registerInTwoSessions(countSchema, {
+      type: 'object',
+      properties: { total: { type: 'number' } },
+      required: ['total'],
+    });
+    const error = await waitForMessage<{ toolName: string }>(
+      second,
+      'tool-registration-error',
+    );
+    expect(error.toolName).toBe('get_count');
+  });
+
+  test('rejects the same tool when only one session has an output schema', async () => {
+    const second = await registerInTwoSessions(countSchema, undefined);
+    const error = await waitForMessage<{ toolName: string }>(
+      second,
+      'tool-registration-error',
+    );
+    expect(error.toolName).toBe('get_count');
+  });
+
+  test('accepts the same output schema with its keys in another order', async () => {
+    const second = await registerInTwoSessions(countSchema, {
+      required: ['count'],
+      properties: { count: { type: 'number' } },
+      type: 'object',
+    });
+    const messageTypes: string[] = [];
+    second.on('message', (data: Buffer) => {
+      messageTypes.push(JSON.parse(data.toString()).type);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    expect(messageTypes).not.toContain('tool-registration-error');
+  });
+
+  test('accepts the same output schema with and without a root $schema', async () => {
+    const second = await registerInTwoSessions(countSchema, {
+      $schema: 'http://json-schema.org/draft-07/schema#',
+      ...countSchema,
+    });
+    const messageTypes: string[] = [];
+    second.on('message', (data: Buffer) => {
+      messageTypes.push(JSON.parse(data.toString()).type);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    expect(messageTypes).not.toContain('tool-registration-error');
+  });
+
+  test('lists the shared output schema when several sessions have the tool', async () => {
+    await registerInTwoSessions(countSchema, countSchema);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const { body } = await mcpRequest(
+      port,
+      'tools/list',
+      {},
+      { Authorization: `Bearer ${authToken}` },
+    );
+    const result = (
+      body as {
+        result: {
+          tools: Array<Record<string, unknown>>;
+          _meta: { available_sessions: unknown[] };
+        };
+      }
+    ).result;
+    expect(result._meta.available_sessions).toHaveLength(2);
+    expect(
+      result.tools.find((t) => t.name === 'get_count')?.outputSchema,
+    ).toEqual(countSchema);
+  });
+});

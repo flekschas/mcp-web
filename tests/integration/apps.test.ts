@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MCPWebClient, type MCPWebClientConfig } from '@mcp-web/client';
 import { MCPWeb } from '@mcp-web/core';
+import { AjvJsonSchemaValidator } from '@modelcontextprotocol/sdk/validation/ajv';
 import type { MCPWebConfig } from '@mcp-web/types';
 import { RESOURCE_MIME_TYPE, isCreatedApp } from '@mcp-web/types';
 import type { ComponentType } from 'react';
@@ -219,6 +220,45 @@ describe('MCP Apps', () => {
     mcpWeb.disconnect();
   });
 
+  test('a rejected addApp keeps the app it would replace', async () => {
+    const mcpWeb = new MCPWeb({
+      ...mcpWebConfig,
+      authToken: 'app-test-token-rejected',
+      autoConnect: false,
+    });
+
+    mcpWeb.addApp({
+      name: 'replaced_app',
+      description: 'App to replace',
+      component: MockComponent,
+      handler: () => ({}),
+      resourceUri: 'ui://old/app.html',
+    });
+    expect(() =>
+      mcpWeb.addApp({
+        name: 'replaced_app',
+        description: 'App with a broken props schema',
+        component: MockComponent,
+        handler: () => ({}),
+        resourceUri: 'ui://new/app.html',
+        propsSchema: { type: 'object', $ref: 'missing.json' },
+      }),
+    ).toThrow();
+
+    const meta = { ui: { resourceUri: 'ui://old/app.html' } };
+    expect(mcpWeb.apps.get('replaced_app')?.resolvedResourceUri).toBe(
+      'ui://old/app.html',
+    );
+    expect(mcpWeb.tools.get('replaced_app')?._meta).toEqual(meta);
+    expect(mcpWeb.resources.has('ui://new/app.html')).toBe(false);
+
+    mcpWeb.removeApp('replaced_app');
+    expect(mcpWeb.tools.has('replaced_app')).toBe(false);
+    expect(mcpWeb.resources.has('ui://old/app.html')).toBe(false);
+
+    mcpWeb.disconnect();
+  });
+
   test('apps getter returns all registered apps', async () => {
     const authToken = 'app-test-token-6';
     const mcpWeb = new MCPWeb({
@@ -303,6 +343,98 @@ describe('MCP Apps', () => {
     expect(parsed.message).toBe('Hello from app');
     expect(parsed.timestamp).toBe(12345);
     expect(parsed._meta).toBeUndefined();
+
+    mcpWeb.disconnect();
+  });
+
+  test('app tool returns props parsed by a Zod props schema', async () => {
+    const authToken = 'app-test-token-structured';
+    const mcpWeb = new MCPWeb({
+      ...mcpWebConfig,
+      authToken,
+      autoConnect: false,
+    });
+
+    mcpWeb.addApp({
+      name: 'structured_app',
+      description: 'App with a props schema',
+      component: MockComponent,
+      propsSchema: z.object({
+        message: z.string(),
+        count: z.number().default(1),
+        point: z.tuple([z.number(), z.number()]),
+      }),
+      handler: () => ({ message: 'Hello', point: [1, 2], extra: true }),
+    });
+
+    await mcpWeb.connect();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const client = new MCPWebClient({ ...mcpWebClientConfig, authToken });
+    const result = await client.callTool('structured_app', {});
+
+    expect(result.isError).toBeUndefined();
+    expect(result.structuredContent).toEqual({
+      message: 'Hello',
+      count: 1,
+      point: [1, 2],
+    });
+    expect(result._meta).toEqual({
+      ui: { resourceUri: 'ui://structured_app/app.html' },
+    });
+
+    // The MCP SDK client checks the result against the listed schema
+    const { tools } = await client.listTools();
+    const outputSchema = tools.find(
+      (tool) => tool.name === 'structured_app',
+    )?.outputSchema;
+    const check = new AjvJsonSchemaValidator().getValidator(
+      outputSchema as Parameters<AjvJsonSchemaValidator['getValidator']>[0],
+    )(result.structuredContent);
+    expect(check.errorMessage).toBeUndefined();
+
+    mcpWeb.disconnect();
+  });
+
+  test('addApp accepts an input schema with a Zod props schema', async () => {
+    const authToken = 'app-test-token-input-props';
+    const mcpWeb = new MCPWeb({
+      ...mcpWebConfig,
+      authToken,
+      autoConnect: false,
+    });
+    const propsSchema = z.object({ title: z.string() });
+
+    mcpWeb.addApp({
+      name: 'zod_input_app',
+      description: 'App with a Zod input schema',
+      component: MockComponent,
+      inputSchema: z.object({ title: z.string() }),
+      propsSchema,
+      handler: ({ title }) => ({ title }),
+    });
+    mcpWeb.addApp({
+      name: 'json_input_app',
+      description: 'App with a JSON Schema input schema',
+      component: MockComponent,
+      inputSchema: {
+        type: 'object',
+        properties: { title: { type: 'string' } },
+        required: ['title'],
+      },
+      propsSchema,
+      handler: (input) => input as { title: string },
+    });
+
+    await mcpWeb.connect();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    const client = new MCPWebClient({ ...mcpWebClientConfig, authToken });
+    for (const name of ['zod_input_app', 'json_input_app']) {
+      const result = await client.callTool(name, { title: 'Hello' });
+      expect(result.isError).toBeUndefined();
+      expect(result.structuredContent).toEqual({ title: 'Hello' });
+    }
 
     mcpWeb.disconnect();
   });

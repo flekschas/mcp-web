@@ -4,10 +4,17 @@
 
 - feat: `idleTimeoutMs` option to disconnect after a period without requests from AI or user interaction, and reconnect on the next interaction. Hosted bridges like the Cloudflare adapter keep running, and billing, while a page is connected. `idle` and `idleDisconnectAt` expose the state, for example to show a countdown
 - fix: report user activity to the bridge every 30 seconds instead of on every mouse move
+- fix: check tool results against JSON Schema output schemas too, the way the MCP TypeScript SDK client does (draft-07, with string formats such as `date-time`), and send the parsed result of a Zod output schema, which drops unknown keys and fills in defaults. A result that doesn't match its output schema now fails the call, because MCP clients reject it. An error result (`{ error }`) is sent as is. App props are checked the same way against `propsSchema`, so a prop declared `.optional()` no longer accepts `null`. A JSON Schema output schema is compiled when the tool is added; on a page whose Content Security Policy blocks that, results go unchecked
+- fix: send Zod output schemas as JSON Schema draft-07, so MCP clients accept tuples in results
+- fix: `validateInput()` checks string formats of a JSON Schema too, and tools can share a schema with the same `$id`
+- fix: accept a tool or app with a Zod schema for one of its input and output schemas and a JSON Schema for the other
 
 `@mcp-web/bridge` and `@mcp-web/client`:
 
 - fix: when no page is connected, tell AI to ask the user to switch back to the page, not only to open it
+- feat: list a tool's output schema and return its result as `structuredContent` when the schema is an object, as MCP requires. The JSON text content stays for clients that don't read structured content
+- fix: reject a tool from another page with the same name but a different output schema, not only a different input schema. The order of keys in a schema and its root `$schema` don't count as a difference
+- fix: fail a call whose tool has an object output schema but returns something other than an object, such as `null`. Such a result no longer completes a query
 
 ## v0.2.0
 

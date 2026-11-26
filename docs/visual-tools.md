@@ -374,9 +374,12 @@ const chartApp = createApp({
 Good descriptions help AI make better decisions about when and how to call your
 tool. This is the same best practice as with any MCP tool.
 
-::: tip Props Schema is for Validation Only
-The `propsSchema` validates your handler's output at runtime — it's never seen
-by AI. Use it to catch bugs early, not to communicate with AI.
+::: tip Props Must Match the Props Schema
+Props that don't match the `propsSchema` fail the call. When the schema is an
+object, it's also the tool's output schema, which MCP clients see. A prop
+declared with `.optional()` doesn't accept `null`. Use `.nullish()` for props
+you pass on from AI input, because models often send `null` for values they
+leave out.
 :::
 
 ### Design for Iframe Constraints

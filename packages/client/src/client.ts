@@ -6,6 +6,7 @@ import {
   type ErroredListResourcesResult,
   type ErroredListToolsResult,
   type FatalError,
+  getMcpOutputSchema,
   InvalidAuthenticationErrorCode,
   type McpRequestMetaParams,
   MissingAuthenticationErrorCode,
@@ -480,11 +481,15 @@ export class MCPWebClient {
     // If we have tools from the query, return those
     if (this.#query?.tools) {
       // Need to convert ToolDefinition to Tool format expected by MCP
-      const tools = this.#query.tools.map(t => ({
-        name: t.name,
-        description: t.description,
-        inputSchema: t.inputSchema || { type: 'object', properties: {}, required: [] }
-      }));
+      const tools = this.#query.tools.map(t => {
+        const outputSchema = getMcpOutputSchema(t.outputSchema);
+        return {
+          name: t.name,
+          description: t.description,
+          inputSchema: t.inputSchema || { type: 'object', properties: {}, required: [] },
+          ...(outputSchema && { outputSchema }),
+        };
+      });
       return { tools: tools as Tool[] };
     }
 
