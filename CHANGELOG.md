@@ -2,12 +2,35 @@
 
 `@mcp-web/core`:
 
+- feat: tool handlers get `elicit` in a second argument, to ask the user a question in the middle of a call and wait for the answer: yes or no, one of several choices, or a flat form from a Zod schema. The page asks in a plain native `<dialog>`, or in your own UI with `onElicit()`. The new `elicitation` option sets where questions are answered; for now only `'page'`. When the bridge stops waiting for a call or the connection closes, its questions close and `elicit` throws. Handlers also get a `signal` that aborts once nobody waits for the result. Tools called from a code-mode program can't ask
+- feat: `onBeforeChange` option of `createStateTools` and `addStateTools`, which runs before a generated tool stores a change with the state before and after it. It can ask the user with `elicit`, store a different state, or reject the change by throwing. Changes to the same state then wait for each other, and a change whose call was cancelled meanwhile isn't stored
 - feat: `idleTimeoutMs` option to disconnect after a period without requests from AI or user interaction, and reconnect on the next interaction. Hosted bridges like the Cloudflare adapter keep running, and billing, while a page is connected. `idle` and `idleDisconnectAt` expose the state, for example to show a countdown
 - fix: report user activity to the bridge every 30 seconds instead of on every mouse move
 - fix: check tool results against JSON Schema output schemas too, the way the MCP TypeScript SDK client does (draft-07, with string formats such as `date-time`), and send the parsed result of a Zod output schema, which drops unknown keys and fills in defaults. A result that doesn't match its output schema now fails the call, because MCP clients reject it. An error result (`{ error }`) is sent as is. App props are checked the same way against `propsSchema`, so a prop declared `.optional()` no longer accepts `null`. A JSON Schema output schema is compiled when the tool is added; on a page whose Content Security Policy blocks that, results go unchecked
 - fix: send Zod output schemas as JSON Schema draft-07, so MCP clients accept tuples in results
 - fix: `validateInput()` checks string formats of a JSON Schema too, and tools can share a schema with the same `$id`
 - fix: accept a tool or app with a Zod schema for one of its input and output schemas and a JSON Schema for the other
+
+`@mcp-web/react`:
+
+- feat: `useElicitation()` to answer the questions tools ask in your own React UI
+
+`@mcp-web/bridge`:
+
+- feat: don't count the time a page waits on the user towards the tool call timeout, but give the user at most 5 minutes in total to answer
+- feat: tell the page when a tool call times out or the AI app cancels it with `notifications/cancelled`, so it can cancel the call's questions. Only the AI app that made a call, with the same query, MCP session and token, can cancel it
+- fix: time out tool calls and sessions when `MCPWebBridge` is created without a scheduler
+- fix: fail a tool call right away when its page disconnects, instead of after the timeout
+- fix: fail open tool calls when the bridge closes
+
+`@mcp-web/client`:
+
+- fix: wait up to 6 minutes for a tool call unless `timeout` is set, so the user has time to answer questions the tool asks
+- feat: tell the bridge when the AI app cancels a tool call or the client stops waiting for it
+
+`@mcp-web/tools`:
+
+- feat: tools called from a code-mode program get the call's `signal`, and a program whose call was cancelled before it started never runs
 
 `@mcp-web/bridge` and `@mcp-web/client`:
 

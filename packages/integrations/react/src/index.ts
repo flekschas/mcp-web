@@ -3,3 +3,4 @@ export { MCPWebProvider, type MCPWebProviderProps, type MCPWebProviderPropsWithC
 export { useMCPWeb } from './use-mcp-web';
 export { useMCPTools, type RegisterableTool, type UseMCPToolsOptions } from './use-mcp-tools';
 export { useMCPApps, type RegisterableApp } from './use-mcp-apps';
+export { useElicitation, type UseElicitationResult } from './use-elicitation';

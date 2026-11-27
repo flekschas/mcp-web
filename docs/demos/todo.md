@@ -26,3 +26,7 @@ using a `<Statistics />` component that we turn into an MCP App with our
 
 - `src/mcp-apps.ts`: This file contains everything you need to turn the
    `<Statistics />` component into an MCP App.
+
+- `src/components/QuestionDialog.tsx`: Before AI deletes a project, the app
+   asks the user (see [Asking the User](../asking-the-user)), and whether to
+   delete the project's todos or move them to the inbox.

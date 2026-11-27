@@ -286,3 +286,82 @@ test('fail marks query as failed and prevents further operations', async () => {
 
   globalThis.fetch = originalFetch;
 });
+
+/** A fetch that records each body and hangs until its request is aborted. */
+function hangingFetch() {
+  const bodies: { id?: unknown; method: string; params?: unknown }[] = [];
+  globalThis.fetch = ((_url: string, init: RequestInit) => {
+    bodies.push(JSON.parse(String(init.body)));
+    return new Promise((_, reject) => {
+      init.signal?.addEventListener('abort', () =>
+        reject(new DOMException('Aborted', 'AbortError')),
+      );
+    });
+  }) as unknown as typeof fetch;
+  return bodies;
+}
+
+const callGreet = (client: MCPWebClient, signal?: AbortSignal) =>
+  (
+    client as unknown as {
+      makeToolCallRequest(
+        request: unknown,
+        signal?: AbortSignal,
+      ): Promise<{ isError?: boolean; content: { text: string }[] }>;
+    }
+  ).makeToolCallRequest(
+    { method: 'tools/call', params: { name: 'greet' } },
+    signal,
+  );
+
+test('tells the bridge when the AI app cancels a tool call', async () => {
+  const bodies = hangingFetch();
+  const client = new MCPWebClient({ serverUrl: 'http://localhost:3002' });
+  const host = new AbortController();
+
+  const result = callGreet(client, host.signal);
+  host.abort();
+
+  expect((await result).content[0].text).toContain('The AI app cancelled');
+  expect(bodies[1]).toEqual({
+    jsonrpc: '2.0',
+    method: 'notifications/cancelled',
+    params: { requestId: bodies[0].id },
+  });
+  globalThis.fetch = originalFetch;
+});
+
+test('a tool call keeps an explicit timeout and then cancels the call', async () => {
+  const bodies = hangingFetch();
+  const client = new MCPWebClient({
+    serverUrl: 'http://localhost:3002',
+    timeout: 10,
+  });
+
+  expect((await callGreet(client)).content[0].text).toContain(
+    'Request timeout',
+  );
+  expect(bodies[1]).toEqual({
+    jsonrpc: '2.0',
+    method: 'notifications/cancelled',
+    params: { requestId: bodies[0].id },
+  });
+  globalThis.fetch = originalFetch;
+});
+
+test('a cancelled call of a query names the query', async () => {
+  const bodies = hangingFetch();
+  const client = new MCPWebClient({
+    serverUrl: 'http://localhost:3002',
+    timeout: 10,
+  }).contextualize({ uuid: 'query-1', prompt: 'test', context: [] });
+
+  await callGreet(client);
+
+  expect(bodies[1]).toEqual({
+    jsonrpc: '2.0',
+    method: 'notifications/cancelled',
+    params: { requestId: bodies[0].id, _meta: { queryId: 'query-1' } },
+  });
+  globalThis.fetch = originalFetch;
+});

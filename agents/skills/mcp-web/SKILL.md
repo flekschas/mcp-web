@@ -208,6 +208,45 @@ z.object({ description: z.string().optional() })
 z.object({ description: z.string().nullable().default(null) })
 ```
 
+## Asking the User (Elicitation)
+
+Handlers get `{ elicit }` as a second argument to ask the user a question in
+the middle of a call. The web page asks (a native `<dialog>` by default):
+
+```typescript
+mcpWeb.addTool({
+  name: 'get_greeting',
+  description: 'Greet the user in their language',
+  outputSchema: z.object({ greeting: z.string() }),
+  handler: async (_input, { elicit }) => {
+    const language = await elicit('Which language?', ['English', 'German']);
+    return { greeting: language === 'German' ? 'Hallo!' : 'Hello!' };
+  },
+});
+```
+
+- `elicit(message)` → `boolean` (no or cancel → `false`)
+- `elicit(message, ['a', 'b'])` → `'a' | 'b' | undefined`
+- `elicit(message, z.object({...}))` → parsed fields or `undefined`. Fields
+  must be strings, numbers, booleans, string enums or arrays of string enums,
+  optionally `.optional()` or `.default()`; no nested objects. Rules the form
+  can't show, like `.positive()` or `.regex()`, throw; check them in the handler
+- Custom UI: `mcpWeb.onElicit((request, { signal }) => …)`, hiding the question
+  when `signal` aborts, or `useElicitation()` in React
+- State tools: `onBeforeChange: async ({ prev, next }, { elicit }) => …` in
+  `createStateTools`/`addStateTools` runs before a generated tool stores a
+  change. Return nothing to store `next`, return another state to store it
+  instead, or throw to reject (the message goes to AI). If the state changed
+  while the user answered, `elicit` throws and the change is rejected. Don't
+  change other state in the hook; decide there what to change and change it
+  in `set` right after storing the state, checking it's still as expected,
+  so nothing changes if the change is rejected. Changes to the same state wait for each other,
+  and a change whose call was cancelled meanwhile isn't stored
+- Handlers also get `signal`, which aborts once nobody waits for the result
+- Tools called from code-mode programs can't elicit
+- AI apps time out tool calls (Claude Desktop reportedly after ~60s), so keep
+  questions quick to answer
+
 ## Connection State
 
 Monitor connection status to handle reconnection or display UI feedback.
@@ -338,6 +377,7 @@ new MCPWebBridge(MCP_WEB_CONFIG);
 - Keep schemas in `schemas.ts`, types in `types.ts` (separate files)
 - Co-locate related code in single files when under ~100 lines each
 - Use `onConnectionStateChange()` to react to connection changes
+- Use `elicit` to confirm destructive actions or resolve ambiguity with the user
 
 ❌ **Don't:**
 - Expose derived values as state tools

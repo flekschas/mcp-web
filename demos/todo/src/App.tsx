@@ -2,6 +2,7 @@ import { useMCPApps, useMCPTools } from '@mcp-web/react';
 import { useAtom } from 'jotai';
 import { useEffect } from 'react';
 import { statisticsApp } from './mcp-apps';
+import { QuestionDialog } from './components/QuestionDialog';
 import { Header } from './components/Header';
 import { MainContent } from './components/MainContent';
 import { Sidebar } from './components/Sidebar';
@@ -51,6 +52,7 @@ function App() {
           </p>
         </footer>
       </div>
+      <QuestionDialog />
     </div>
   );
 }

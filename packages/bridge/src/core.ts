@@ -57,7 +57,7 @@ import type {
 } from '@modelcontextprotocol/sdk/types.js';
 import type { z } from 'zod';
 import type { Scheduler } from './runtime/scheduler.js';
-import { NoopScheduler } from './runtime/scheduler.js';
+import { TimerScheduler } from './runtime/scheduler.js';
 import type {
   BridgeHandlers,
   HttpRequest,
@@ -68,10 +68,41 @@ import type {
 } from './runtime/types.js';
 import { jsonResponse, sseResponse } from './runtime/types.js';
 import type {
+  ElicitationAnsweredMessage,
+  ElicitationWaitingMessage,
+  ToolCallCancelledMessage,
   UnregisterResourceMessage,
   UnregisterToolMessage,
 } from './types.js';
 import { VERSION } from './version.js';
+
+/** How long a tool call may run, not counting time spent waiting on the user. */
+const TOOL_CALL_TIMEOUT_MS = 30_000;
+
+/** How long a tool call may wait in total for the user to answer questions. */
+const USER_ANSWER_TIMEOUT_MS = 5 * 60_000;
+
+/**
+ * Identifies a request of the AI app by everything that names the caller (its
+ * query, MCP session and auth token) and its JSON-RPC ID, so only the caller
+ * can cancel it.
+ */
+const hostCallKey = (
+  caller: {
+    queryId?: unknown;
+    mcpSessionId?: string | null;
+    authToken?: string;
+  },
+  id: unknown,
+) =>
+  id === undefined || id === null
+    ? undefined
+    : JSON.stringify([
+        caller.queryId ?? null,
+        caller.mcpSessionId ?? null,
+        caller.authToken ?? null,
+        id,
+      ]);
 
 const SessionNotSpecifiedErrorDetails =
   'Multiple sessions available. See `available_sessions` or call the `list_sessions` tool to discover available sessions and specify the session using `_meta.sessionId`.';
@@ -154,6 +185,8 @@ type FrontendMessage =
   | UnregisterResourceMessage
   | ActivityMessage
   | ToolResponseMessage
+  | ElicitationWaitingMessage
+  | ElicitationAnsweredMessage
   | ResourceResponseMessage
   | QueryMessage
   | QueryCancelMessage;
@@ -190,6 +223,17 @@ interface SessionData {
   lastActivity: number;
   tools: Map<string, ToolDefinition>;
   resources: Map<string, ResourceMetadata>;
+}
+
+/** A tool call forwarded to a page that hasn't answered yet. */
+interface PendingToolCall {
+  sessionId: string;
+  /** Pauses the timeout while the page waits on the user. */
+  waitOnUser(): void;
+  /** Resumes the timeout once the user has answered. */
+  userAnswered(): void;
+  /** Answers the call with an error. */
+  fail(error: string): void;
 }
 
 interface TrackedToolCall {
@@ -391,11 +435,19 @@ export class MCPWebBridge {
 
   // Message handlers for tool responses (keyed by requestId)
   #toolResponseHandlers = new Map<string, (data: string) => void>();
+  // Tool calls waiting for a response (keyed by requestId)
+  #pendingToolCalls = new Map<string, PendingToolCall>();
   // Message handlers for resource responses (keyed by requestId)
   #resourceResponseHandlers = new Map<string, (data: string) => void>();
 
   // MCP protocol sessions (Remote MCP / Streamable HTTP)
   #mcpSessions = new Map<string, McpSession>();
+
+  /**
+   * Running `tools/call` requests, by the AI app's MCP session or auth token
+   * and its request ID, so that `notifications/cancelled` can cancel them.
+   */
+  #hostToolCalls = new Map<string, AbortController>();
   #mcpSessionTimeoutIntervalId?: string;
   static readonly MCP_SESSION_IDLE_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour
 
@@ -407,7 +459,8 @@ export class MCPWebBridge {
    * Creates a new MCPWebBridge instance.
    *
    * @param config - Bridge configuration options
-   * @param scheduler - Optional scheduler for timing operations (used for testing)
+   * @param scheduler - Schedules timeouts. Defaults to timers; tests pass their
+   * own.
    * @throws {Error} If configuration validation fails
    */
   constructor(config: MCPWebConfig, scheduler?: Scheduler) {
@@ -419,7 +472,7 @@ export class MCPWebBridge {
     }
 
     this.#config = parsedConfig.data;
-    this.#scheduler = scheduler ?? new NoopScheduler();
+    this.#scheduler = scheduler ?? new TimerScheduler();
 
     // Resolve icon: if it's a URL, fetch and convert to base64 data URI
     this.#iconReady = this.#resolveIcon();
@@ -470,6 +523,10 @@ export class MCPWebBridge {
    * @returns Promise that resolves when shutdown is complete
    */
   async close(): Promise<void> {
+    for (const call of [...this.#pendingToolCalls.values()]) {
+      call.fail('The bridge shut down before the tool call finished');
+    }
+
     // Stop session timeout checker
     if (this.#sessionTimeoutIntervalId) {
       this.#scheduler.cancelInterval(this.#sessionTimeoutIntervalId);
@@ -595,6 +652,12 @@ export class MCPWebBridge {
         break;
       case 'tool-response':
         // Handled by per-request listeners
+        break;
+      case 'elicitation-waiting':
+        this.#getPendingToolCall(sessionId, message.requestId)?.waitOnUser();
+        break;
+      case 'elicitation-answered':
+        this.#getPendingToolCall(sessionId, message.requestId)?.userAnswered();
         break;
       case 'resource-response':
         // Handled by per-request listeners
@@ -1240,6 +1303,14 @@ export class MCPWebBridge {
         return jsonResponse(202, '');
       }
 
+      if (mcpRequest.method === 'notifications/cancelled') {
+        const id = (mcpRequest.params as { requestId?: string | number })
+          ?.requestId;
+        const key = hostCallKey({ queryId, mcpSessionId, authToken }, id);
+        if (key) this.#hostToolCalls.get(key)?.abort();
+        return jsonResponse(202, '');
+      }
+
       // For all other requests, validate MCP session if provided
       if (mcpSessionId) {
         const mcpSession = this.#mcpSessions.get(mcpSessionId);
@@ -1305,9 +1376,25 @@ export class MCPWebBridge {
           result = await this.#handleToolsList(sessions, mcpRequest.params);
           break;
         case 'tools/call': {
-          const { result: toolResult, outputSchema } =
-            await this.#handleToolCall(sessions, mcpRequest.params);
-          result = this.#wrapToolCallResult(toolResult, outputSchema);
+          const key = hostCallKey(
+            { queryId, mcpSessionId, authToken },
+            mcpRequest.id,
+          );
+          const host = new AbortController();
+          if (key) this.#hostToolCalls.set(key, host);
+          try {
+            const { result: toolResult, outputSchema } =
+              await this.#handleToolCall(
+                sessions,
+                mcpRequest.params,
+                host.signal,
+              );
+            result = this.#wrapToolCallResult(toolResult, outputSchema);
+          } finally {
+            if (key && this.#hostToolCalls.get(key) === host) {
+              this.#hostToolCalls.delete(key);
+            }
+          }
           break;
         }
         case 'resources/list':
@@ -1856,6 +1943,7 @@ export class MCPWebBridge {
   async #handleToolCall(
     sessions: Map<string, SessionData>,
     params?: McpRequest['params'],
+    hostSignal?: AbortSignal,
   ): Promise<{ result: unknown; outputSchema?: Tool['outputSchema'] }> {
     const { name: toolName, arguments: toolInput, _meta } = params || {};
 
@@ -1924,6 +2012,7 @@ export class MCPWebBridge {
       forwardedInput,
       queryId,
       outputSchema,
+      hostSignal,
     );
     return { result, outputSchema };
   }
@@ -2061,16 +2150,23 @@ export class MCPWebBridge {
     return { prompts: [] } satisfies ListPromptsResult;
   }
 
+  /**
+   * @param hostSignal - Aborts when the AI app cancels the call
+   */
   async #forwardToolCallToSession(
     sessionId: string,
     toolName: string,
     toolInput?: Record<string, unknown>,
     queryId?: string,
     outputSchema?: Tool['outputSchema'],
+    hostSignal?: AbortSignal,
   ): Promise<unknown> {
     const session = this.#sessions.get(sessionId);
     if (!session || session.ws.readyState !== 'OPEN') {
       return { error: 'Session not available' };
+    }
+    if (hostSignal?.aborted) {
+      return { error: 'The AI app cancelled the tool call' };
     }
 
     const requestId = crypto.randomUUID();
@@ -2084,7 +2180,39 @@ export class MCPWebBridge {
     };
 
     return new Promise((resolve) => {
-      let timeoutId: string | undefined;
+      let waitingOnUser = 0;
+      // The call has 30 seconds of work and 5 minutes of waiting on the user
+      // in total, however often it switches between the two.
+      const workTimer = this.#pausableTimer(TOOL_CALL_TIMEOUT_MS, () =>
+        giveUp('Tool call timeout'),
+      );
+      const answerTimer = this.#pausableTimer(USER_ANSWER_TIMEOUT_MS, () =>
+        giveUp('The user did not answer in time'),
+      );
+      const onHostCancel = () => giveUp('The AI app cancelled the tool call');
+
+      const finish = (result: unknown) => {
+        workTimer.stop();
+        answerTimer.stop();
+        hostSignal?.removeEventListener('abort', onHostCancel);
+        this.#toolResponseHandlers.delete(requestId);
+        this.#pendingToolCalls.delete(requestId);
+        session.ws.offMessage(handleResponse);
+        resolve(result);
+      };
+
+      // Tells the page too, so that a late answer from the user can't change
+      // anything after the call failed.
+      const giveUp = (error: string) => {
+        finish({ error });
+        if (session.ws.readyState !== 'OPEN') return;
+        const cancelled: ToolCallCancelledMessage = {
+          type: 'tool-call-cancelled',
+          requestId,
+          reason: error,
+        };
+        session.ws.send(JSON.stringify(cancelled));
+      };
 
       const handleResponse = (data: string): void => {
         try {
@@ -2093,12 +2221,6 @@ export class MCPWebBridge {
             message.type === 'tool-response' &&
             message.requestId === requestId
           ) {
-            if (timeoutId) {
-              this.#scheduler.cancel(timeoutId);
-            }
-            this.#toolResponseHandlers.delete(requestId);
-            session.ws.offMessage(handleResponse);
-
             const toolResult = checkResultShape(message.result, outputSchema);
 
             if (queryId) {
@@ -2129,7 +2251,7 @@ export class MCPWebBridge {
               }
             }
 
-            resolve(toolResult);
+            finish(toolResult);
           }
         } catch (parseError) {
           // Non-JSON messages are expected (e.g., heartbeats), but log
@@ -2143,17 +2265,57 @@ export class MCPWebBridge {
         }
       };
 
-      // Set up timeout
-      timeoutId = this.#scheduler.schedule(() => {
-        this.#toolResponseHandlers.delete(requestId);
-        session.ws.offMessage(handleResponse);
-        resolve({ error: 'Tool call timeout' });
-      }, 30000);
+      // A handler can ask several questions at once, so the timeout resumes
+      // only once all of them are answered.
+      this.#pendingToolCalls.set(requestId, {
+        sessionId,
+        waitOnUser: () => {
+          if (waitingOnUser++ > 0) return;
+          workTimer.stop();
+          answerTimer.start();
+        },
+        userAnswered: () => {
+          if (waitingOnUser === 0 || --waitingOnUser > 0) return;
+          answerTimer.stop();
+          workTimer.start();
+        },
+        fail: (error) => finish({ error }),
+      });
 
+      hostSignal?.addEventListener('abort', onHostCancel);
+      workTimer.start();
       this.#toolResponseHandlers.set(requestId, handleResponse);
       session.ws.onMessage(handleResponse);
       session.ws.send(JSON.stringify(toolCall));
     });
+  }
+
+  /** A timer that can pause, so that it only counts the time it runs. */
+  #pausableTimer(ms: number, onExpire: () => void) {
+    let remainingMs = ms;
+    let id: string | undefined;
+    let startedAt = 0;
+    return {
+      start: () => {
+        startedAt = Date.now();
+        id = this.#scheduler.schedule(onExpire, remainingMs);
+      },
+      stop: () => {
+        if (id === undefined) return;
+        this.#scheduler.cancel(id);
+        id = undefined;
+        remainingMs -= Date.now() - startedAt;
+      },
+    };
+  }
+
+  /** A pending tool call, if the given session owns it. */
+  #getPendingToolCall(
+    sessionId: string,
+    requestId: string,
+  ): PendingToolCall | undefined {
+    const call = this.#pendingToolCalls.get(requestId);
+    return call?.sessionId === sessionId ? call : undefined;
   }
 
   async #forwardResourceReadToSession(
@@ -2293,6 +2455,13 @@ export class MCPWebBridge {
   }
 
   #cleanupSession(sessionId: string): void {
+    // The page that would answer these calls is gone.
+    for (const call of this.#pendingToolCalls.values()) {
+      if (call.sessionId === sessionId) {
+        call.fail('Session closed before the tool call finished');
+      }
+    }
+
     const session = this.#sessions.get(sessionId);
     if (session) {
       const sessionIds = this.#tokenSessionIds.get(session.authToken);

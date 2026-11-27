@@ -1,5 +1,6 @@
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
+import type { ToolHandlerContext } from './elicitation.js';
 
 /**
  * Re-export MCP SDK's standard Tool type for convenience.
@@ -156,9 +157,12 @@ export interface ToolDefinition {
   name: string;
   /** Description of what the tool does (shown to AI). */
   description: string;
-  /** Function that executes the tool logic. */
+  /**
+   * Function that executes the tool logic. The second argument lets it ask
+   * the user a question with `elicit`.
+   */
   // biome-ignore lint/suspicious/noExplicitAny: Handler can accept/return anything
-  handler: (input?: any) => any | Promise<any>;
+  handler: (input: any, context: ToolHandlerContext) => any | Promise<any>;
   /** Input parameter schema (Zod or JSON Schema). */
   inputSchema?: z.ZodObject | Record<string, unknown>;
   /** Output value schema (Zod or JSON Schema). */

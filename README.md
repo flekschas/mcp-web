@@ -15,6 +15,7 @@ MCP-Web makes the frontend the main control surface for both humans and AI, ensu
 - ✨ **Auto-generate efficient tools** from schemas with built-in helpers
 - 📊 **Build visual tools from components** with [MCP Apps](https://mcp-web.dev/visual-tools) that render UI inline in AI chat
 - 🔄 **Trigger AI queries from your frontend** using the same tools
+- 🙋 **Ask the user mid-call**: tools can ask a question in the web app and wait for the answer
 - 🪟 **Interact with multiple browser sessions** independently
 - 🎯 **Works with any framework**: React, Vue, Svelte, vanilla JS
 
@@ -32,12 +33,15 @@ import { z } from 'zod';
 
 const mcp = new MCPWeb({ name: 'My App', autoConnect: true });
 
-// Add a simple tool
+// Add a tool, which can ask the user in the middle of the call
 mcp.addTool({
   name: 'get_greeting',
-  description: 'Get a personalized greeting',
-  handler: ({ name }) => ({ message: `Hello, ${name}!` }),
+  description: 'Greet the user by name, in their language',
   inputSchema: z.object({ name: z.string() }),
+  handler: async ({ name }, { elicit }) => {
+    const language = await elicit('Which language?', ['English', 'German']);
+    return { message: `${language === 'German' ? 'Hallo' : 'Hello'}, ${name}!` };
+  },
 });
 
 // Or expose state with auto-generated getter/setter tools
@@ -148,6 +152,7 @@ On a technical level, your frontend registers tools with **core**, which connect
 
 - [Get Started Guide](https://mcp-web.dev/get-started) - Full setup walkthrough
 - [Visual Tools](https://mcp-web.dev/visual-tools) - Build MCP Apps that render UI in AI chat
+- [Asking the User](https://mcp-web.dev/asking-the-user) - Ask the user a question in the middle of a tool call
 - [Architecture](https://mcp-web.dev/architecture) - How the pieces fit together
 - [API Reference](https://mcp-web.dev/api) - Complete API documentation
 - [Todo Demo](https://mcp-web.dev/demos/todo) - Full CRUD example

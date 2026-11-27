@@ -1,6 +1,20 @@
-import type { ToolDefinitionZod } from '@mcp-web/types';
+import type { ToolDefinitionZod, ToolHandlerContext } from '@mcp-web/types';
 import { ToolDefinitionSchema } from '@mcp-web/types';
 import type { z } from 'zod';
+
+/**
+ * A tool handler typed by its schemas. The second argument lets it ask the
+ * user a question with `elicit`.
+ */
+export type ToolHandler<
+  TInput extends z.ZodObject | undefined = undefined,
+  TOutput extends z.ZodType | undefined = undefined,
+> = (
+  input: TInput extends z.ZodObject ? z.infer<TInput> : unknown,
+  context: ToolHandlerContext,
+) => TOutput extends z.ZodType
+  ? z.infer<TOutput> | Promise<z.infer<TOutput>>
+  : void | Promise<void>;
 
 /**
  * Configuration for creating a tool with Zod schemas.
@@ -14,13 +28,7 @@ export interface CreateToolConfig<
   /** Description of what the tool does. */
   description: string;
   /** The function that handles the tool execution. */
-  handler: TInput extends z.ZodObject
-    ? (input: z.infer<TInput>) => TOutput extends z.ZodType
-      ? z.infer<TOutput> | Promise<z.infer<TOutput>>
-      : void | Promise<void>
-    : TOutput extends z.ZodType
-      ? () => z.infer<TOutput> | Promise<z.infer<TOutput>>
-      : () => void | Promise<void>;
+  handler: ToolHandler<TInput, TOutput>;
   /** Optional Zod schema for validating input. */
   inputSchema?: TInput;
   /** Optional Zod schema for validating output. */

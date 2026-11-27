@@ -1,5 +1,7 @@
 import type {
   BridgeMessage,
+  ElicitationAnsweredMessage,
+  ElicitationWaitingMessage,
   RegisterResourceMessage,
   RegisterToolMessage,
   ToolRegistrationErrorMessage,
@@ -12,6 +14,9 @@ import type {
   CodeMode,
   CodeToolLike,
   CreatedApp,
+  ElicitationHandler,
+  ElicitationRequest,
+  ElicitationResult,
   MCPWebConfig,
   MCPWebConfigOutput,
   ProcessedAppDefinition,
@@ -20,6 +25,7 @@ import type {
   Query,
   ResourceDefinition,
   ToolDefinition,
+  ToolHandlerContext,
   ToolRegistrationError,
 } from '@mcp-web/types';
 import {
@@ -44,7 +50,13 @@ import {
   createStateTools,
   isCreatedStateTools,
 } from './create-state-tools.js';
-import { type CreatedTool, isCreatedTool } from './create-tool.js';
+import {
+  type CreatedTool,
+  isCreatedTool,
+  type ToolHandler,
+} from './create-tool.js';
+import { createElicit } from './elicitation.js';
+import { askInDialog } from './elicitation-dialog.js';
 import { QueryResponse } from './query.js';
 import { QueryRequestSchema, QueryResponseResultSchema } from './schemas.js';
 import type { QueryRequest, QueryResponseResult } from './types.js';
@@ -115,6 +127,9 @@ export class MCPWeb {
   #idleTimer: ReturnType<typeof setTimeout> | undefined;
   #pendingCalls = 0;
   #reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+  #elicitationHandlers = new Set<ElicitationHandler>();
+  /** Aborts the questions of each running tool call (keyed by requestId). */
+  #runningCalls = new Map<string, AbortController>();
 
   /** Update connected state and notify listeners on change */
   #setConnected(value: boolean) {
@@ -504,6 +519,7 @@ export class MCPWeb {
         };
 
         this.#ws.onclose = () => {
+          this.#cancelRunningCalls();
           this.#setConnected(false);
           this.#setIsConnecting(false);
           // Don't reconnect if authentication was rejected
@@ -599,6 +615,14 @@ export class MCPWeb {
         this.#trackCall(this.handleResourceRead(message));
         break;
 
+      case 'tool-call-cancelled':
+        this.#runningCalls
+          .get(message.requestId)
+          ?.abort(
+            new Error(`The tool call was cancelled: ${message.reason}`),
+          );
+        break;
+
       case 'tool-registration-error':
         this.handleToolRegistrationError(
           message as ToolRegistrationErrorMessage,
@@ -645,8 +669,13 @@ export class MCPWeb {
         }
       }
 
-      // Execute the tool
-      const result = await tool.handler(toolInput);
+      const { context, end } = this.#createHandlerContext(requestId);
+      let result: unknown;
+      try {
+        result = await tool.handler(toolInput, context);
+      } finally {
+        end();
+      }
 
       // MCP clients reject a result that doesn't match the output schema. An
       // error result is sent as is, so its message reaches the client.
@@ -673,6 +702,118 @@ export class MCPWeb {
       this.sendToolResponse(requestId, {
         error: `Tool execution failed: ${error instanceof Error ? error.message : String(error)}`,
       });
+    }
+  }
+
+  /**
+   * The context for one handler call. `end` stops it from asking further
+   * questions. With a `requestId`, the bridge learns while the call waits on
+   * the user, so it doesn't time the call out, and can cancel the call.
+   */
+  #createHandlerContext(requestId?: string): {
+    context: ToolHandlerContext;
+    end: () => void;
+  } {
+    const controller = new AbortController();
+    const { signal } = controller;
+    if (requestId) this.#runningCalls.set(requestId, controller);
+
+    // Once the call is cancelled, open and later questions reject, so a late
+    // answer can't make the handler change anything.
+    const elicit = createElicit(async (request) => {
+      if (signal.aborted) throw signal.reason;
+      // Each question gets its own signal, which aborts only while it's open.
+      const question = new AbortController();
+      const cancel = () => question.abort(signal.reason);
+      const cancelled = new Promise<never>((_, reject) => {
+        question.signal.addEventListener('abort', () =>
+          reject(question.signal.reason),
+        );
+      });
+      signal.addEventListener('abort', cancel);
+      if (requestId) this.#send({ type: 'elicitation-waiting', requestId });
+      try {
+        return await Promise.race([
+          this.#askUser(request, question.signal),
+          cancelled,
+        ]);
+      } finally {
+        signal.removeEventListener('abort', cancel);
+        if (requestId) this.#send({ type: 'elicitation-answered', requestId });
+      }
+    });
+    return {
+      context: { elicit, signal },
+      end: () => {
+        if (requestId) this.#runningCalls.delete(requestId);
+        controller.abort(new Error('The tool call has already finished.'));
+      },
+    };
+  }
+
+  #cancelRunningCalls() {
+    for (const controller of this.#runningCalls.values()) {
+      controller.abort(
+        new Error(
+          'The connection to the bridge closed before the tool call finished.',
+        ),
+      );
+    }
+    this.#runningCalls.clear();
+  }
+
+  /**
+   * Asks the user in the page: with the latest `onElicit()` handler, or else
+   * in the default dialog.
+   */
+  async #askUser(
+    request: ElicitationRequest,
+    signal: AbortSignal,
+  ): Promise<ElicitationResult> {
+    const handler = [...this.#elicitationHandlers].at(-1);
+    if (handler) return handler(request, { signal });
+    if (globalThis.document?.body) return askInDialog(request, signal);
+    throw new Error(
+      'elicit: there is no way to ask the user. Answer questions with ' +
+        'onElicit(), or run in a browser to use the default dialog.',
+    );
+  }
+
+  /**
+   * Sets how the page asks the user the questions that tool handlers ask with
+   * `elicit`, in place of the default dialog.
+   *
+   * The handler gets the question in the shape of MCP's `elicitation/create`
+   * request and returns the answer in the shape of its result. Rejecting fails
+   * the tool call. When several handlers are set, the latest one answers.
+   *
+   * The handler also gets a `signal` that aborts if nobody waits for the
+   * answer any more while the question is open, for example because the call
+   * timed out. Hide the question then.
+   *
+   * @param handler - Shows the question and resolves with the user's answer
+   * @returns A function that removes the handler
+   *
+   * @example
+   * ```typescript
+   * const off = mcp.onElicit(async ({ message, requestedSchema }) => {
+   *   const ok = await myConfirmModal(message);
+   *   return { action: ok ? 'accept' : 'decline', content: {} };
+   * });
+   * ```
+   */
+  onElicit(handler: ElicitationHandler): () => void {
+    // Re-adding moves the handler to the end, so it answers again.
+    this.#elicitationHandlers.delete(handler);
+    this.#elicitationHandlers.add(handler);
+    return () => {
+      this.#elicitationHandlers.delete(handler);
+    };
+  }
+
+  #send(message: ElicitationWaitingMessage | ElicitationAnsweredMessage) {
+    if (this.#ws?.readyState === WebSocket.OPEN) {
+      this.#ws.send(JSON.stringify(message));
     }
   }
 
@@ -1027,15 +1168,7 @@ export class MCPWeb {
     tool: {
       name: string;
       description: string;
-      handler: TInput extends z.ZodObject
-        ? (
-            input: z.infer<TInput>,
-          ) => TOutput extends z.ZodType
-            ? z.infer<TOutput> | Promise<z.infer<TOutput>>
-            : void | Promise<void>
-        : TOutput extends z.ZodType
-          ? () => z.infer<TOutput> | Promise<z.infer<TOutput>>
-          : () => void | Promise<void>;
+      handler: ToolHandler<TInput, TOutput>;
       inputSchema?: TInput;
       outputSchema?: TOutput;
     },
@@ -1051,7 +1184,8 @@ export class MCPWeb {
       name: string;
       description: string;
       handler: (
-        input?: unknown,
+        input: unknown,
+        context: ToolHandlerContext,
       ) => unknown | Promise<unknown> | void | Promise<void>;
       inputSchema?: { type: string; [key: string]: unknown };
       outputSchema?: { type: string; [key: string]: unknown };
@@ -1115,14 +1249,17 @@ export class MCPWeb {
     // Wrap handler with input validation if Zod schema is provided
     if (processedTool.inputZodSchema) {
       const originalHandler = processedTool.handler;
-      processedTool.handler = async (input: unknown) => {
+      processedTool.handler = async (
+        input: unknown,
+        context: ToolHandlerContext,
+      ) => {
         const validationResult = processedTool.inputZodSchema?.safeParse(input);
         if (!validationResult?.success) {
           throw new Error(
             `Invalid tool input: ${validationResult?.error?.message}`,
           );
         }
-        return originalHandler(validationResult?.data);
+        return originalHandler(validationResult?.data, context);
       };
     }
 
@@ -1788,6 +1925,7 @@ export class MCPWeb {
       this.#ws.close();
       this.#ws = null;
     }
+    this.#cancelRunningCalls();
     this.#setConnected(false);
   }
 
@@ -1932,9 +2070,16 @@ export class MCPWeb {
       for (const item of context) {
         if ('handler' in item) {
           // Tool definition
+          const handlerContext = this.#createHandlerContext();
+          let value: unknown;
+          try {
+            value = await item.handler(undefined, handlerContext.context);
+          } finally {
+            handlerContext.end();
+          }
           processedContext.push({
             name: item.name,
-            value: await item.handler(),
+            value,
             schema: item.outputSchema
               ? toJSONSchema(item.outputSchema)
               : undefined,

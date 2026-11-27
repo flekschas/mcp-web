@@ -164,6 +164,36 @@ function MyComponent() {
 }
 ```
 
+### `useElicitation()`
+
+Answers the questions tool handlers ask with `elicit` in your own UI, in place
+of the default dialog. Questions still open when the component unmounts are
+cancelled, and a question goes away by itself when nobody waits for its answer
+any more, for example after a timeout. See [Asking the User](https://mcp-web.dev/asking-the-user).
+
+**Returns:**
+- `request` - The question waiting for an answer (`message` and
+  `requestedSchema`), or `null`
+- `respond(result)` - Answers it with `{ action: 'accept', content }`,
+  `{ action: 'decline' }`, or `{ action: 'cancel' }`
+
+**Example:**
+```tsx
+function Question() {
+  const { request, respond } = useElicitation();
+  if (!request) return null;
+  return (
+    <dialog open>
+      <p>{request.message}</p>
+      <button onClick={() => respond({ action: 'accept', content: {} })}>
+        Yes
+      </button>
+      <button onClick={() => respond({ action: 'decline' })}>No</button>
+    </dialog>
+  );
+}
+```
+
 ### `useTool(config)`
 
 Register state as MCP tools.
