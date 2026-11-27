@@ -67,6 +67,36 @@ const validateJsonSchema = (
   return typeIsValid && propertiesAreValid && requiredIsValid;
 };
 
+/**
+ * Hints about a tool's behavior, as in MCP's `ToolAnnotations`. Clients may
+ * use them to decide which calls need the user's confirmation, but must not
+ * rely on them for safety. A missing hint means its MCP default.
+ */
+export const ToolAnnotationsSchema = z.object({
+  /** A human-readable title for the tool. */
+  title: z.string().optional(),
+  /** The tool does not change any state. Defaults to `false`. */
+  readOnlyHint: z.boolean().optional(),
+  /**
+   * The tool may delete or overwrite data rather than only add to it.
+   * Defaults to `true`, and only applies when `readOnlyHint` is not `true`.
+   */
+  destructiveHint: z.boolean().optional(),
+  /**
+   * Calling the tool again with the same input has no further effect.
+   * Defaults to `false`.
+   */
+  idempotentHint: z.boolean().optional(),
+  /**
+   * The tool interacts with things outside the app, such as the web.
+   * Defaults to `true`.
+   */
+  openWorldHint: z.boolean().optional(),
+});
+
+/** Hints about a tool's behavior. */
+export type ToolAnnotations = z.infer<typeof ToolAnnotationsSchema>;
+
 /** Base schema for all tool definitions with common fields */
 const ToolDefinitionBaseSchema = z.object({
   /** The name of the tool. */
@@ -79,6 +109,8 @@ const ToolDefinitionBaseSchema = z.object({
     (val) => typeof val === 'function',
     { message: 'Handler must be a function' },
   ),
+  /** Hints about the tool's behavior. */
+  annotations: ToolAnnotationsSchema.optional(),
 });
 
 /** Schema for tool definitions with Zod schemas */
@@ -163,6 +195,8 @@ export interface ToolDefinition {
   inputSchema?: z.ZodObject | Record<string, unknown>;
   /** Output value schema (Zod or JSON Schema). */
   outputSchema?: z.ZodType | Record<string, unknown>;
+  /** Hints about the tool's behavior, such as `readOnlyHint`. */
+  annotations?: ToolAnnotations;
   /**
    * Tool metadata, forwarded to the MCP `tools/list` response.
    * Used for MCP Apps to declare `_meta.ui.resourceUri`.

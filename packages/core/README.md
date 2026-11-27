@@ -185,6 +185,43 @@ This is best effort. A browser can suspend the timers of a background page, so
 the disconnect can come late. In Chromium, a frozen page disconnects right
 away.
 
+### WebMCP
+
+In browsers that support [WebMCP](https://webmachinelearning.github.io/webmcp/)
+(`document.modelContext`, currently Chrome behind a flag or origin trial),
+MCPWeb also registers its tools there, except app tools and tools whose
+`_meta.ui.visibility` leaves out `'model'`. Browser agents, extensions, and tools
+like Playwright and Chrome DevTools MCP can then call your tools without the
+bridge. Results have the same `{ content, isError }` format the bridge returns.
+
+```typescript
+// Default: register tools with WebMCP and the bridge
+new MCPWeb({ name: 'My App', description: '...' });
+
+// Only the bridge
+new MCPWeb({ name: 'My App', description: '...', disableWebMCP: true });
+
+// Only WebMCP: never connect to the bridge
+new MCPWeb({ name: 'My App', description: '...', onlyWebMCP: true });
+```
+
+WebMCP has tools only. Resources and app UIs need the bridge, and `query()`
+throws without it. With `onlyWebMCP`, `connected` stays `false`. MCPWeb
+supports the `document.modelContext` API, not the `navigator.modelContext`
+that Firefox exposes behind a preference.
+
+Tool names must match `[A-Za-z0-9_.-]{1,128}`, or WebMCP rejects the tool and
+MCPWeb logs a warning. The tool still works through the bridge. When the bridge
+rejects a tool, for example because another tab has a tool with the same name
+and a different schema, MCPWeb removes it from WebMCP too.
+
+When a new MCPWeb instance on the page adds a tool with the same name, for
+example after hot module replacement, its tool replaces the older one in
+WebMCP. Tools of the older instance that the new one does not add to WebMCP,
+including tools it now adds as app tools or app-only tools, stay registered
+until the page reloads. To withdraw such a tool sooner, call
+`oldInstance.removeTool(name)` when disposing of the older instance.
+
 ### Authentication
 
 Auth tokens are automatically generated and persisted in localStorage. Access your token:
@@ -206,8 +243,21 @@ interface ToolDefinition {
   description: string;
   handler: (input: unknown) => Promise<unknown> | unknown;
   inputSchema?: ZodSchema | JSONSchema;
+  annotations?: ToolAnnotations;
 }
 ```
+
+`annotations` are MCP's tool hints, such as `readOnlyHint: true` for a tool
+that changes nothing or `destructiveHint: true` for one that deletes or
+overwrites data. AI apps may use them to decide which calls need the user's
+confirmation. A missing hint means MCP's default, which assumes a tool may be
+destructive. Getters from `addStateTools()` are marked read-only.
+
+MCPWeb forwards two hints to WebMCP: `readOnlyHint`, and `consequentialHint`
+for `destructiveHint: true`. It does not set `consequentialHint` for a missing
+`destructiveHint`, since browsers may ask the user to confirm each call of a
+consequential tool. The generated `delete_*` tools of `addStateTools()` are
+marked destructive.
 
 ### Input Validation
 

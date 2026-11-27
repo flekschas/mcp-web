@@ -8,9 +8,14 @@
 - fix: send Zod output schemas as JSON Schema draft-07, so MCP clients accept tuples in results
 - fix: `validateInput()` checks string formats of a JSON Schema too, and tools can share a schema with the same `$id`
 - fix: accept a tool or app with a Zod schema for one of its input and output schemas and a JSON Schema for the other
+- feat: register tools with [WebMCP](https://webmachinelearning.github.io/webmcp/) (`document.modelContext`) when the browser supports it, so browser agents can call them without the bridge. This is on by default, so any agent in the browser can call your tools without the bridge's auth token. Set `disableWebMCP: true` to keep tools bridge-only. `onlyWebMCP` never connects to the bridge. App tools and tools whose `_meta.ui.visibility` leaves out `'model'` are not registered
+- feat: `annotations` on tools for MCP's tool hints, such as `readOnlyHint`. Getters from `addStateTools()` are marked read-only, and generated `delete_*` tools destructive
+- fix: `persistAuthToken: false` no longer reads `localStorage`, and blocked storage no longer makes the constructor throw
 
 `@mcp-web/bridge` and `@mcp-web/client`:
 
+- feat: forward tool `annotations` to MCP clients. When pages with the same tool disagree on its hints, the list of all sessions' tools leaves them out
+- fix: keep a tool result's `_meta` out of the text of an error result, and only turn base64 image data URLs into image content
 - fix: when no page is connected, tell AI to ask the user to switch back to the page, not only to open it
 - feat: list a tool's output schema and return its result as `structuredContent` when the schema is an object, as MCP requires. The JSON text content stays for clients that don't read structured content
 - fix: reject a tool from another page with the same name but a different output schema, not only a different input schema. The order of keys in a schema and its root `$schema` don't count as a difference

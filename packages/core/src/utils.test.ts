@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, spyOn, test } from 'bun:test';
-import { getOutputValidator } from './utils.js';
+import { getOutputValidator, toToolMetadataJson } from './utils.js';
 
 const countSchema = () => ({
   type: 'object',
@@ -40,4 +40,15 @@ describe('getOutputValidator', () => {
     warn.mockRestore();
     error.mockRestore();
   });
+});
+
+test('toToolMetadataJson keeps annotations', () => {
+  const metadata = toToolMetadataJson({
+    name: 'get_todos',
+    description: 'Gets the todos',
+    handler: () => [],
+    annotations: { readOnlyHint: true },
+  });
+
+  expect(metadata.annotations).toEqual({ readOnlyHint: true });
 });

@@ -16,8 +16,8 @@ import {
   type FatalError,
   getMcpOutputSchema,
   InternalErrorCode,
-  isErrorResult,
   InvalidSessionErrorCode,
+  isErrorResult,
   type MCPWebConfig,
   type MCPWebConfigOutput,
   McpWebConfigSchema,
@@ -41,14 +41,17 @@ import {
   SessionNameAlreadyInUseErrorCode,
   SessionNotFoundErrorCode,
   SessionNotSpecifiedErrorCode,
+  type ToolAnnotations,
   type ToolMetadata,
   ToolNameRequiredErrorCode,
   ToolNotAllowedErrorCode,
   ToolNotFoundErrorCode,
   ToolSchemaConflictErrorCode,
+  toCallToolResult,
   UnknownMethodErrorCode,
 } from '@mcp-web/types';
 import type {
+  CallToolResult,
   ListPromptsResult,
   ListResourcesResult,
   ListToolsResult,
@@ -98,6 +101,7 @@ interface RegisterToolMessage {
     description: string;
     inputSchema?: z.core.JSONSchema.JSONSchema;
     outputSchema?: z.core.JSONSchema.JSONSchema;
+    annotations?: ToolAnnotations;
     _meta?: Record<string, unknown>;
   };
 }
@@ -164,18 +168,7 @@ interface ToolDefinition {
   inputSchema?: z.core.JSONSchema.JSONSchema;
   outputSchema?: z.core.JSONSchema.JSONSchema;
   handler?: string;
-  _meta?: Record<string, unknown>;
-}
-
-interface WrappedToolResult {
-  content: Array<{
-    type: string;
-    text?: string;
-    data?: string;
-    mimeType?: string;
-  }>;
-  structuredContent?: Record<string, unknown>;
-  isError?: boolean;
+  annotations?: ToolAnnotations;
   _meta?: Record<string, unknown>;
 }
 
@@ -1508,123 +1501,26 @@ export class MCPWebBridge {
    * Wraps a tool call result in the MCP CallToolResult format, for both
    * Remote MCP (direct HTTP) and STDIO clients.
    *
-   * The `_meta` field of a successful object result goes to the top level of
-   * the CallToolResult, where MCP expects it, instead of into the content.
-   *
    * When the tool has an output schema, a successful object result is also
-   * returned as `structuredContent`. The content stays for clients that don't
-   * read structured content.
+   * returned as `structuredContent`, without its `_meta`. The content stays
+   * for clients that don't read structured content.
    */
   #wrapToolCallResult(
     result: unknown,
     outputSchema?: Tool['outputSchema'],
-  ): WrappedToolResult {
+  ): CallToolResult {
+    const wrapped = toCallToolResult(result);
     if (
-      isErrorResult(result) ||
-      result === null ||
-      typeof result !== 'object' ||
-      Array.isArray(result)
+      outputSchema &&
+      !wrapped.isError &&
+      result !== null &&
+      typeof result === 'object' &&
+      !Array.isArray(result)
     ) {
-      return this.#toCallToolResult(result);
-    }
-
-    const { _meta, ...value } = result as Record<string, unknown>;
-    const wrapped = this.#toCallToolResult(value);
-    if (_meta && typeof _meta === 'object') {
-      wrapped._meta = _meta as Record<string, unknown>;
-    }
-    if (outputSchema) {
+      const { _meta, ...value } = result as Record<string, unknown>;
       wrapped.structuredContent = value;
     }
     return wrapped;
-  }
-
-  /**
-   * Formats a tool result as MCP content: an error, an image for image data
-   * URLs, or text.
-   */
-  #toCallToolResult(result: unknown): WrappedToolResult {
-    if (isErrorResult(result)) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(result, null, 2),
-          },
-        ],
-        isError: true,
-      };
-    }
-
-    // Handle different result types
-    if (typeof result === 'string') {
-      // Check if it's a data URL (image)
-      if (result.startsWith('data:image/')) {
-        const mimeType = result.split(';')[0].split(':')[1];
-        // Extract base64 data after the comma
-        const base64Data = result.split(',')[1];
-        return {
-          content: [
-            {
-              type: 'image',
-              data: base64Data,
-              mimeType,
-            },
-          ],
-        };
-      }
-      return {
-        content: [
-          {
-            type: 'text',
-            text: result,
-          },
-        ],
-      };
-    }
-
-    if (result !== null && result !== undefined) {
-      // Check if it's an object containing a data URL (e.g., { dataUrl: "data:image/png;base64,..." })
-      // This handles tools that return image data wrapped in an object rather than as a raw string.
-      if (typeof result === 'object' && 'dataUrl' in result) {
-        const dataUrl = (result as Record<string, unknown>).dataUrl;
-        if (typeof dataUrl === 'string' && dataUrl.startsWith('data:image/')) {
-          const mimeType = dataUrl.split(';')[0].split(':')[1];
-          const base64Data = dataUrl.split(',')[1];
-          return {
-            content: [
-              {
-                type: 'image',
-                data: base64Data,
-                mimeType,
-              },
-            ],
-          };
-        }
-      }
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text:
-              typeof result === 'object'
-                ? JSON.stringify(result, null, 2)
-                : String(result),
-          },
-        ],
-      };
-    }
-
-    // null or undefined result
-    return {
-      content: [
-        {
-          type: 'text',
-          text: '',
-        },
-      ],
-    };
   }
 
   // ============================================
@@ -1778,6 +1674,7 @@ export class MCPWebBridge {
         properties: {},
         required: [],
       },
+      annotations: { readOnlyHint: true },
     };
 
     if (!session && sessions.size > 1) {
@@ -1785,10 +1682,27 @@ export class MCPWebBridge {
       const tools: Tool[] = [listSessionsTool];
       const seen = new Set<string>();
 
+      // Pages can disagree on a tool's hints, and a wrong hint, such as
+      // read-only on a destructive tool, is worse than none.
+      const sharedAnnotations = new Map<string, ToolAnnotations | undefined>();
+      for (const s of sessions.values()) {
+        for (const tool of s.tools.values()) {
+          if (!sharedAnnotations.has(tool.name)) {
+            sharedAnnotations.set(tool.name, tool.annotations);
+          } else if (
+            JSON.stringify(sharedAnnotations.get(tool.name)) !==
+            JSON.stringify(tool.annotations)
+          ) {
+            sharedAnnotations.set(tool.name, undefined);
+          }
+        }
+      }
+
       for (const s of sessions.values()) {
         for (const tool of s.tools.values()) {
           if (seen.has(tool.name)) continue;
           seen.add(tool.name);
+          const annotations = sharedAnnotations.get(tool.name);
           tools.push({
             name: tool.name,
             description: tool.description,
@@ -1805,6 +1719,7 @@ export class MCPWebBridge {
               required: ['session_id', ...(tool.inputSchema?.required || [])],
             },
             outputSchema: getMcpOutputSchema(tool.outputSchema),
+            ...(annotations ? { annotations } : {}),
             // Forward _meta (e.g., _meta.ui.resourceUri for MCP Apps)
             ...(tool._meta ? { _meta: tool._meta } : {}),
           });
@@ -1844,6 +1759,7 @@ export class MCPWebBridge {
           required: tool.inputSchema?.required || [],
         },
         outputSchema: getMcpOutputSchema(tool.outputSchema),
+        ...(tool.annotations ? { annotations: tool.annotations } : {}),
         // Forward _meta (e.g., _meta.ui.resourceUri for MCP Apps)
         ...(tool._meta ? { _meta: tool._meta } : {}),
       };

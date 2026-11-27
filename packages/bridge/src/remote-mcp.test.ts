@@ -1183,3 +1183,91 @@ describe('Remote MCP - Output Schemas Across Sessions', () => {
     ).toEqual(countSchema);
   });
 });
+
+describe('Remote MCP - Tool annotations', () => {
+  let bridge: MCPWebBridgeNode;
+  let wsClient: WebSocket;
+  const port = 4609;
+
+  afterEach(async () => {
+    if (wsClient && wsClient.readyState === WebSocket.OPEN) {
+      wsClient.close();
+    }
+    if (bridge) {
+      await bridge.close();
+    }
+  });
+
+  test('tools/list includes the annotations pages agree on', async () => {
+    bridge = new MCPWebBridgeNode({
+      name: 'Test Bridge',
+      description: 'Test',
+      port,
+    });
+
+    const authToken = 'test-token-annotations';
+    const registerGetTodos = async (
+      sessionId: string,
+      annotations: Record<string, unknown> = { readOnlyHint: true }
+    ) => {
+      const ws = await createMockClient(port, sessionId);
+      await authenticateClient(ws, authToken);
+      ws.send(
+        JSON.stringify({
+          type: 'register-tool',
+          tool: {
+            name: 'get_todos',
+            description: 'Gets the todos',
+            annotations,
+          },
+        })
+      );
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      return ws;
+    };
+    const listTools = async () => {
+      const { body } = await mcpRequest(port, 'tools/list', {}, {
+        Authorization: `Bearer ${authToken}`,
+      });
+      return (
+        body as {
+          result: {
+            tools: { name: string; annotations?: Record<string, unknown> }[];
+          };
+        }
+      ).result.tools;
+    };
+
+    // With one session
+    wsClient = await registerGetTodos('session-annotations-1');
+    let tools = await listTools();
+    expect(tools.find((tool) => tool.name === 'get_todos')?.annotations).toEqual(
+      { readOnlyHint: true }
+    );
+    expect(
+      tools.find((tool) => tool.name === 'list_sessions')?.annotations
+    ).toEqual({ readOnlyHint: true });
+
+    // With two sessions that agree on the hints
+    const secondClient = await registerGetTodos('session-annotations-2');
+    // And a third that disagrees
+    let thirdClient: WebSocket | undefined;
+    try {
+      tools = await listTools();
+      expect(
+        tools.find((tool) => tool.name === 'get_todos')?.annotations
+      ).toEqual({ readOnlyHint: true });
+
+      thirdClient = await registerGetTodos('session-annotations-3', {
+        destructiveHint: true,
+      });
+      tools = await listTools();
+      expect(
+        tools.find((tool) => tool.name === 'get_todos')?.annotations
+      ).toBeUndefined();
+    } finally {
+      secondClient.close();
+      thirdClient?.close();
+    }
+  });
+});
