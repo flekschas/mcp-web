@@ -209,6 +209,7 @@ addTool<TInput, TOutput>(tool: {
           : () => void | Promise<void>;
       inputSchema?: TInput;
       outputSchema?: TOutput;
+      annotations?: ToolAnnotations;
     }, options?: {
       /** Called if the bridge rejects the tool registration (e.g., schema conflict with a sibling session). */
       onRegistrationError?: (error: ToolRegistrationError) => void;
@@ -224,6 +225,7 @@ addTool(tool: {
       ) => unknown | Promise<unknown> | void | Promise<void>;
       inputSchema?: { type: string; [key: string]: unknown };
       outputSchema?: { type: string; [key: string]: unknown };
+      annotations?: ToolAnnotations;
       _meta?: Record<string, unknown>;
     }, options?: {
       /** Called if the bridge rejects the tool registration (e.g., schema conflict with a sibling session). */
@@ -252,7 +254,7 @@ removeTool(name: string): void
 Removes a tool from this browser session.
 
 When connected, the bridge updates the session's tool list and notifies
-subscribed MCP clients.
+subscribed MCP clients. The tool is also unregistered from WebMCP.
 Useful for dynamically disabling features or cleaning up when tools are no longer needed.
 
 ```ts
@@ -593,6 +595,12 @@ outputSchema?: TOutput
 ```
 
 Optional Zod schema for validating output.
+
+```ts
+annotations?: ToolAnnotations
+```
+
+Hints about the tool's behavior, such as `readOnlyHint`.
 
 ### `CreatedTool<TInput, TOutput>`
 

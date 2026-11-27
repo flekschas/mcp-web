@@ -24,6 +24,7 @@ export function generateFixedShapeTools(
   tools.push({
     name: `get_${name}`,
     description: `Get the current ${description}`,
+    annotations: { readOnlyHint: true },
     inputSchema: z.object({}),
     handler: async () => {
       return get();

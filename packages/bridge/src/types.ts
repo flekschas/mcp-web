@@ -8,6 +8,7 @@ import type {
   QueryMessage,
   QueryProgressMessage,
   ResourceMetadata,
+  ToolAnnotations,
   ToolMetadata
 } from '@mcp-web/types';
 import type * as WS from 'ws';
@@ -44,6 +45,7 @@ export interface RegisterToolMessage {
     description: string;
     inputSchema?: z.core.JSONSchema.JSONSchema;
     outputSchema?: z.core.JSONSchema.JSONSchema;
+    annotations?: ToolAnnotations;
     _meta?: Record<string, unknown>;
   };
 }

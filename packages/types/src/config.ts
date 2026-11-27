@@ -125,6 +125,29 @@ export const McpWebConfigSchema = z.object({
     .describe(
       'Optional human-readable name for the session. Must be unique per auth token. Used to identify specific sessions when multiple are connected.',
     ),
+  /**
+   * Don't register tools with WebMCP (`document.modelContext`). By default,
+   * tools are registered there when the browser supports it, so browser agents
+   * can call them without the bridge.
+   */
+  disableWebMCP: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe(
+      "Don't register tools with WebMCP (document.modelContext). By default, browser agents can call tools there without the bridge.",
+    ),
+  /**
+   * Only register tools with WebMCP and never connect to the bridge. Resources
+   * and app UIs are then never served, and `query()` throws.
+   */
+  onlyWebMCP: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe(
+      'Only register tools with WebMCP and never connect to the bridge.',
+    ),
   /** Enable debug logging for MCP requests and responses. */
   debug: z
     .boolean()

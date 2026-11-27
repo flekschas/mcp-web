@@ -5,4 +5,5 @@ export * from './mcp.js';
 export * from './query.js';
 export * from './resources.js';
 export * from './room.js';
+export * from './tool-result.js';
 export * from './tools.js';

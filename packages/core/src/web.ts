@@ -19,6 +19,7 @@ import type {
   ProcessedToolDefinition,
   Query,
   ResourceDefinition,
+  ToolAnnotations,
   ToolDefinition,
   ToolRegistrationError,
 } from '@mcp-web/types';
@@ -34,6 +35,7 @@ import {
   RESOURCE_MIME_TYPE,
   ResourceDefinitionSchema,
   ToolDefinitionSchema,
+  toCallToolResult,
 } from '@mcp-web/types';
 import type { z } from 'zod';
 import {
@@ -54,6 +56,92 @@ import {
   toOutputJSONSchema,
   toToolMetadataJson,
 } from './utils.js';
+
+/** The part of WebMCP's `ModelContextTool` that MCPWeb uses. */
+interface ModelContextTool {
+  name: string;
+  title?: string;
+  description: string;
+  inputSchema?: Record<string, unknown>;
+  annotations?: { readOnlyHint?: boolean; consequentialHint?: boolean };
+  execute: (
+    input: Record<string, unknown>,
+    options: { signal: AbortSignal },
+  ) => unknown;
+}
+
+/**
+ * The part of WebMCP's `document.modelContext` that MCPWeb uses. See
+ * https://webmachinelearning.github.io/webmcp/.
+ */
+interface ModelContext {
+  /** Rejects on an invalid or duplicate name. Aborting `signal` unregisters. */
+  registerTool(
+    tool: ModelContextTool,
+    options?: { signal?: AbortSignal },
+  ): Promise<void>;
+}
+
+type WebMCPRegistrations = Map<
+  string,
+  { owner: object; controller: AbortController }
+>;
+
+const getModelContext = () =>
+  (globalThis.document as { modelContext?: ModelContext } | undefined)
+    ?.modelContext;
+
+const registrationsKey = Symbol.for('@mcp-web/core/webmcp-registrations');
+
+/**
+ * WebMCP registrations by tool name. They are kept on the model context, so
+ * that all instances in the document share them, even ones from another copy
+ * of this module. A new instance, such as one created by hot module
+ * replacement, can then replace the tools of an older one.
+ */
+const getWebMCPRegistrations = (modelContext: ModelContext) => {
+  const holder = modelContext as unknown as {
+    [registrationsKey]?: WebMCPRegistrations;
+  };
+  holder[registrationsKey] ??= new Map();
+  return holder[registrationsKey];
+};
+
+/**
+ * Whether a tool belongs in WebMCP. An app tool renders its UI in an MCP host,
+ * which WebMCP has no way to do, and a tool whose `_meta.ui.visibility` leaves
+ * out `'model'` is only for apps.
+ */
+const isForWebMCP = (tool: ProcessedToolDefinition) => {
+  const ui = (
+    tool._meta as
+      | { ui?: { resourceUri?: unknown; visibility?: unknown } }
+      | undefined
+  )?.ui;
+  if (ui?.resourceUri) return false;
+  return !Array.isArray(ui?.visibility) || ui.visibility.includes('model');
+};
+
+/** The result of a tool call that failed with `error`. */
+const toErrorResult = (error: unknown) => ({
+  error: `Tool execution failed: ${error instanceof Error ? error.message : String(error)}`,
+});
+
+/**
+ * Formats a tool result for WebMCP, which hands all of it to the agent.
+ * WebMCP hides a thrown error's message from the agent, so failures are
+ * returned as results with `isError` instead.
+ */
+const toWebMCPResult = (result: unknown) => {
+  try {
+    // `_meta` is for MCP hosts and apps, not for the agent.
+    const { _meta, ...forAgent } = toCallToolResult(result);
+    return forAgent;
+  } catch (error) {
+    // For example a result with a `bigint` or a circular reference.
+    return toCallToolResult(toErrorResult(error));
+  }
+};
 
 /**
  * Main class for integrating web applications with AI agents via the Model Context Protocol (MCP).
@@ -115,6 +203,8 @@ export class MCPWeb {
   #idleTimer: ReturnType<typeof setTimeout> | undefined;
   #pendingCalls = 0;
   #reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Set when the document does not allow WebMCP, e.g. in some iframes. */
+  #webMCPDisallowed = false;
 
   /** Update connected state and notify listeners on change */
   #setConnected(value: boolean) {
@@ -170,12 +260,20 @@ export class MCPWeb {
    */
   constructor(config: MCPWebConfig) {
     this.#config = McpWebConfigSchema.parse(config);
+    if (this.#config.disableWebMCP && this.#config.onlyWebMCP) {
+      throw new Error('disableWebMCP and onlyWebMCP cannot both be set.');
+    }
     this.#bridgeUrl =
       this.#config.bridgeUrl ??
       globalThis.window?.location?.host ??
       'localhost:3001';
     this.#sessionId = this.#generateSessionId();
-    this.#authToken = this.#resolveAuthToken(this.#config);
+    // Only the bridge uses the auth token, so `onlyWebMCP` does not store it.
+    this.#authToken = this.#resolveAuthToken(
+      this.#config.onlyWebMCP
+        ? { ...this.#config, persistAuthToken: false }
+        : this.#config,
+    );
 
     this.#mcpConfig = {
       [this.#config.name]: {
@@ -187,6 +285,15 @@ export class MCPWeb {
         },
       },
     };
+
+    if (this.#config.onlyWebMCP) {
+      if (globalThis.document && !getModelContext()) {
+        console.warn(
+          'onlyWebMCP is set, but this browser does not support WebMCP, so no agent can call the tools.',
+        );
+      }
+      return;
+    }
 
     if (this.#config.autoConnect) {
       this.connect().catch((error) => {
@@ -371,14 +478,14 @@ export class MCPWeb {
     // Use provided auth token if available
     if (config.authToken) {
       // Save it to localStorage if persistence is enabled
-      if (globalThis.localStorage && config.persistAuthToken !== false) {
+      if (config.persistAuthToken !== false) {
         this.#saveAuthToken(config.authToken);
       }
       return config.authToken;
     }
 
     // Try to load from localStorage if persistence is enabled
-    if (globalThis.localStorage && config.persistAuthToken !== false) {
+    if (config.persistAuthToken !== false) {
       const savedToken = this.#loadAuthToken();
       if (savedToken) {
         return savedToken;
@@ -407,7 +514,7 @@ export class MCPWeb {
    * connecting will return the same promise.
    *
    * @returns Promise that resolves to `true` when authenticated and ready, or
-   *   `false` if `disconnect()` cancelled the attempt
+   *   `false` if `disconnect()` cancelled the attempt or `onlyWebMCP` is set
    * @throws {Error} If WebSocket connection fails
    *
    * @example Manual Connection
@@ -431,6 +538,7 @@ export class MCPWeb {
    * ```
    */
   connect(): Promise<boolean> {
+    if (this.#config.onlyWebMCP) return Promise.resolve(false);
     this.#idle = false;
     this.#lastActivityAt = Date.now();
     return this.#connect();
@@ -625,54 +733,54 @@ export class MCPWeb {
 
   private async handleToolCall(message: BridgeMessage & { type: 'tool-call' }) {
     const { requestId, toolName, toolInput } = message;
+    const result = await this.#runTool(toolName, toolInput);
+    try {
+      this.sendToolResponse(requestId, result);
+    } catch (error) {
+      // For example a result with a `bigint` or a circular reference.
+      this.sendToolResponse(requestId, toErrorResult(error));
+    }
+  }
+
+  /**
+   * Runs a tool and returns its result, or `{ error }` when the tool is
+   * missing, its input fails its Zod schema, its result fails its output
+   * schema, or it throws. A result checked by a Zod output schema is the
+   * parsed result.
+   */
+  async #runTool(toolName: string, toolInput: unknown): Promise<unknown> {
+    const tool = this.tools.get(toolName);
+    if (!tool) {
+      return { error: `Tool '${toolName}' not found` };
+    }
 
     try {
-      const tool = this.tools.get(toolName);
-      if (!tool) {
-        this.sendToolResponse(requestId, {
-          error: `Tool '${toolName}' not found`,
-        });
-        return;
-      }
-
       if (tool.inputZodSchema) {
         const parsedToolInput = tool.inputZodSchema.safeParse(toolInput);
         if (!parsedToolInput.success) {
-          this.sendToolResponse(requestId, {
-            error: `Invalid input: ${parsedToolInput.error.message}`,
-          });
-          return;
+          return { error: `Invalid input: ${parsedToolInput.error.message}` };
         }
       }
 
-      // Execute the tool
       const result = await tool.handler(toolInput);
 
       // MCP clients reject a result that doesn't match the output schema. An
-      // error result is sent as is, so its message reaches the client.
-      let output = result;
+      // error result is returned as is, so its message reaches the client.
       const validateResult = this.#outputValidators.get(tool);
-      if (validateResult && !isErrorResult(result)) {
-        try {
-          output = validateResult(result);
-        } catch (error) {
-          this.sendToolResponse(requestId, {
-            error: error instanceof Error ? error.message : String(error),
-          });
-          return;
-        }
+      if (!validateResult || isErrorResult(result)) return result;
+      try {
+        return validateResult(result);
+      } catch (error) {
+        return {
+          error: error instanceof Error ? error.message : String(error),
+        };
       }
-
-      // The bridge formats the result for MCP
-      this.sendToolResponse(requestId, output);
     } catch (error) {
       // Only log in non-test environments
       if (globalThis.process?.env?.NODE_ENV !== 'test') {
         console.debug(`Tool execution error for ${toolName}:`, error);
       }
-      this.sendToolResponse(requestId, {
-        error: `Tool execution failed: ${error instanceof Error ? error.message : String(error)}`,
-      });
+      return toErrorResult(error);
     }
   }
 
@@ -709,6 +817,7 @@ export class MCPWeb {
         description: tool.description,
         inputSchema: tool.inputJsonSchema,
         outputSchema: tool.outputJsonSchema,
+        annotations: tool.annotations,
         // Forward _meta (e.g., _meta.ui.resourceUri for MCP Apps)
         ...(tool._meta ? { _meta: tool._meta } : {}),
       },
@@ -804,6 +913,7 @@ export class MCPWeb {
 
     // Remove the tool since the bridge rejected it
     this.tools.delete(toolName);
+    this.#unregisterWebMCPTool(toolName);
 
     // Call the per-tool callback if registered
     const callback = this.#toolRegistrationErrorCallbacks.get(toolName);
@@ -1038,6 +1148,7 @@ export class MCPWeb {
           : () => void | Promise<void>;
       inputSchema?: TInput;
       outputSchema?: TOutput;
+      annotations?: ToolAnnotations;
     },
     options?: {
       /** Called if the bridge rejects the tool registration (e.g., schema conflict with a sibling session). */
@@ -1055,6 +1166,7 @@ export class MCPWeb {
       ) => unknown | Promise<unknown> | void | Promise<void>;
       inputSchema?: { type: string; [key: string]: unknown };
       outputSchema?: { type: string; [key: string]: unknown };
+      annotations?: ToolAnnotations;
       _meta?: Record<string, unknown>;
     },
     options?: {
@@ -1136,7 +1248,10 @@ export class MCPWeb {
     return processedTool;
   }
 
-  /** Adds a prepared tool, registering it with the bridge if connected. */
+  /**
+   * Adds a prepared tool and registers it with WebMCP and, if connected, the
+   * bridge.
+   */
   #storeTool(
     processedTool: ProcessedToolDefinition,
     options?: { onRegistrationError?: (error: ToolRegistrationError) => void },
@@ -1151,10 +1266,81 @@ export class MCPWeb {
       );
     }
 
+    this.#registerWebMCPTool(processedTool);
+
     // Register immediately if connected
     if (this.#connected) {
       this.registerTool(processedTool);
     }
+  }
+
+  /**
+   * Registers a tool with WebMCP, replacing an earlier registration of its
+   * name, even one from another instance. Does nothing when the browser lacks
+   * WebMCP or `disableWebMCP` is set. A tool that `isForWebMCP` rejects only
+   * removes this instance's earlier registration.
+   */
+  async #registerWebMCPTool(tool: ProcessedToolDefinition) {
+    const modelContext = getModelContext();
+    if (this.#config.disableWebMCP || this.#webMCPDisallowed || !modelContext) {
+      return;
+    }
+
+    if (!isForWebMCP(tool)) {
+      this.#unregisterWebMCPTool(tool.name);
+      return;
+    }
+
+    const registrations = getWebMCPRegistrations(modelContext);
+    registrations.get(tool.name)?.controller.abort();
+    const controller = new AbortController();
+    registrations.set(tool.name, { owner: this, controller });
+
+    const { title, readOnlyHint, destructiveHint } = tool.annotations ?? {};
+    try {
+      await modelContext.registerTool(
+        {
+          name: tool.name,
+          title,
+          description: tool.description,
+          inputSchema: tool.inputJsonSchema as
+            | Record<string, unknown>
+            | undefined,
+          annotations: {
+            readOnlyHint: readOnlyHint === true,
+            consequentialHint: destructiveHint === true && !readOnlyHint,
+          },
+          execute: async (input) =>
+            toWebMCPResult(await this.#runTool(tool.name, input)),
+        },
+        { signal: controller.signal },
+      );
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      if (registrations.get(tool.name)?.controller === controller) {
+        registrations.delete(tool.name);
+      }
+      const message = error instanceof Error ? error.message : String(error);
+      if (error instanceof Error && error.name === 'NotAllowedError') {
+        if (!this.#webMCPDisallowed) {
+          console.warn(`WebMCP is not allowed in this document: ${message}`);
+        }
+        this.#webMCPDisallowed = true;
+        return;
+      }
+      console.warn(`WebMCP rejected the tool '${tool.name}': ${message}`);
+    }
+  }
+
+  /** Unregisters this instance's WebMCP registration of a tool. */
+  #unregisterWebMCPTool(name: string) {
+    const modelContext = getModelContext();
+    if (!modelContext) return;
+    const registrations = getWebMCPRegistrations(modelContext);
+    const registration = registrations.get(name);
+    if (registration?.owner !== this) return;
+    registration.controller.abort();
+    registrations.delete(name);
   }
 
   /**
@@ -1231,7 +1417,7 @@ export class MCPWeb {
    * Removes a tool from this browser session.
    *
    * When connected, the bridge updates the session's tool list and notifies
-   * subscribed MCP clients.
+   * subscribed MCP clients. The tool is also unregistered from WebMCP.
    * Useful for dynamically disabling features or cleaning up when tools are no longer needed.
    *
    * @param name - Name of the tool to remove
@@ -1245,6 +1431,7 @@ export class MCPWeb {
   removeTool(name: string) {
     this.#toolRegistrationErrorCallbacks.delete(name);
     if (!this.tools.delete(name)) return;
+    this.#unregisterWebMCPTool(name);
 
     // Without an open socket there is nothing to tell: reconnecting
     // registers only the remaining tools.

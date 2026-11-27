@@ -11,7 +11,7 @@ tools and UI.
 |---|---|---|---|
 | **Core idea** | Frontend state _is_ the tool surface | Browser-native tool registration API | Event protocol between agents and UIs |
 | **Protocol** | MCP only | W3C Web API (proposed) | AG-UI (custom event protocol) |
-| **Transport** | WebSocket bridge server | Native browser API (`navigator.modelContext`) | Agent-dependent |
+| **Transport** | WebSocket bridge server, or WebMCP | Native browser API (`document.modelContext`) | Agent-dependent |
 | **Status** | Available today | W3C Community Group draft | Available today |
 | **State management** | Declarative reactive state exposed as tools | Not specified | Separate event system (snapshots + JSON patches) |
 | **Human-AI parity** | Built-in (same state, same interface) | Depends on implementation | Requires separate engineering |
@@ -35,22 +35,21 @@ app does not need to know it is being controlled by AI.
 ## WebMCP
 
 [WebMCP](https://webmachinelearning.github.io/webmcp/) is a proposed W3C
-Community Group spec that adds a `navigator.modelContext` API to browsers.
+Community Group spec that adds a `document.modelContext` API to browsers.
 The names sound similar and the fundamental idea is the same: let agents
 directly communicate with browser sessions. WebMCP's `registerTool()` is
 essentially what MCP-Web's `addTool()` does today, but built into the browser
 itself.
 
-When WebMCP ships natively in browsers, it could replace MCP-Web's bridge server
-and make the setup even simpler. We intend to align MCP-Web with the WebMCP spec
-so that adopting the standard is seamless once it lands.
+MCP-Web registers its tools with WebMCP in browsers that support it, currently
+Chrome behind a flag or origin trial. Browser agents can then call them without
+the bridge server, and `onlyWebMCP: true` drops the bridge entirely.
 
 Beyond transport, MCP-Web provides higher-level utilities that remain useful
 regardless of how tools get delivered to the agent: declarative state modeling,
 automatic tool generation from Zod schemas, and visual tools for rendering UI to
-agents. So the two are complementary: MCP-Web works today with any
-MCP-compatible agent, and WebMCP could become the native transport layer
-underneath.
+agents. So the two are complementary: MCP-Web works with any MCP-compatible
+agent through the bridge, and with browser agents through WebMCP.
 
 ## AG-UI
 
@@ -78,8 +77,8 @@ interact with. Human-AI is straightforward: expose type-safe tools from Zod
 schemas. And it works today with any MCP-compatible agent (Claude Desktop,
 Cursor, etc.).
 
-**Watch WebMCP** as the emerging browser-native standard. When it ships, it will
-simplify transport for MCP-Web and similar libraries.
+**Watch WebMCP** as the emerging browser-native standard. MCP-Web apps already
+register their tools with it where browsers support it.
 
 **Choose AG-UI** if you are building a conversational agent UI that needs
 streaming text, reasoning display, sub-agent coordination, or other patterns

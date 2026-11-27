@@ -1,4 +1,4 @@
-import type { ToolDefinitionZod } from '@mcp-web/types';
+import type { ToolAnnotations, ToolDefinitionZod } from '@mcp-web/types';
 import { ToolDefinitionSchema } from '@mcp-web/types';
 import type { z } from 'zod';
 
@@ -25,6 +25,8 @@ export interface CreateToolConfig<
   inputSchema?: TInput;
   /** Optional Zod schema for validating output. */
   outputSchema?: TOutput;
+  /** Hints about the tool's behavior, such as `readOnlyHint`. */
+  annotations?: ToolAnnotations;
 }
 
 /**
@@ -114,6 +116,7 @@ export function createTool<
     handler: config.handler as ToolDefinitionZod['handler'],
     inputSchema: config.inputSchema,
     outputSchema: config.outputSchema,
+    annotations: config.annotations,
   };
 
   return {

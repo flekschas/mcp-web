@@ -33,6 +33,7 @@ export function generateBasicStateTools<T>(
   const getter: ToolDefinitionZod = {
     name: `get_${name}`,
     description: `Get the current value of ${name}. ${description}`,
+    annotations: { readOnlyHint: true },
     handler: get,
     outputSchema: schema as z.ZodType<T>,
   };

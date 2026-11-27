@@ -139,6 +139,7 @@ tool: {
     description: string;
     inputSchema?: z.core.JSONSchema.JSONSchema;
     outputSchema?: z.core.JSONSchema.JSONSchema;
+    annotations?: ToolAnnotations;
     _meta?: Record<string, unknown>;
   }
 ```

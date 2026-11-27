@@ -6,6 +6,10 @@ A bridge architecture that allows web frontends to be controlled by AI agents th
 Claude Desktop <-> MCP Client <-> Bridge Server <-> Frontend Library (in Web App)
 ```
 
+In browsers with WebMCP, the frontend library also registers its tools with
+the browser, so browser agents can call them without the bridge. See the
+`mcp-web` skill for the WebMCP-only setup.
+
 ## Packages
 
 | Package | Path | Description |

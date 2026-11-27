@@ -133,6 +133,7 @@ function generateArrayTools(
     tools.push({
       name: `get_${name}`,
       description: `Get ${description} by ID, or get all if no ID provided`,
+      annotations: { readOnlyHint: true },
       inputSchema: z.object({
         id: z.string().optional().describe('The ID of the item to retrieve. If omitted, returns all items.'),
       }),
@@ -148,6 +149,7 @@ function generateArrayTools(
     tools.push({
       name: `get_${name}`,
       description: `Get ${description} by index, or get all if no index provided`,
+      annotations: { readOnlyHint: true },
       inputSchema: z.object({
         index: z.number().int().min(0).optional().describe('The zero-based index of the item to retrieve. If omitted, returns all items.'),
       }),
@@ -260,6 +262,7 @@ function generateArrayTools(
     tools.push({
       name: `delete_${name}`,
       description: `Delete an item from ${description} by ID, or delete all items`,
+      annotations: { destructiveHint: true },
       inputSchema: z.object({
         id: z.string().optional().describe('The ID of the item to delete. Ignored if `all` is true.'),
         all: z.literal(true).optional().describe(`Delete all items in ${description}. This takes precedence over \`id\`.`),
@@ -283,6 +286,7 @@ function generateArrayTools(
     tools.push({
       name: `delete_${name}`,
       description: `Delete an item from ${description} by index, or delete all items`,
+      annotations: { destructiveHint: true },
       inputSchema: z.object({
         index: z.number().int().min(0).optional().describe('The zero-based index of the item to delete. Ignored if `all` is true.'),
         all: z.literal(true).optional().describe(`Delete all items in ${description}. This takes precedence over \`index\`.`),
@@ -336,6 +340,7 @@ function generateRecordTools(
   tools.push({
     name: `get_${name}`,
     description: `Get ${description} by key, or get all if no key provided`,
+    annotations: { readOnlyHint: true },
     inputSchema: z.object({
       key: z.string().optional().describe('The key of the entry to retrieve. If omitted, returns all entries.'),
     }),
@@ -382,6 +387,7 @@ function generateRecordTools(
   tools.push({
     name: `delete_${name}`,
     description: `Delete an entry from ${description} by key, or delete all entries`,
+    annotations: { destructiveHint: true },
     inputSchema: z.object({
       key: z.string().optional().describe('The key of the entry to delete. Ignored if `all` is true.'),
       all: z.literal(true).optional().describe(`Delete all entries in ${description}. This takes precedence over \`key\`.`),
@@ -441,6 +447,7 @@ function generateMixedObjectTools(
   tools.push({
     name: `get_${name}`,
     description: `Get the current ${description} (full state including collections)`,
+    annotations: { readOnlyHint: true },
     inputSchema: z.object({
       excludeCollections: z.boolean().optional().describe('If true, excludes array and record collections from the response, returning only fixed-shape properties.'),
     }),

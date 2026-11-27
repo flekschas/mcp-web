@@ -699,3 +699,74 @@ test('Tools with an output schema send the error their handler returns', async (
 
   mcpWeb.disconnect();
 });
+
+test('An unserializable result is reported as an error without waiting', async () => {
+  const authToken = 'unserializable-result-test';
+  const mcpWeb = new MCPWeb({ ...mcpWebConfig, authToken });
+
+  mcpWeb.addTool({
+    name: 'count',
+    description: 'Returns a bigint',
+    handler: async () => ({ count: 1n }),
+  });
+
+  await mcpWeb.connect();
+
+  const client = new MCPWebClient({ ...mcpWebClientConfig, authToken });
+
+  const start = Date.now();
+  const result = await client.callTool('count', {}, mcpWeb.sessionId);
+  expect(result.isError).toBe(true);
+  expect(Date.now() - start).toBeLessThan(5000);
+
+  mcpWeb.disconnect();
+});
+
+test('A schema conflict on the bridge also removes the WebMCP tool', async () => {
+  const authToken = 'authToken-webmcp-conflict';
+  const mcpWeb1 = new MCPWeb({ ...mcpWebConfig, authToken });
+  mcpWeb1.addTool({
+    name: 'conflicting_tool',
+    description: 'Tool with schema A',
+    inputSchema: z.object({ name: z.string() }),
+    handler: async ({ name }) => name,
+  });
+  await mcpWeb1.connect();
+
+  // The second page has WebMCP.
+  const webMCPTools = new Set<string>();
+  const globals = globalThis as { document?: unknown };
+  const originalDocument = globals.document;
+  globals.document = {
+    addEventListener: () => {},
+    modelContext: {
+      async registerTool(
+        tool: { name: string },
+        { signal }: { signal: AbortSignal },
+      ) {
+        webMCPTools.add(tool.name);
+        signal.addEventListener('abort', () => webMCPTools.delete(tool.name));
+      },
+    },
+  };
+  const mcpWeb2 = new MCPWeb({ ...mcpWebConfig, authToken });
+  try {
+    mcpWeb2.addTool({
+      name: 'conflicting_tool',
+      description: 'Tool with schema B',
+      inputSchema: z.object({ count: z.number() }),
+      handler: async ({ count }) => count,
+    });
+    expect(webMCPTools.has('conflicting_tool')).toBe(true);
+
+    await mcpWeb2.connect();
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    expect(mcpWeb2.tools.has('conflicting_tool')).toBe(false);
+    expect(webMCPTools.has('conflicting_tool')).toBe(false);
+  } finally {
+    globals.document = originalDocument;
+    mcpWeb1.disconnect();
+    mcpWeb2.disconnect();
+  }
+});

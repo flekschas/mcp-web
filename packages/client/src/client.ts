@@ -488,6 +488,7 @@ export class MCPWebClient {
           description: t.description,
           inputSchema: t.inputSchema || { type: 'object', properties: {}, required: [] },
           ...(outputSchema && { outputSchema }),
+          ...(t.annotations ? { annotations: t.annotations } : {}),
         };
       });
       return { tools: tools as Tool[] };

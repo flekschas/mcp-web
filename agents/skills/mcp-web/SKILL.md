@@ -116,6 +116,8 @@ mcpWeb.addTool({
   description: 'Mark a todo as completed',
   handler: (input) => { /* ... */ },
   inputSchema: CompleteTodoSchema,
+  // Optional MCP hints: readOnlyHint, destructiveHint, idempotentHint, ...
+  annotations: { idempotentHint: true },
 });
 ```
 
@@ -241,6 +243,16 @@ if (isConnecting) return <Spinner />;
 if (!isConnected) return <OfflineBanner />;
 ```
 
+## WebMCP
+
+In browsers with WebMCP (`document.modelContext`), MCPWeb registers its tools
+there too, so browser agents can call them without the bridge. App tools and
+tools whose `_meta.ui.visibility` leaves out `'model'` are left out.
+`disableWebMCP: true` turns this off. `onlyWebMCP: true` skips the bridge
+entirely: resources and app UIs are never served, `query()` throws, and
+`isConnected` stays `false`, so don't show an offline banner in this mode. Tool
+names must match `[A-Za-z0-9_.-]{1,128}` for WebMCP.
+
 ## Multi-Session Support
 
 When multiple instances of your app connect to the same bridge (e.g., multiple browser tabs), each gets a unique session ID. By default, Claude sees them as opaque UUIDs. Use `sessionName` to give sessions human-readable labels:
@@ -308,7 +320,8 @@ onDestroy(() => releaseGameName());
 1. **Define schemas** with rich descriptions
 2. **Create reactive state** using your framework
 3. **Register tools** (state tools for fixed shapes, actions for operations)
-4. **Start bridge**: `npx tsx bridge.ts` (uses `new MCPWebBridge(config)`)
+4. **Start bridge**: `npx tsx bridge.ts` (uses `new MCPWebBridge(config)`).
+   Skip this and step 6 with `onlyWebMCP: true` (see [WebMCP](#webmcp))
 5. **Start app**: `npm run dev`
 6. **Configure Claude Desktop** with auth token
 7. **Test with AI** and iterate

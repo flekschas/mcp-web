@@ -161,6 +161,7 @@ export function toToolMetadataJson(tool: ToolDefinition): ToolMetadataJson {
     description: tool.description,
     inputSchema: tool.inputSchema ? toJSONSchema(tool.inputSchema as z.ZodType) : undefined,
     outputSchema: tool.outputSchema ? toOutputJSONSchema(tool.outputSchema as z.ZodType) : undefined,
+    annotations: tool.annotations,
   };
 }
 

@@ -13,7 +13,13 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
   },
   projects: [
-    { name: 'chromium', use: { browserName: 'chromium' } },
+    {
+      name: 'chromium',
+      use: {
+        browserName: 'chromium',
+        launchOptions: { args: ['--enable-features=WebMCP'] },
+      },
+    },
     { name: 'firefox', use: { browserName: 'firefox' } },
     { name: 'webkit', use: { browserName: 'webkit' } },
   ],

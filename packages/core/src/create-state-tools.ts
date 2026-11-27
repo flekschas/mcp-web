@@ -197,6 +197,7 @@ export function createStateTools<T>(
       const rootGetter: ToolDefinitionZod = {
         name: `get_${name}`,
         description: `Get the current ${description}`,
+        annotations: { readOnlyHint: true },
         inputSchema: z.object({}),
         handler: async () => get(),
       };

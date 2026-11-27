@@ -165,6 +165,7 @@ test('listTools returns query tools when available', async () => {
         name: 'tool2',
         description: 'Tool 2',
         handler: () => {},
+        annotations: { readOnlyHint: true },
       },
     ],
   };
@@ -175,6 +176,7 @@ test('listTools returns query tools when available', async () => {
   expect(result.tools.length).toBe(2);
   expect(result.tools[0].name).toBe('tool1');
   expect(result.tools[1].name).toBe('tool2');
+  expect(result.tools[1].annotations).toEqual({ readOnlyHint: true });
 });
 
 test('listTools keeps object output schemas of query tools', async () => {
