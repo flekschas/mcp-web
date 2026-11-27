@@ -204,10 +204,36 @@ Tools are defined with this interface:
 interface ToolDefinition {
   name: string;
   description: string;
-  handler: (input: unknown) => Promise<unknown> | unknown;
+  handler: (
+    input: unknown,
+    context: { elicit: Elicit },
+  ) => Promise<unknown> | unknown;
   inputSchema?: ZodSchema | JSONSchema;
 }
 ```
+
+### Asking the User
+
+A handler can ask the user a question in the middle of a call with `elicit`
+and wait for the answer. The page shows the question in a plain dialog, or in
+your own UI with `mcp.onElicit()`:
+
+```typescript
+mcp.addTool({
+  name: 'get_greeting',
+  description: 'Greet the user in their language',
+  outputSchema: z.object({ greeting: z.string() }),
+  handler: async (_input, { elicit }) => {
+    const language = await elicit('Which language?', ['English', 'German']);
+    return { greeting: language === 'German' ? 'Hallo!' : 'Hello!' };
+  },
+});
+```
+
+`elicit(message)` asks yes or no, `elicit(message, choices)` asks for one of
+the choices, and `elicit(message, zodObject)` asks to fill in a flat form.
+State tools can ask before storing a change with `onBeforeChange`. See
+[Asking the User](https://mcp-web.dev/asking-the-user).
 
 ### Input Validation
 

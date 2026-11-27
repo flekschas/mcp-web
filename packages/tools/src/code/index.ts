@@ -1,4 +1,4 @@
-import type { CodeMode, ToolDefinitionZod } from '@mcp-web/types';
+import type { CodeMode, Elicit, ToolDefinitionZod } from '@mcp-web/types';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
 import { BaseTool } from '../base.js';
@@ -54,6 +54,17 @@ const PatchableCodeInputSchema = z.object({
     ),
 });
 
+/**
+ * Programs run with a time limit, so tools they call can't wait on the user.
+ */
+const noElicit = (name: string): Elicit =>
+  (async () => {
+    throw new Error(
+      `${name} asked the user a question (elicit), which tools can't do ` +
+        'when a code-mode program calls them.',
+    );
+  }) as Elicit;
+
 const PlainCodeInputSchema = z.object({
   code: z.string().describe('JavaScript code to execute in the sandbox'),
 });
@@ -68,6 +79,11 @@ const PlainCodeInputSchema = z.object({
  */
 export interface CodeExecuteOptions {
   timeoutMs?: number;
+  /**
+   * Aborts once nobody waits for the result any more. Tools the program calls
+   * get it as `context.signal`, and a program that hasn't started never runs.
+   */
+  signal?: AbortSignal;
 }
 
 type CodeInputSchema = typeof PatchableCodeInputSchema;
@@ -145,10 +161,10 @@ export class CodeTool extends BaseTool<
   /**
    * Tool handlers that have been invoked and have not settled.
    *
-   * Tearing down the iframe stops the sandbox but cannot cancel a handler
-   * already running in the parent page — these are the app's own functions and
-   * the tool contract has no cancellation. So they are tracked and waited on
-   * instead.
+   * Tearing down the iframe stops the sandbox but cannot stop a handler
+   * already running in the parent page — these are the app's own functions,
+   * which only stop if they check their `signal`. So they are tracked and
+   * waited on instead.
    */
   #inFlight = new Set<Promise<unknown>>();
 
@@ -249,11 +265,16 @@ export class CodeTool extends BaseTool<
       });
     }
     const deadlineAt = performance.now() + timeoutMs;
+    const signal = options?.signal ?? new AbortController().signal;
     let phase: 'waiting' | 'running' | 'expired' = 'waiting';
     const run = this.#queue.then(() => {
       if (phase === 'expired') return null;
       phase = 'running';
-      return this.#execute(params, timeoutMs, deadlineAt);
+      if (signal.aborted) {
+        this.#runLog.push({ ...this.#recordFor(params.code), failed: true });
+        return { error: 'The call was cancelled, so nothing was run.' };
+      }
+      return this.#execute(params, timeoutMs, deadlineAt, signal);
     });
     this.#queue = run.catch(() => {});
 
@@ -294,6 +315,7 @@ export class CodeTool extends BaseTool<
     name: string,
     args: unknown,
     executionId?: string,
+    signal: AbortSignal = new AbortController().signal,
   ): Promise<unknown> => {
     // Refuse calls from a run that is already over. The iframe executor filters
     // stale messages by id, but nothing stopped an in-process program that
@@ -341,12 +363,16 @@ export class CodeTool extends BaseTool<
       return undefined;
     }
 
+    // A cancelled program starts no more changes.
+    signal.throwIfAborted();
+
     // Counted before the handler runs: a call that throws may still have
     // mutated something, and this number decides whether a patch is safe.
     this.#startedToolCalls++;
 
     // Wrapped so a handler that throws synchronously is tracked too.
-    const pending = (async () => tool.handler(input))();
+    const pending = (async () =>
+      tool.handler(input, { elicit: noElicit(name), signal }))();
     this.#inFlight.add(pending);
     try {
       return await pending;
@@ -576,6 +602,7 @@ export class CodeTool extends BaseTool<
     params: CodeInput,
     timeoutMs: number,
     deadlineAt: number,
+    signal: AbortSignal,
   ): Promise<CodeOutput> {
     // The budget is one deadline for the whole call, so every phase below —
     // each drain and the execution timer — takes what is left of it. Handing
@@ -722,7 +749,8 @@ export class CodeTool extends BaseTool<
           // Every function is defined, even one not looked up yet, so its name
           // never resolves to a JavaScript global; `#callTool` refuses it.
           functionNames: this.#tools.map((t) => t.name),
-          callTool: (name, args) => this.#callTool(name, args, executionId),
+          callTool: (name, args) =>
+            this.#callTool(name, args, executionId, signal),
         }),
         timeout,
       ]);

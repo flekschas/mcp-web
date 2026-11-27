@@ -14,7 +14,7 @@ pnpm dev       # Starts app (localhost:5175) + bridge server (localhost:3001)
 | Tool | Description |
 |------|-------------|
 | `get_todos`, `add_todos`, `set_todos`, `delete_todos` | CRUD operations for todos |
-| `get_projects`, `set_projects`, `delete_projects` | CRUD operations for projects |
+| `get_projects`, `set_projects`, `delete_projects` | CRUD operations for projects. `delete_projects` asks the user first, and whether to delete or keep the projects' todos (see [Asking the User](https://mcp-web.dev/asking-the-user)) |
 | `get_settings`, `set_settings` | Theme, sort order, and display preferences |
 
 ## Preloaded Seed Data

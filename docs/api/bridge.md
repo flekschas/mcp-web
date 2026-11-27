@@ -313,6 +313,69 @@ requestId: string
 result: unknown
 ```
 
+### ElicitationWaitingMessage
+
+*Interface* — `packages/bridge/src/types.ts`
+
+Sent by the page when a tool call starts waiting for the user to answer a
+question. The bridge doesn't count the time until the answer.
+
+**Properties:**
+
+```ts
+type: 'elicitation-waiting'
+```
+
+```ts
+requestId: string
+```
+
+The tool call's request ID.
+
+### ElicitationAnsweredMessage
+
+*Interface* — `packages/bridge/src/types.ts`
+
+Sent by the page once the user has answered, declined or cancelled.
+
+**Properties:**
+
+```ts
+type: 'elicitation-answered'
+```
+
+```ts
+requestId: string
+```
+
+The tool call's request ID.
+
+### ToolCallCancelledMessage
+
+*Interface* — `packages/bridge/src/types.ts`
+
+Sent by the bridge when it stops waiting for a tool call, for example after
+a timeout. The page cancels the call's open questions, so a late answer
+can't change anything.
+
+**Properties:**
+
+```ts
+type: 'tool-call-cancelled'
+```
+
+```ts
+requestId: string
+```
+
+The tool call's request ID.
+
+```ts
+reason: string
+```
+
+Why the bridge stopped waiting.
+
 ### TrackedToolCall
 
 *Interface* — `packages/bridge/src/types.ts`
@@ -501,6 +564,8 @@ resources: Map<string, ResourceMetadata>
   | UnregisterResourceMessage
   | ActivityMessage
   | ToolResponseMessage
+  | ElicitationWaitingMessage
+  | ElicitationAnsweredMessage
   | ResourceResponseMessage
   | QueryMessage
   | QueryCompleteClientMessage
@@ -523,6 +588,7 @@ resources: Map<string, ResourceMetadata>
   | QueryCompleteBridgeMessage
   | QueryFailureMessage
   | QueryCancelMessage
+  | ToolCallCancelledMessage
 ```
 
 ### QueryState

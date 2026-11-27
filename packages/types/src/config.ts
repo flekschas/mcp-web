@@ -73,6 +73,16 @@ export const McpWebConfigSchema = z.object({
       'Whether to automatically connect to the MCP bridge on initialization.',
     ),
   /**
+   * Where the user answers questions that tool handlers ask with `elicit`.
+   * `'page'` asks in the web app: with the handler set by `onElicit()`, or
+   * else with a plain dialog.
+   */
+  elicitation: z
+    .enum(['page'])
+    .optional()
+    .default('page')
+    .describe('Where the user answers questions that tool handlers ask.'),
+  /**
    * Disconnect from the bridge after this many milliseconds without requests
    * from AI or user interaction with the page. The next interaction reconnects.
    *

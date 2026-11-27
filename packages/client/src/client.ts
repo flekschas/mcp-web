@@ -46,6 +46,16 @@ import type {
   MCPWebClientConfigOutput,
 } from './types.js';
 
+/** How long the client waits for the bridge, unless `timeout` says otherwise. */
+const DEFAULT_TIMEOUT_MS = 30_000;
+
+/**
+ * How long the client waits for a tool call, unless `timeout` says otherwise.
+ * The bridge ends a call after 30 seconds of work plus up to 5 minutes of
+ * waiting for the user, so the client waits a little longer.
+ */
+const TOOL_CALL_TIMEOUT_MS = 6 * 60_000;
+
 function isFatalError<T extends object>(result: T | FatalError): result is FatalError {
   return 'errorIsFatal' in result && result.errorIsFatal === true;
 }
@@ -128,7 +138,13 @@ export class MCPWebClient {
     return undefined;
   }
 
-  private async makeToolCallRequest(request: CallToolRequest): Promise<CallToolResult> {
+  /**
+   * @param signal - Aborts when the AI app cancels the call
+   */
+  private async makeToolCallRequest(
+    request: CallToolRequest,
+    signal?: AbortSignal,
+  ): Promise<CallToolResult> {
     try {
       const { name, arguments: args, _meta } = request.params as any;
 
@@ -142,11 +158,12 @@ export class MCPWebClient {
         };
       }
 
-      const response = await this.makeRequest('tools/call', {
-        name,
-        arguments: args || {},
-        ...(_meta && { _meta })
-      });
+      const response = await this.makeRequest(
+        'tools/call',
+        { name, arguments: args || {}, ...(_meta && { _meta }) },
+        this.#config.timeout ?? TOOL_CALL_TIMEOUT_MS,
+        signal,
+      );
 
       // Check if response is already in CallToolResult format (from bridge)
       // This happens when the bridge wraps results for Remote MCP compatibility
@@ -375,7 +392,9 @@ export class MCPWebClient {
     this.#server.setRequestHandler(ListToolsRequestSchema, () => this.makeListToolsRequest());
 
     // Handle tool calls
-    this.#server.setRequestHandler(CallToolRequestSchema, this.makeToolCallRequest.bind(this));
+    this.#server.setRequestHandler(CallToolRequestSchema, (request, extra) =>
+      this.makeToolCallRequest(request, extra.signal),
+    );
 
     // Handle resource listing
     this.#server.setRequestHandler(ListResourcesRequestSchema, () => this.makeListResourcesRequest());
@@ -716,37 +735,42 @@ export class MCPWebClient {
     }
   }
 
-  private async makeRequest<T = unknown>(method: string, params?: Record<string, unknown>): Promise<T> {
-    const url = this.#config.serverUrl.replace('ws:', 'http:').replace('wss:', 'https:');
+  /**
+   * @param signal - Aborts when the AI app cancels the request, which the
+   * client then passes on to the bridge
+   */
+  private async makeRequest<T = unknown>(
+    method: string,
+    params?: Record<string, unknown>,
+    timeout = this.#config.timeout ?? DEFAULT_TIMEOUT_MS,
+    signal?: AbortSignal,
+  ): Promise<T> {
+    const url = this.#bridgeUrl();
 
     const requestBody = JsonRpcRequestSchema.parse({
       jsonrpc: '2.0',
-      id: Date.now(),
+      // Unique, so the bridge can tell parallel requests apart.
+      id: crypto.randomUUID(),
       method,
       params
     });
 
+    // The bridge learns that nobody waits for the answer any more, so it
+    // stops the call on the page too.
+    const controller = new AbortController();
+    const cancel = () => {
+      controller.abort();
+      this.#notifyCancelled(requestBody.id);
+    };
+    signal?.addEventListener('abort', cancel);
+    const timeoutId = setTimeout(cancel, timeout);
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.#config.timeout);
-
-      // Only include Authorization header if we have an authToken
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-
-      if (this.#config.authToken) {
-        headers.Authorization = `Bearer ${this.#config.authToken}`;
-      }
-
       const response = await fetch(url, {
         method: 'POST',
-        headers,
+        headers: this.#headers(),
         body: JSON.stringify(requestBody),
         signal: controller.signal
       });
-
-      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -765,12 +789,46 @@ export class MCPWebClient {
     } catch (error: unknown) {
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
-          throw new Error('Request timeout');
+          throw new Error(
+            signal?.aborted ? 'The AI app cancelled the request' : 'Request timeout',
+          );
         }
         throw error;
       }
       throw new Error(`Unknown error: ${error}`);
+    } finally {
+      clearTimeout(timeoutId);
+      signal?.removeEventListener('abort', cancel);
     }
+  }
+
+  #bridgeUrl(): string {
+    return this.#config.serverUrl.replace('ws:', 'http:').replace('wss:', 'https:');
+  }
+
+  #headers(): Record<string, string> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (this.#config.authToken) {
+      headers.Authorization = `Bearer ${this.#config.authToken}`;
+    }
+    return headers;
+  }
+
+  /** Tells the bridge that nobody waits for a request any more. */
+  #notifyCancelled(requestId: string | number): void {
+    fetch(this.#bridgeUrl(), {
+      method: 'POST',
+      headers: this.#headers(),
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'notifications/cancelled',
+        // The query ID tells the bridge whose call it is.
+        params: { requestId, ...this.getParams() },
+      }),
+      signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+    }).catch(() => {});
   }
 
   /**
@@ -878,7 +936,7 @@ export class MCPWebClient {
         server.onclose = watchBridgeNotifications({
           url,
           authToken: this.#config.authToken,
-          timeout: this.#config.timeout,
+          timeout: this.#config.timeout ?? DEFAULT_TIMEOUT_MS,
           onListChanged: (list) => {
             const sent =
               list === 'tools'

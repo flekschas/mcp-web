@@ -104,6 +104,36 @@ export interface ToolResponseMessage {
   result: unknown;
 }
 
+/**
+ * Sent by the page when a tool call starts waiting for the user to answer a
+ * question. The bridge doesn't count the time until the answer.
+ */
+export interface ElicitationWaitingMessage {
+  type: 'elicitation-waiting';
+  /** The tool call's request ID. */
+  requestId: string;
+}
+
+/** Sent by the page once the user has answered, declined or cancelled. */
+export interface ElicitationAnsweredMessage {
+  type: 'elicitation-answered';
+  /** The tool call's request ID. */
+  requestId: string;
+}
+
+/**
+ * Sent by the bridge when it stops waiting for a tool call, for example after
+ * a timeout. The page cancels the call's open questions, so a late answer
+ * can't change anything.
+ */
+export interface ToolCallCancelledMessage {
+  type: 'tool-call-cancelled';
+  /** The tool call's request ID. */
+  requestId: string;
+  /** Why the bridge stopped waiting. */
+  reason: string;
+}
+
 export type FrontendMessage =
   | AuthenticateMessage
   | RegisterToolMessage
@@ -112,6 +142,8 @@ export type FrontendMessage =
   | UnregisterResourceMessage
   | ActivityMessage
   | ToolResponseMessage
+  | ElicitationWaitingMessage
+  | ElicitationAnsweredMessage
   | ResourceResponseMessage
   | QueryMessage
   | QueryCompleteClientMessage
@@ -128,7 +160,8 @@ export type BridgeMessage =
   | QueryProgressMessage
   | QueryCompleteBridgeMessage
   | QueryFailureMessage
-  | QueryCancelMessage;
+  | QueryCancelMessage
+  | ToolCallCancelledMessage;
 
 export interface TrackedToolCall {
   tool: string;

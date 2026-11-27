@@ -21,7 +21,11 @@ export const JsonRpcRequestSchema = z.object({
 export const MCPWebClientConfigSchema = z.object({
   serverUrl: z.url(),
   authToken: z.string().min(1).optional(),
-  timeout: z.number().optional().default(30000)
+  /**
+   * How long to wait for the bridge, in milliseconds. Defaults to 30 seconds,
+   * and to 6 minutes for tool calls, since the user may answer a question.
+   */
+  timeout: z.number().optional()
 });
 
 export const TextContentSchema = z.object({

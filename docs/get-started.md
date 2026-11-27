@@ -92,6 +92,18 @@ draft-07, the way MCP clients check it, so write tuples with an `items` array.
 It isn't checked on a page whose Content Security Policy blocks compiling
 code; a Zod output schema always is.
 
+A handler can also ask the user a question in the middle of a call, through
+`elicit` in its second argument:
+
+```typescript
+handler: async ({ name }, { elicit }) => {
+  const language = await elicit('Which language?', ['English', 'German']);
+  return { message: `${language === 'German' ? 'Hallo' : 'Hello'}, ${name}!` };
+},
+```
+
+See [Asking the User](./asking-the-user) for more.
+
 ### 4. Exposing Application State
 
 In most cases, you want to expose some frontend state directly. Let AI agents read and modify your application state:

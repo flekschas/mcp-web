@@ -24,7 +24,11 @@ export { MCPWeb } from './web.js';
 
 // Export tool creation functions (Jotai-style pattern)
 export { createTool, isCreatedTool } from './create-tool.js';
-export type { CreateToolConfig, CreatedTool } from './create-tool.js';
+export type {
+  CreateToolConfig,
+  CreatedTool,
+  ToolHandler,
+} from './create-tool.js';
 export { createStateTools, isCreatedStateTools } from './create-state-tools.js';
 export type {
   CreateStateToolsConfig,
@@ -32,11 +36,19 @@ export type {
   CreatedStateToolsBasic,
   CreatedStateToolsExpanded,
 } from './create-state-tools.js';
+export type { OnBeforeChange, StateChange } from './before-change.js';
 
 // Re-export app-related types from @mcp-web/types for convenience
 export { isCreatedApp } from '@mcp-web/types';
 export type {
   AppDefinition,
   CreatedApp,
+  Elicit,
+  ElicitationHandler,
+  ElicitationRequest,
+  ElicitationResult,
+  ElicitField,
+  ElicitSchema,
+  ToolHandlerContext,
   ToolRegistrationError,
 } from '@mcp-web/types';

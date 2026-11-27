@@ -66,6 +66,30 @@ mcpWeb: MCPWeb
 
 Existing MCPWeb instance to provide to children.
 
+### UseElicitationResult
+
+*Interface* — `packages/integrations/react/src/use-elicitation.ts`
+
+The return value of `useElicitation`.
+
+**Properties:**
+
+```ts
+request: ElicitationRequest | null
+```
+
+The question a tool handler is waiting on, or `null`. Questions asked at
+the same time come one after another. A question goes away by itself when
+nobody waits for its answer any more, for example after a timeout.
+
+```ts
+respond: (result: ElicitationResult) => void
+```
+
+Answers the question: `{ action: 'accept', content }` with the fields of
+`request.requestedSchema`, `{ action: 'decline' }` when the user says no,
+or `{ action: 'cancel' }` when they dismiss it.
+
 ### UseMCPToolsOptions
 
 *Interface* — `packages/integrations/react/src/use-mcp-tools.ts`
@@ -131,6 +155,20 @@ whether we should actually disconnect on cleanup.
 
 ```ts
 useConnectedMCPWeb(mcpInstance: MCPWeb): MCPWebContextValue
+```
+
+### useElicitation
+
+*Function* — `packages/integrations/react/src/use-elicitation.ts`
+
+Answers the questions tool handlers ask with `elicit` in your own UI, in
+place of the default dialog. Questions still open when the component
+unmounts are cancelled.
+
+Must be used within MCPWebProvider.
+
+```ts
+useElicitation(): UseElicitationResult
 ```
 
 ### useMCPApps

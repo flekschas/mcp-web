@@ -181,6 +181,21 @@ This method is idempotent - calling it multiple times while already connected or
 connecting will return the same promise.
 
 ```ts
+onElicit(handler: ElicitationHandler): () => void
+```
+
+Sets how the page asks the user the questions that tool handlers ask with
+`elicit`, in place of the default dialog.
+
+The handler gets the question in the shape of MCP's `elicitation/create`
+request and returns the answer in the shape of its result. Rejecting fails
+the tool call. When several handlers are set, the latest one answers.
+
+The handler also gets a `signal` that aborts if nobody waits for the
+answer any more while the question is open, for example because the call
+timed out. Hide the question then.
+
+```ts
 addTool<TInput, TOutput>(tool: CreatedTool<TInput, TOutput>, options?: {
       /** Called if the bridge rejects the tool registration (e.g., schema conflict with a sibling session). */
       onRegistrationError?: (error: ToolRegistrationError) => void;
@@ -198,15 +213,7 @@ Can also accept pre-created tools from `createTool()`.
 addTool<TInput, TOutput>(tool: {
       name: string;
       description: string;
-      handler: TInput extends z.ZodObject
-        ? (
-            input: z.infer<TInput>,
-          ) => TOutput extends z.ZodType
-            ? z.infer<TOutput> | Promise<z.infer<TOutput>>
-            : void | Promise<void>
-        : TOutput extends z.ZodType
-          ? () => z.infer<TOutput> | Promise<z.infer<TOutput>>
-          : () => void | Promise<void>;
+      handler: ToolHandler<TInput, TOutput>;
       inputSchema?: TInput;
       outputSchema?: TOutput;
     }, options?: {
@@ -220,7 +227,8 @@ addTool(tool: {
       name: string;
       description: string;
       handler: (
-        input?: unknown,
+        input: unknown,
+        context: ToolHandlerContext,
       ) => unknown | Promise<unknown> | void | Promise<void>;
       inputSchema?: { type: string; [key: string]: unknown };
       outputSchema?: { type: string; [key: string]: unknown };
@@ -382,6 +390,26 @@ Triggers an AI agent query from your frontend code.
 Requires `agentUrl` to be configured in MCPWeb config. Sends a query to the AI agent
 and returns a QueryResponse object that can be iterated to stream events.
 
+### `StateChange<T>`
+
+*Interface* — `packages/core/src/before-change.ts`
+
+A change a generated state tool is about to store.
+
+**Properties:**
+
+```ts
+prev: T
+```
+
+The state before the change.
+
+```ts
+next: T
+```
+
+The state the tool wants to store.
+
 ### `CreateStateToolsConfig<T>`
 
 *Interface* — `packages/core/src/create-state-tools.ts`
@@ -447,6 +475,24 @@ in a program. The getter is also registered on its own. Create it with
 
 A failed program's changes to this state are undone by restoring a
 snapshot, so `get` must return a value `structuredClone` can copy.
+
+```ts
+onBeforeChange?: OnBeforeChange<T>
+```
+
+Runs before a generated tool stores a change, with the state before
+(`prev`) and after it (`next`). It can ask the user with `elicit`.
+
+Return nothing to store `next`, return another state to store that
+instead, or throw to reject the change. The error message is what the AI
+sees. If the state changes while it waits, the change is rejected:
+`elicit` throws once the user answers.
+
+Changes to the same state wait for each other, and `get` must return a
+value `structuredClone` can copy.
+
+Only changes made by the tools run it, not changes made elsewhere, as in
+your UI. Tools called from a code tool program can't ask the user.
 
 ### `CreatedStateToolsBasic<T>`
 
@@ -571,13 +617,7 @@ description: string
 Description of what the tool does.
 
 ```ts
-handler: TInput extends z.ZodObject
-    ? (input: z.infer<TInput>) => TOutput extends z.ZodType
-      ? z.infer<TOutput> | Promise<z.infer<TOutput>>
-      : void | Promise<void>
-    : TOutput extends z.ZodType
-      ? () => z.infer<TOutput> | Promise<z.infer<TOutput>>
-      : () => void | Promise<void>
+handler: ToolHandler<TInput, TOutput>
 ```
 
 The function that handles the tool execution.
@@ -659,11 +699,29 @@ description?: string
 
 Description for generated tools.
 
+### OnBeforeChange
+
+*Type* — `packages/core/src/before-change.ts`
+
+Runs before a generated state tool stores a change. Return nothing to store
+`next`, return another state to store that instead, or throw to reject the
+change. The error message is what the AI sees.
+
+If the state changes while the user answers, `elicit` throws and the change
+is rejected.
+
 ### CreatedStateTools
 
 *Type* — `packages/core/src/create-state-tools.ts`
 
 Union type for created state tools.
+
+### ToolHandler
+
+*Type* — `packages/core/src/create-tool.ts`
+
+A tool handler typed by its schemas. The second argument lets it ask the
+user a question with `elicit`.
 
 ### StateTriple
 
@@ -761,6 +819,24 @@ z.infer<typeof ContextItemSchema>
 z.infer<typeof EphemeralContextSchema>
 ```
 
+### beforeChange
+
+*Function* — `packages/core/src/before-change.ts`
+
+Runs `onBeforeChange` before a change is stored. Generated tools call the
+returned `set`, which records the change. `wrap` makes a tool pass the
+recorded change to `onBeforeChange` and then store it.
+
+```ts
+beforeChange<T>({
+  name,
+  get,
+  set,
+  schema,
+  onBeforeChange,
+}: BeforeChangeConfig<T>): void
+```
+
 ### createStateTools
 
 *Function* — `packages/core/src/create-state-tools.ts`
@@ -805,6 +881,38 @@ Type guard to check if a value is a CreatedTool.
 
 ```ts
 isCreatedTool(value: unknown): value is CreatedTool
+```
+
+### askInDialog
+
+*Function* — `packages/core/src/elicitation-dialog.ts`
+
+Asks the user in a native `<dialog>`: Escape or closing the dialog cancels,
+"No" or "Decline" declines, and submitting the form accepts. Aborting
+`signal` closes the dialog.
+
+```ts
+askInDialog(request: ElicitationRequest, signal?: AbortSignal): Promise<ElicitationResult>
+```
+
+### toQuestion
+
+*Function* — `packages/core/src/elicitation.ts`
+
+Turns the arguments of `elicit` into a question.
+
+```ts
+toQuestion(message: unknown, form?: unknown): Question
+```
+
+### createElicit
+
+*Function* — `packages/core/src/elicitation.ts`
+
+Creates the `elicit` function that tool handlers get.
+
+```ts
+createElicit(ask: (request: ElicitationRequest) => Promise<...>): Elicit
 ```
 
 ### groupState
@@ -963,6 +1071,12 @@ Analyzes the schema shape and generates appropriate CRUD tools:
 ```ts
 zodSchemasToTools<T>(options: ZodSchemasToToolsOptions<T>): ToolDefinitionZod[]
 ```
+
+### CHOICE_FIELD
+
+*Variable* — `packages/core/src/elicitation.ts`
+
+The field that holds the answer to a question with choices.
 
 ### EphemeralContextSchema
 

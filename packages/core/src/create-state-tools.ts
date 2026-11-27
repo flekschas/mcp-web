@@ -4,6 +4,7 @@ import type { CodeMode, ToolDefinitionZod } from '@mcp-web/types';
 import { ZodObject, type ZodType, z } from 'zod';
 import { generateBasicStateTools } from './zod-schema-to-tools/index.js';
 import { generateToolsForSchema } from './zod-schema-to-tools/index.js';
+import { beforeChange, type OnBeforeChange } from './before-change.js';
 import { createMutex } from './serialize.js';
 import { assertNoTransforms } from './zod-schema-to-tools/utils.js';
 
@@ -41,6 +42,32 @@ export interface CreateStateToolsConfig<T> {
    * snapshot, so `get` must return a value `structuredClone` can copy.
    */
   codeMode?: CodeMode;
+  /**
+   * Runs before a generated tool stores a change, with the state before
+   * (`prev`) and after it (`next`). It can ask the user with `elicit`.
+   *
+   * Return nothing to store `next`, return another state to store that
+   * instead, or throw to reject the change. The error message is what the AI
+   * sees. If the state changes while it waits, the change is rejected:
+   * `elicit` throws once the user answers.
+   *
+   * Changes to the same state wait for each other, and `get` must return a
+   * value `structuredClone` can copy.
+   *
+   * Only changes made by the tools run it, not changes made elsewhere, as in
+   * your UI. Tools called from a code tool program can't ask the user.
+   *
+   * @example
+   * ```typescript
+   * onBeforeChange: async ({ prev, next }, { elicit }) => {
+   *   const removed = Object.keys(prev).filter((id) => !(id in next));
+   *   if (removed.length > 0 && !(await elicit(`Delete ${removed.length} projects?`))) {
+   *     throw new Error('The user chose not to delete.');
+   *   }
+   * },
+   * ```
+   */
+  onBeforeChange?: OnBeforeChange<T>;
 }
 
 /**
@@ -176,8 +203,35 @@ export function createStateTools<T>(
   input: CreateStateToolsConfig<T>
 ): CreatedStateTools<T> {
   const config = Object.freeze({ ...input });
-  const { name, description, get, set, schema, schemaSplit, expand } = config;
-  assertNoTransforms(schema, name);
+  assertNoTransforms(config.schema, config.name);
+  const { onBeforeChange } = config;
+  if (!onBeforeChange) return generateStateTools(config, config.set);
+
+  const { set, wrap } = beforeChange({ ...config, onBeforeChange });
+  const created = generateStateTools(config, set);
+  // Generated tools that read are named `get_…` and never change anything, so
+  // they don't wait for a question.
+  const wrapped = new Map(
+    created.tools
+      .filter((tool) => !tool.name.startsWith('get_'))
+      .map((tool) => [tool, wrap(tool)]),
+  );
+  const toWrapped = (tool: ToolDefinitionZod) => wrapped.get(tool) ?? tool;
+  return {
+    ...created,
+    setters: Array.isArray(created.setters)
+      ? created.setters.map(toWrapped)
+      : toWrapped(created.setters),
+    tools: created.tools.map(toWrapped),
+  } as CreatedStateTools<T>;
+}
+
+/** Generates the tools, which store changes with `set`. */
+function generateStateTools<T>(
+  config: Readonly<CreateStateToolsConfig<T>>,
+  set: (value: T) => void,
+): CreatedStateTools<T> {
+  const { name, description, get, schema, schemaSplit, expand } = config;
   const allTools: ToolDefinitionZod[] = [];
 
   // Determine if we're expanding (schemaSplit or expand flag)
