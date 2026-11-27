@@ -8,11 +8,15 @@
     "dev:app": "vite",
     "dev:bridge": "tsx watch bridge.ts",
     "bridge": "tsx bridge.ts",
-    "build": "tsc -b && vite build",
+    "dev:mcp-apps": "vite build --config vite.apps.config.ts --watch",
+    "build": "pnpm build:mcp-apps && pnpm build:app",
+    "build:app": "tsc -b && vite build",
+    "build:mcp-apps": "vite build --config vite.apps.config.ts",
     "lint": "biome format --write src && biome check src",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mcp-web/app": "workspace:*",
     "@mcp-web/bridge": "workspace:*",
     "@mcp-web/core": "workspace:*",
     "@mcp-web/tools": "workspace:*",

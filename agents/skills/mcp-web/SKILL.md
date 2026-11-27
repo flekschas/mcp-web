@@ -303,6 +303,41 @@ export const mcpWeb = new MCPWeb({
 onDestroy(() => releaseGameName());
 ```
 
+## Open the Whole App in the Chat (MCP Apps)
+
+Set `mcpApp` in the config the app and bridge share, and pass it to the
+bridge. The bridge then offers an `open_app` tool, even without a browser tab.
+In the opened view, `MCPWeb` offers its tools to the host as app tools.
+
+```typescript
+// mcp-web.config.ts — shared by the app and bridge.ts
+export const config: MCPWebConfig = {
+  name: 'Todo',
+  description: 'A todo list',
+  version: pkg.version,
+  // `true` opens index.html. Write the value inline, in this plain config
+  // file: the Vite plugin reads it from the source.
+  mcpApp: {
+    page: 'index.html',
+    // Without domains, the view can't use the network.
+    csp: { connectDomains: ['https://api.example.com'] },
+  },
+};
+```
+
+- Build the views with `defineMCPAppsConfig()` from `@mcp-web/app/vite`
+  **before** the site build, so they end up in its output
+  (`public/mcp-web-apps/index.html`).
+- The view is a new copy on the host's origin: it starts from the initial
+  state and has no cookies or `localStorage` of the site. Guard storage access.
+- Import assets instead of loading them from `public/` by URL; hosts get only
+  the HTML.
+- Don't create an ext-apps `App` in the page. Use `mcp.isMCPApp`, which is
+  known from the start, to leave out UI a view doesn't need, such as
+  instructions for connecting AI.
+- Keep a view under 64 tools (Claude's limit); use `codeMode` for large state.
+- `open_app` is reserved; don't name a tool that.
+
 ## Development Workflow
 
 1. **Define schemas** with rich descriptions
@@ -338,6 +373,7 @@ new MCPWebBridge(MCP_WEB_CONFIG);
 - Keep schemas in `schemas.ts`, types in `types.ts` (separate files)
 - Co-locate related code in single files when under ~100 lines each
 - Use `onConnectionStateChange()` to react to connection changes
+- Use `mcpApp` to let AI open the whole app in the chat
 
 ❌ **Don't:**
 - Expose derived values as state tools

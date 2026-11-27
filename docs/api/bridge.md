@@ -45,6 +45,23 @@ Gracefully shuts down the bridge.
 Closes all WebSocket connections, cancels scheduled tasks, and clears
 all internal state. Call this when shutting down your server.
 
+### MCPWebBridgeOptions
+
+*Interface* — `packages/bridge/src/core.ts`
+
+Options that depend on the runtime the bridge runs in.
+
+**Properties:**
+
+```ts
+readStaticFile?: (path: string) => Promise<string | undefined>
+```
+
+Reads a static file of the web app, such as a built MCP App view, by its
+path relative to the directory the app's static files are served from.
+Resolves to `undefined` when the file doesn't exist. Required for
+`mcpApp`.
+
 ### AuthenticateMessage
 
 *Interface* — `packages/bridge/src/types.ts`

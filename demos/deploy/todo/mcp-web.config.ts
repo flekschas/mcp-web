@@ -3,6 +3,16 @@ const config = {
   description: 'Manage a todo list - add, complete, delete, and organize tasks',
   bridgeUrl: 'todo.demo.mcp-web.dev',
   autoConnect: true,
+  mcpApp: {
+    page: 'index.html',
+    // The view loads its fonts from Google Fonts.
+    csp: {
+      resourceDomains: [
+        'https://fonts.googleapis.com',
+        'https://fonts.gstatic.com',
+      ],
+    },
+  },
   icon: 'https://storage.googleapis.com/mcp-web/favicon-todo.svg',
   // An open page keeps the hosted bridge running and billed.
   idleTimeoutMs: 15 * 60 * 1000,

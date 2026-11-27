@@ -375,6 +375,9 @@ importers:
 
   demos/higlass:
     dependencies:
+      '@mcp-web/app':
+        specifier: workspace:*
+        version: link:../../packages/app
       '@mcp-web/bridge':
         specifier: workspace:*
         version: link:../../packages/bridge
@@ -721,6 +724,12 @@ importers:
       '@mcp-web/types':
         specifier: workspace:*
         version: link:../types
+      '@modelcontextprotocol/ext-apps':
+        specifier: ^1.7.5
+        version: 1.7.5(@modelcontextprotocol/sdk@1.32.2(zod@4.6.7))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(zod@4.6.7)
+      '@modelcontextprotocol/sdk':
+        specifier: 'catalog:'
+        version: 1.32.2(zod@4.6.7)
       ajv:
         specifier: 'catalog:'
         version: 8.20.0

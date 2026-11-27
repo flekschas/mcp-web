@@ -135,16 +135,30 @@ to connect directly to the bridge server via URL, without needing an intermediat
 stdio process like `@mcp-web/client`.
 
 ```ts
+get isMCPApp(): boolean
+```
+
+Whether the page runs as an MCP App view, opened through `mcpApp`. Known
+from the start, so the page can leave out what a view doesn't need, such
+as instructions for connecting to the bridge.
+
+In the view, `MCPWeb` offers its tools to the host as app tools, unless
+`disableAppTools` is set. `connected` tells whether the handshake with
+the host succeeded.
+
+```ts
 get connected(): boolean
 ```
 
-Whether the client is currently connected to the bridge server.
+Whether the client is currently connected to the bridge server, or to the
+MCP App host when `isMCPApp` is `true`.
 
 ```ts
 get connecting(): boolean
 ```
 
-Whether the instance is currently attempting to connect to the bridge.
+Whether the instance is currently attempting to connect to the bridge or
+to an MCP App host.
 
 Returns `true` during the connection/authentication handshake,
 before `connected` becomes `true` or the connection fails.
@@ -162,8 +176,8 @@ get idleDisconnectAt(): number | undefined
 ```
 
 Time, in milliseconds since the epoch, at which the connection closes if
-there is no activity until then. `undefined` without `idleTimeoutMs` or
-while disconnected.
+there is no activity until then. `undefined` without `idleTimeoutMs`,
+while disconnected, or while connected to an MCP App host.
 
 **Methods:**
 
@@ -171,11 +185,15 @@ while disconnected.
 connect(): Promise<boolean>
 ```
 
-Establishes connection to the bridge server.
+Connects to the bridge server, or to the MCP App host when the page runs
+as a view opened through `mcpApp`.
 
-Opens a WebSocket connection to the bridge server and authenticates using the session's
-auth token. If `autoConnect` is enabled in the config, this is called automatically
-during construction.
+In a view, the tools are offered to the host as app tools, and the state
+of `addStateTools()` states is sent to the host for the model. Otherwise,
+it opens a WebSocket connection to the bridge and authenticates with the
+session's auth token.
+Set `disableAppTools` to always use the bridge. If `autoConnect` is
+enabled in the config, this is called automatically during construction.
 
 This method is idempotent - calling it multiple times while already connected or
 connecting will return the same promise.
@@ -362,9 +380,10 @@ Returns an unsubscribe function.
 disconnect(): void
 ```
 
-Disconnects from the bridge server.
+Disconnects from the bridge server or the MCP App host.
 
-Closes the WebSocket connection and cleans up event handlers.
+Closes the WebSocket connection, or the connection to the host, and
+cleans up event handlers.
 Useful for cleanup when unmounting components or closing the application.
 
 ```ts

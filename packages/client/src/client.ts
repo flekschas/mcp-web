@@ -129,19 +129,8 @@ export class MCPWebClient {
   }
 
   private async makeToolCallRequest(request: CallToolRequest): Promise<CallToolResult> {
+    const { name, arguments: args, _meta } = request.params as any;
     try {
-      const { name, arguments: args, _meta } = request.params as any;
-
-      // Handle the synthetic connection status tool (client-side, no bridge call needed)
-      if (name === 'get_connection_status') {
-        return {
-          content: [{
-            type: 'text',
-            text: 'No browser sessions are currently connected to this MCP-Web server. Ask the user to open the web app in their browser, or to switch back to it if it is already open, since pages can disconnect after a while without use. Once connected, tools from the web app will become available automatically.',
-          }],
-        };
-      }
-
       const response = await this.makeRequest('tools/call', {
         name,
         arguments: args || {},
@@ -250,6 +239,16 @@ export class MCPWebClient {
       // Provide a helpful message when no browser sessions are connected
       const errorDetail = error instanceof Error ? error.message : String(error);
       const isNoSessions = error instanceof Error && error.message === NoSessionsFoundErrorCode;
+
+      // The status tool this client lists when the bridge has no sessions
+      if (isNoSessions && name === 'get_connection_status') {
+        return {
+          content: [{
+            type: 'text',
+            text: 'No browser sessions are currently connected to this MCP-Web server. Ask the user to open the web app in their browser, or to switch back to it if it is already open, since pages can disconnect after a while without use. Once connected, tools from the web app will become available automatically.',
+          }],
+        };
+      }
       const displayMessage = isNoSessions
         ? 'No browser sessions connected. Ask the user to open the web app in a browser, or to switch back to it if it is already open.'
         : `Tool execution failed: ${errorDetail}`;

@@ -24,17 +24,23 @@ import type {
 } from '@mcp-web/types';
 import {
   AppDefinitionSchema,
+  checkResultShape,
   deriveRoomId,
   getDefaultAppResourceUri,
   getDefaultAppUrl,
+  getMcpOutputSchema,
   isCreatedApp,
   isErrorResult,
+  MCP_APP_TOOL_NAME,
   McpWebConfigSchema,
   QueryMessageSchema,
   RESOURCE_MIME_TYPE,
   ResourceDefinitionSchema,
+  type Tool,
   ToolDefinitionSchema,
+  toCallToolResult,
 } from '@mcp-web/types';
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { z } from 'zod';
 import {
   type CreatedStateTools,
@@ -45,6 +51,12 @@ import {
   isCreatedStateTools,
 } from './create-state-tools.js';
 import { type CreatedTool, isCreatedTool } from './create-tool.js';
+import {
+  connectToMCPAppHost,
+  describeState,
+  type MCPAppHost,
+  runsAsMCPAppView,
+} from './mcp-app-host.js';
 import { QueryResponse } from './query.js';
 import { QueryRequestSchema, QueryResponseResultSchema } from './schemas.js';
 import type { QueryRequest, QueryResponseResult } from './types.js';
@@ -115,6 +127,15 @@ export class MCPWeb {
   #idleTimer: ReturnType<typeof setTimeout> | undefined;
   #pendingCalls = 0;
   #reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+  #appHost: MCPAppHost | null = null;
+  #appHostAttempt: Promise<MCPAppHost | null> | undefined;
+  #appHostAbort: AbortController | undefined;
+  #emptyAppHost:
+    | { abort: AbortController; host: Promise<MCPAppHost | null> }
+    | undefined;
+  #isMCPApp = false;
+  /** The getter of each state added with `addStateTools`, by state name. */
+  #stateGetters = new Map<string, () => unknown>();
 
   /** Update connected state and notify listeners on change */
   #setConnected(value: boolean) {
@@ -170,6 +191,7 @@ export class MCPWeb {
    */
   constructor(config: MCPWebConfig) {
     this.#config = McpWebConfigSchema.parse(config);
+    this.#isMCPApp = !!this.#config.mcpApp && runsAsMCPAppView();
     this.#bridgeUrl =
       this.#config.bridgeUrl ??
       globalThis.window?.location?.host ??
@@ -371,14 +393,14 @@ export class MCPWeb {
     // Use provided auth token if available
     if (config.authToken) {
       // Save it to localStorage if persistence is enabled
-      if (globalThis.localStorage && config.persistAuthToken !== false) {
+      if (config.persistAuthToken !== false) {
         this.#saveAuthToken(config.authToken);
       }
       return config.authToken;
     }
 
     // Try to load from localStorage if persistence is enabled
-    if (globalThis.localStorage && config.persistAuthToken !== false) {
+    if (config.persistAuthToken !== false) {
       const savedToken = this.#loadAuthToken();
       if (savedToken) {
         return savedToken;
@@ -397,17 +419,22 @@ export class MCPWeb {
   }
 
   /**
-   * Establishes connection to the bridge server.
+   * Connects to the bridge server, or to the MCP App host when the page runs
+   * as a view opened through `mcpApp`.
    *
-   * Opens a WebSocket connection to the bridge server and authenticates using the session's
-   * auth token. If `autoConnect` is enabled in the config, this is called automatically
-   * during construction.
+   * In a view, the tools are offered to the host as app tools, and the state
+   * of `addStateTools()` states is sent to the host for the model. Otherwise,
+   * it opens a WebSocket connection to the bridge and authenticates with the
+   * session's auth token.
+   * Set `disableAppTools` to always use the bridge. If `autoConnect` is
+   * enabled in the config, this is called automatically during construction.
    *
    * This method is idempotent - calling it multiple times while already connected or
    * connecting will return the same promise.
    *
    * @returns Promise that resolves to `true` when authenticated and ready, or
-   *   `false` if `disconnect()` cancelled the attempt
+   *   `false` if `disconnect()` cancelled the attempt or the handshake with
+   *   the MCP App host failed
    * @throws {Error} If WebSocket connection fails
    *
    * @example Manual Connection
@@ -420,7 +447,7 @@ export class MCPWeb {
    *
    * // Connect when ready
    * await mcp.connect();
-   * console.log('Connected to bridge');
+   * console.log(mcp.isMCPApp ? 'Runs in an MCP App host' : 'Uses the bridge');
    * ```
    *
    * @example Check Connection Status
@@ -433,7 +460,157 @@ export class MCPWeb {
   connect(): Promise<boolean> {
     this.#idle = false;
     this.#lastActivityAt = Date.now();
+    if (this.#isMCPApp) {
+      if (!this.#config.disableAppTools) return this.#connectToAppHost();
+      this.#greetAppHost();
+    }
     return this.#connect();
+  }
+
+  /**
+   * With `disableAppTools`, the view still does the handshake with the host,
+   * which hosts may wait for, but offers no tools. A failed handshake is
+   * tried again on the next `connect()`, and `disconnect()` ends it.
+   */
+  #greetAppHost() {
+    if (this.#emptyAppHost) return;
+    const abort = new AbortController();
+    const greeting = {
+      abort,
+      host: connectToMCPAppHost(
+        {
+          name: this.#config.name,
+          version: this.#config.version,
+          listTools: () => [],
+          callTool: async (name) => ({
+            content: [{ type: 'text', text: `Unknown tool: ${name}` }],
+            isError: true,
+          }),
+          describeState: () => undefined,
+        },
+        { signal: abort.signal },
+      ),
+    };
+    this.#emptyAppHost = greeting;
+    greeting.host.then((host) => {
+      if (!host && this.#emptyAppHost === greeting) {
+        this.#emptyAppHost = undefined;
+      }
+    });
+  }
+
+  #closeEmptyAppHost() {
+    const greeting = this.#emptyAppHost;
+    if (!greeting) return;
+    this.#emptyAppHost = undefined;
+    greeting.abort.abort();
+    greeting.host.then((host) => host?.close()).catch(console.error);
+  }
+
+  /**
+   * Offers the tools to the MCP App host that shows this page as a view. The
+   * bridge is not a fallback: a view runs inside the host, where the bridge
+   * is usually out of reach. A failed handshake can be retried with
+   * `connect()`.
+   */
+  async #connectToAppHost(): Promise<boolean> {
+    if (this.#appHost) return true;
+    const epoch = this.#disconnectEpoch;
+    this.#appHostAttempt ??= this.#startAppHost();
+    const host = await this.#appHostAttempt;
+    return epoch === this.#disconnectEpoch && host !== null;
+  }
+
+  async #startAppHost(): Promise<MCPAppHost | null> {
+    const epoch = this.#disconnectEpoch;
+    const abort = new AbortController();
+    this.#appHostAbort = abort;
+    this.#setIsConnecting(true);
+    const host = await connectToMCPAppHost(
+      {
+        name: this.#config.name,
+        version: this.#config.version,
+        listTools: () => this.#listAppTools(),
+        callTool: (name, args) => this.#callAppTool(name, args),
+        describeState: () =>
+          describeState(this.#config.name, this.#stateGetters),
+      },
+      { signal: abort.signal },
+    );
+    // disconnect() was called during the handshake.
+    if (epoch !== this.#disconnectEpoch) {
+      await host?.close();
+      return null;
+    }
+    this.#appHostAbort = undefined;
+    this.#setIsConnecting(false);
+    if (!host) {
+      this.#appHostAttempt = undefined;
+      return null;
+    }
+    this.#appHost = host;
+    this.#setConnected(true);
+    host.sendState();
+    return host;
+  }
+
+  /**
+   * Whether a tool is offered to an MCP App host. A tool that opens a view is
+   * not, because it needs the bridge to serve its `ui://` resource. Both the
+   * nested and the older flat spelling of the resource URI count.
+   */
+  #isAppTool(tool: ProcessedToolDefinition): boolean {
+    const meta = tool._meta as
+      | { ui?: { resourceUri?: unknown }; 'ui/resourceUri'?: unknown }
+      | undefined;
+    return (
+      meta?.ui?.resourceUri === undefined &&
+      meta?.['ui/resourceUri'] === undefined
+    );
+  }
+
+  #listAppTools(): Tool[] {
+    const tools: Tool[] = [];
+    for (const tool of this.tools.values()) {
+      if (!this.#isAppTool(tool)) continue;
+      const inputSchema = tool.inputJsonSchema;
+      const outputSchema = getMcpOutputSchema(tool.outputJsonSchema);
+      tools.push({
+        name: tool.name,
+        description: tool.description,
+        inputSchema:
+          inputSchema?.type === 'object'
+            ? (inputSchema as Tool['inputSchema'])
+            : { type: 'object' },
+        ...(outputSchema ? { outputSchema } : {}),
+        ...(tool._meta ? { _meta: tool._meta } : {}),
+      });
+    }
+    return tools;
+  }
+
+  async #callAppTool(
+    name: string,
+    args: Record<string, unknown>,
+  ): Promise<CallToolResult> {
+    const tool = this.tools.get(name);
+    const result =
+      tool && this.#isAppTool(tool)
+        ? await this.#runTool(name, args)
+        : { error: `Tool '${name}' not found` };
+    this.#appHost?.stateChanged();
+    const outputSchema = getMcpOutputSchema(tool?.outputJsonSchema);
+    try {
+      return toCallToolResult(
+        checkResultShape(result, outputSchema),
+        outputSchema,
+      );
+    } catch (error) {
+      // For example, a result with a bigint can't be turned into JSON.
+      return toCallToolResult({
+        error: `Tool execution failed: ${error instanceof Error ? error.message : String(error)}`,
+      });
+    }
   }
 
   async #connect(): Promise<boolean> {
@@ -625,23 +802,30 @@ export class MCPWeb {
 
   private async handleToolCall(message: BridgeMessage & { type: 'tool-call' }) {
     const { requestId, toolName, toolInput } = message;
+    const result = await this.#runTool(toolName, toolInput);
+    try {
+      // Send the raw result - the bridge will handle formatting
+      this.sendToolResponse(requestId, result);
+    } catch (error) {
+      // For example, a result with a bigint can't be sent as JSON.
+      this.sendToolResponse(requestId, {
+        error: `Tool execution failed: ${error instanceof Error ? error.message : String(error)}`,
+      });
+    }
+  }
 
+  /** Runs a tool and returns its result, or `{ error }` if it fails. */
+  async #runTool(toolName: string, toolInput: unknown): Promise<unknown> {
     try {
       const tool = this.tools.get(toolName);
       if (!tool) {
-        this.sendToolResponse(requestId, {
-          error: `Tool '${toolName}' not found`,
-        });
-        return;
+        return { error: `Tool '${toolName}' not found` };
       }
 
       if (tool.inputZodSchema) {
         const parsedToolInput = tool.inputZodSchema.safeParse(toolInput);
         if (!parsedToolInput.success) {
-          this.sendToolResponse(requestId, {
-            error: `Invalid input: ${parsedToolInput.error.message}`,
-          });
-          return;
+          return { error: `Invalid input: ${parsedToolInput.error.message}` };
         }
       }
 
@@ -649,30 +833,27 @@ export class MCPWeb {
       const result = await tool.handler(toolInput);
 
       // MCP clients reject a result that doesn't match the output schema. An
-      // error result is sent as is, so its message reaches the client.
-      let output = result;
+      // error result is returned as is, so its message reaches the client.
       const validateResult = this.#outputValidators.get(tool);
       if (validateResult && !isErrorResult(result)) {
         try {
-          output = validateResult(result);
+          return validateResult(result);
         } catch (error) {
-          this.sendToolResponse(requestId, {
+          return {
             error: error instanceof Error ? error.message : String(error),
-          });
-          return;
+          };
         }
       }
 
-      // The bridge formats the result for MCP
-      this.sendToolResponse(requestId, output);
+      return result;
     } catch (error) {
       // Only log in non-test environments
       if (globalThis.process?.env?.NODE_ENV !== 'test') {
         console.debug(`Tool execution error for ${toolName}:`, error);
       }
-      this.sendToolResponse(requestId, {
+      return {
         error: `Tool execution failed: ${error instanceof Error ? error.message : String(error)}`,
-      });
+      };
     }
   }
 
@@ -839,6 +1020,7 @@ export class MCPWeb {
   private setupActivityTracking() {
     const onUserActivity = () => {
       this.#lastActivityAt = Date.now();
+      this.#appHost?.stateChanged();
       if (this.#idle) {
         this.#idle = false;
         this.#connect().catch(console.error);
@@ -894,6 +1076,8 @@ export class MCPWeb {
   }
 
   #goIdle() {
+    // Idle disconnects are for the bridge. A host connection costs nothing.
+    if (this.#appHost || this.#appHostAttempt) return;
     if (!(this.#connected || this.#isConnecting)) return;
     this.#idle = true;
     this.#close();
@@ -990,6 +1174,8 @@ export class MCPWeb {
    * ```
    *
    * @example With JSON Schema
+   * Only a Zod schema is checked before the handler runs. With a JSON Schema,
+   * the handler has to check its input itself.
    * ```typescript
    * mcp.addTool({
    *   name: 'search_items',
@@ -1085,6 +1271,11 @@ export class MCPWeb {
         `Invalid tool definition: ${validationResult.error.message}`,
       );
     }
+    if (this.#config.mcpApp && tool.name === MCP_APP_TOOL_NAME) {
+      throw new Error(
+        `The tool name '${MCP_APP_TOOL_NAME}' is taken by the bridge when \`mcpApp\` is set.`,
+      );
+    }
 
     const isInputZodSchema =
       validationResult.data.inputSchema &&
@@ -1155,6 +1346,7 @@ export class MCPWeb {
     if (this.#connected) {
       this.registerTool(processedTool);
     }
+    this.#appHost?.toolsChanged();
   }
 
   /**
@@ -1245,6 +1437,7 @@ export class MCPWeb {
   removeTool(name: string) {
     this.#toolRegistrationErrorCallbacks.delete(name);
     if (!this.tools.delete(name)) return;
+    this.#appHost?.toolsChanged();
 
     // Without an open socket there is nothing to tell: reconnecting
     // registers only the remaining tools.
@@ -1647,15 +1840,22 @@ export class MCPWeb {
         get,
         set,
       });
-      const remove = this.#addCodeToolGroup(code, [created.getter]);
+      const removeTools = this.#addCodeToolGroup(code, [created.getter]);
+      const removeState = this.#addStateGetter(name, get);
+      const remove = () => {
+        removeTools();
+        removeState();
+      };
       return [created.getter, code, remove];
     }
 
     const registeredTools = created.tools.map((tool) => this.addTool(tool));
+    const removeState = this.#addStateGetter(name, get);
     const cleanup = () => {
       for (const tool of registeredTools) {
         this.removeTool(tool.name);
       }
+      removeState();
     };
 
     if (created.isExpanded) {
@@ -1664,8 +1864,33 @@ export class MCPWeb {
     return [registeredTools[0], registeredTools[1], cleanup];
   }
 
+  /** Tracks a state for the state text sent to an MCP App host. */
+  #addStateGetter(name: string, get: () => unknown): () => void {
+    this.#stateGetters.set(name, get);
+    this.#appHost?.stateChanged();
+    return () => {
+      if (this.#stateGetters.get(name) !== get) return;
+      this.#stateGetters.delete(name);
+      this.#appHost?.stateChanged();
+    };
+  }
+
   /**
-   * Whether the client is currently connected to the bridge server.
+   * Whether the page runs as an MCP App view, opened through `mcpApp`. Known
+   * from the start, so the page can leave out what a view doesn't need, such
+   * as instructions for connecting to the bridge.
+   *
+   * In the view, `MCPWeb` offers its tools to the host as app tools, unless
+   * `disableAppTools` is set. `connected` tells whether the handshake with
+   * the host succeeded.
+   */
+  get isMCPApp(): boolean {
+    return this.#isMCPApp;
+  }
+
+  /**
+   * Whether the client is currently connected to the bridge server, or to the
+   * MCP App host when `isMCPApp` is `true`.
    *
    * @returns `true` if connected, `false` otherwise
    *
@@ -1683,7 +1908,8 @@ export class MCPWeb {
   }
 
   /**
-   * Whether the instance is currently attempting to connect to the bridge.
+   * Whether the instance is currently attempting to connect to the bridge or
+   * to an MCP App host.
    *
    * Returns `true` during the connection/authentication handshake,
    * before `connected` becomes `true` or the connection fails.
@@ -1705,12 +1931,17 @@ export class MCPWeb {
 
   /**
    * Time, in milliseconds since the epoch, at which the connection closes if
-   * there is no activity until then. `undefined` without `idleTimeoutMs` or
-   * while disconnected.
+   * there is no activity until then. `undefined` without `idleTimeoutMs`,
+   * while disconnected, or while connected to an MCP App host.
    */
   get idleDisconnectAt(): number | undefined {
     const idleTimeout = this.#config.idleTimeoutMs;
-    if (!idleTimeout || !(this.#connected || this.#isConnecting)) {
+    if (
+      !idleTimeout ||
+      !(this.#connected || this.#isConnecting) ||
+      this.#appHost ||
+      this.#appHostAttempt
+    ) {
       return undefined;
     }
     const lastActivityAt =
@@ -1751,9 +1982,10 @@ export class MCPWeb {
   }
 
   /**
-   * Disconnects from the bridge server.
+   * Disconnects from the bridge server or the MCP App host.
    *
-   * Closes the WebSocket connection and cleans up event handlers.
+   * Closes the WebSocket connection, or the connection to the host, and
+   * cleans up event handlers.
    * Useful for cleanup when unmounting components or closing the application.
    *
    * @example
@@ -1768,6 +2000,8 @@ export class MCPWeb {
     const wasIdle = this.#idle;
     this.#idle = false;
     this.#close();
+    // Not in #close(), so going idle keeps the view's host connection.
+    this.#closeEmptyAppHost();
     if (wasIdle) this.#notifyConnectionStateChange();
   }
 
@@ -1780,6 +2014,13 @@ export class MCPWeb {
     // An attempt still in its handshake has no other way to learn it was
     // cancelled, and a stale flag makes every later connect() wait on it.
     this.#setIsConnecting(false);
+    this.#appHostAttempt = undefined;
+    this.#appHostAbort?.abort();
+    this.#appHostAbort = undefined;
+    if (this.#appHost) {
+      this.#appHost.close().catch(console.error);
+      this.#appHost = null;
+    }
     if (this.#ws) {
       this.#ws.onmessage = null;
       this.#ws.onopen = null;
@@ -1858,6 +2099,12 @@ export class MCPWeb {
     if (!this.#config.agentUrl) {
       throw new Error(
         'Agent URL not configured. Add agentUrl to MCPWeb config to enable queries.',
+      );
+    }
+
+    if (this.#appHost) {
+      throw new Error(
+        'Queries require a bridge connection. Set `disableAppTools: true` for views that call `query()`.',
       );
     }
 

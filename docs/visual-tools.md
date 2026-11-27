@@ -15,10 +15,15 @@ MCP-Web provides first-class support for building visual tools. You define a
 tool with a handler that returns props, and when AI invokes the tool, those
 props are passed to your component via `postMessage`.
 
+MCP-Web can also open your [whole web app](#open-the-whole-app-in-the-chat) in
+the chat, with all of its tools.
+
 ::: tip React Support Only
-For now, only React components are supported but over time we'll add support for
-other frameworks. The work needed to support other frameworks primarily involves
-creating templates for bundling components of your app as standalone MCP apps.
+For now, only React components are supported for visual tools, but over time
+we'll add support for other frameworks. The work needed to support other
+frameworks primarily involves creating templates for bundling components of
+your app as standalone MCP apps. Opening the whole app works with any
+framework.
 :::
 
 <div id="app-flow" class="img"><div /></div>
@@ -215,6 +220,100 @@ When AI calls a visual tool:
 
 The Vite plugin automatically generates entry files that handle steps 5-6,
 subscribing to incoming props and rendering your component when they arrive.
+
+## Open the Whole App in the Chat
+
+Instead of a single component, AI can also open your whole web app in the
+chat. Set `mcpApp` in the config that your app and bridge share:
+
+```typescript
+// mcp-web.config.ts
+import type { MCPWebConfig } from '@mcp-web/types';
+import pkg from './package.json';
+
+export const config: MCPWebConfig = {
+  name: 'Todo',
+  description: 'A todo list',
+  version: pkg.version,
+  // Opens index.html. For another page: { page: 'admin.html' }
+  mcpApp: true,
+};
+```
+
+```typescript
+// bridge.ts
+import { MCPWebBridgeNode } from '@mcp-web/bridge';
+import { config } from './mcp-web.config';
+
+new MCPWebBridgeNode({ ...config, port: 3001 });
+```
+
+The bridge then offers an `open_app` tool, even while no browser tab is
+connected. When AI calls it, the host shows the page, and `MCPWeb` in the page
+offers its tools to the host directly. AI uses them like any other tool.
+
+`defineMCPAppsConfig()` builds the page as a view, at the same path in its
+output directory, such as `public/mcp-web-apps/index.html`. Write `mcpApp`
+inline, as `true` or `{ page: '…' }`, in a plain config file such as
+`mcp-web.config.ts`, because the plugin reads it from your source files to
+know which pages to build. Build the views before the site,
+so the site build copies them:
+
+```json
+{
+  "scripts": {
+    "build": "vite build --config vite.apps.config.ts && vite build"
+  }
+}
+```
+
+The Node and Bun bridges read the view from `public/`, or from their
+`publicDir` option. The Cloudflare bridge reads it from the `ASSETS` binding.
+
+### What the View Can Do
+
+The view is a new copy of your app, separate from any browser tab:
+
+- **It starts from the initial state.** Its tools change this copy, not the
+  app in a browser tab, unless they write to a backend that both share.
+- **It runs on the host's origin.** It has none of your site's cookies or
+  storage, and relative URLs such as `/api/todos` point at the host.
+- **It can't use the network**, except for the domains you list in `csp`:
+
+  ```typescript
+  mcpApp: {
+    page: 'index.html',
+    csp: {
+      // fetch, XHR and WebSocket
+      connectDomains: ['https://api.example.com'],
+      // Images, scripts, stylesheets and fonts
+      resourceDomains: ['https://fonts.googleapis.com', 'https://fonts.gstatic.com'],
+    },
+  },
+  ```
+
+- **Hosts get only the HTML.** Files that you import are part of the view, but
+  files the page loads by URL, such as images in `public/`, are not. The build
+  warns about them.
+- **The model sees the current state.** After tool calls and user input in the
+  view, `MCPWeb` sends the state of your `addStateTools()` states to the host.
+- **The page must not create its own ext-apps `App`**, since `MCPWeb` already
+  connects to the host.
+
+`mcp.isMCPApp` tells you from the start whether the page runs as a view, so
+you can leave out what the view doesn't need, such as instructions for
+connecting AI:
+
+```tsx
+{!mcp.isMCPApp && <ConnectButton />}
+```
+
+Claude ignores every tool of a view that offers more than 64, so use
+[code mode](/efficient-state-tools) for a large state.
+
+To use the bridge in the view as well, for example for `query()`, set
+`disableAppTools: true`. The view then needs `bridgeUrl`, the bridge in
+`csp.connectDomains`, and the `authToken` of the MCP client.
 
 ## Host Theming
 

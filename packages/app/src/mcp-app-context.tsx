@@ -38,7 +38,17 @@ const MCPAppContext = createContext<MCPAppContextValue | null>(null);
  *
  * @internal Used by `renderMCPApp` — not typically used directly.
  */
-export function MCPAppProvider({ children }: { children: ReactNode }) {
+export function MCPAppProvider({
+  children,
+  name = 'mcp-web-app',
+  version = '0.0.0',
+}: {
+  children: ReactNode;
+  /** Name of the app, as shown to the host. */
+  name?: string;
+  /** Version of the app, as shown to the host. */
+  version?: string;
+}) {
   const [hostContext, setHostContext] = useState<
     McpUiHostContext | undefined
   >(undefined);
@@ -50,10 +60,7 @@ export function MCPAppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const { app, isConnected, error } = useApp({
-    appInfo: {
-      name: 'mcp-web-app',
-      version: '0.1.0',
-    },
+    appInfo: { name, version },
     capabilities: {},
     onAppCreated,
   });

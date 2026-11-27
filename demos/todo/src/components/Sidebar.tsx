@@ -72,6 +72,8 @@ export function Sidebar() {
           <h1 className="font-display text-xl font-bold text-(--color-text) tracking-tight">
             Todo App
           </h1>
+          {/* In the chat, the app is already connected to AI. */}
+          {!mcpWeb.isMCPApp && (
           <button
             type="button"
             className="flex items-center gap-1 rounded outline-2 outline-current/20 hover:outline-current/60 hover:bg-current/10 px-1.5 py-0.5 cursor-pointer text-xs"
@@ -89,6 +91,7 @@ export function Sidebar() {
               />
             )}
           </button>
+          )}
         </div>
 
         {/* Inbox */}

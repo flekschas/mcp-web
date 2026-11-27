@@ -8,6 +8,24 @@
 - fix: send Zod output schemas as JSON Schema draft-07, so MCP clients accept tuples in results
 - fix: `validateInput()` checks string formats of a JSON Schema too, and tools can share a schema with the same `$id`
 - fix: accept a tool or app with a Zod schema for one of its input and output schemas and a JSON Schema for the other
+- feat: `mcpApp` option to let AI open the whole web app as an MCP App, for example in a Claude chat. `true` opens `index.html`, and `{ page: 'admin.html' }` opens another page. The view is a new copy of the app that starts from its initial state, and `{ page, csp }` lists the domains it may reach. In the view, `MCPWeb` offers its tools to the host as app tools instead of connecting to the bridge, and sends the state of `addStateTools()` states to the host for the model after tool calls and user input. `isMCPApp` tells from the start whether the page runs as a view, so it can leave out what a view doesn't need, `version` sets the app version shown to the host, and `disableAppTools: true` uses the bridge in the view too, while the view still does the handshake with the host
+
+`@mcp-web/app`:
+
+- feat: `defineMCPAppsConfig()` builds each page opened through `mcpApp` as a single-file view, at the same path in its output directory, such as `public/mcp-web-apps/index.html`
+- fix: build each view on its own, so views that share code no longer load JavaScript files that the build didn't keep
+- fix: the default URL of an app's view matches the file the plugin builds, such as `/mcp-web-apps/show-stats.html` for `show_stats`
+- feat: views tell the host the app's name and version, instead of `mcp-web-app` and `0.1.0`. The version comes from `version` in `createApp()` or from the closest `package.json`, and `renderMCPApp()` takes `name` and `version` options
+- fix: build every view in the mode and output directory of the build (`--mode`, `--outDir`), and in watch mode rebuild a view when a module only it uses changes
+- fix: stop the build with an error when two views would be written to the same file, or when there are no views to build
+- feat: warn when a built view loads local files by URL, since hosts get only the HTML of a view
+- fix: leave the page's icon links out of views, so the build no longer writes an icon file that a view can't load
+- fix: `createApp` components imported as a default export or under another name now render. A `version` that isn't one string literal falls back to `package.json`
+
+`@mcp-web/bridge`:
+
+- feat: with `mcpApp`, the bridge offers an `open_app` tool that opens the web app as an MCP App, also while no browser tab is connected. The Node and Bun adapters read the view from `public/` or the new `publicDir` option, and the Cloudflare adapter from the `ASSETS` binding. Only the copy the bridge serves to the host is marked as a view, so a site that frames the view's public file can't use its tools. Pages can't register a tool named `open_app` or a resource at the view's URI while `mcpApp` is set
+- fix: move `_meta` of error and image results to the top level of the tool result too, instead of showing it to AI or dropping it
 
 `@mcp-web/bridge` and `@mcp-web/client`:
 
@@ -15,6 +33,7 @@
 - feat: list a tool's output schema and return its result as `structuredContent` when the schema is an object, as MCP requires. The JSON text content stays for clients that don't read structured content
 - fix: reject a tool from another page with the same name but a different output schema, not only a different input schema. The order of keys in a schema and its root `$schema` don't count as a difference
 - fix: fail a call whose tool has an object output schema but returns something other than an object, such as `null`. Such a result no longer completes a query
+- fix: the client passes `get_connection_status` on to the bridge, so its answer can mention `open_app`
 
 ## v0.2.0
 

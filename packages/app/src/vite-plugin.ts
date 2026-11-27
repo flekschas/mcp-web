@@ -1,7 +1,15 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { Plugin, UserConfig, UserConfigExport } from 'vite';
+import { getAppFileName } from '@mcp-web/types';
+import type {
+  Plugin,
+  ResolvedConfig,
+  UserConfig,
+  UserConfigExport,
+} from 'vite';
 import { viteSingleFile } from 'vite-plugin-singlefile';
+import { findMCPAppPages } from './mcp-app-pages.js';
+import { readStringLiteral, readTopLevelProperties } from './source-text.js';
 
 /**
  * MCP-specific options for building MCP Apps.
@@ -80,17 +88,6 @@ const CRITICAL_OVERRIDES: OverriddenSettings[] = [
  * Virtual module prefix for generated app entries.
  */
 const VIRTUAL_PREFIX = 'virtual:mcp-app/';
-const RESOLVED_VIRTUAL_PREFIX = `\0${VIRTUAL_PREFIX}`;
-
-/**
- * The MCP App runtime is now handled by the ext-apps protocol
- * via `@modelcontextprotocol/ext-apps` React hooks bundled
- * into the app's JavaScript. No injected script is needed.
- *
- * Previously, this was a <script> tag that listened for
- * `postMessage({ props })` from the host. The ext-apps protocol
- * uses JSON-RPC 2.0 messages instead (ui/initialize, tool-result, etc.)
- */
 
 /**
  * Get a nested property value from an object using dot notation.
@@ -105,27 +102,27 @@ function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
 }
 
 /**
- * Convert a name to kebab-case for HTML file output.
- */
-function toKebabCase(name: string): string {
-  return name
-    .replace(/([a-z])([A-Z])/g, '$1-$2')
-    .replace(/_/g, '-')
-    .toLowerCase();
-}
-
-/**
  * Information about an app extracted from the config file.
  */
 interface AppInfo {
   /** The app's name (from createApp config) */
   name: string;
+  /** The app's version (from createApp config), if it is a string literal */
+  version?: string;
   /** The exported variable name */
   exportName: string;
   /** The component identifier */
   componentName: string;
-  /** The component's import path (relative or package) */
-  componentImportPath: string;
+  /** How the apps config imports the component */
+  componentImport: ComponentImport;
+}
+
+/** An import of a component: its path, and its exported name. */
+interface ComponentImport {
+  /** Relative or package path */
+  path: string;
+  /** Exported name, or `default` */
+  exportName: string;
 }
 
 /**
@@ -168,8 +165,8 @@ function parseAppsConfig(configPath: string): AppInfo[] {
   const content = fs.readFileSync(configPath, 'utf-8');
   const apps: AppInfo[] = [];
 
-  // Parse imports to map component names to their paths
-  const importMap = new Map<string, string>();
+  // Maps the local name of each imported component to its import
+  const importMap = new Map<string, ComponentImport>();
   const importRegex = /import\s+(?:{([^}]+)}|(\w+))\s+from\s+['"]([^'"]+)['"]/g;
   let match: RegExpExecArray | null;
 
@@ -177,14 +174,15 @@ function parseAppsConfig(configPath: string): AppInfo[] {
     const importPath = match[3];
     if (match[2]) {
       // Default import: import Foo from './foo'
-      importMap.set(match[2], importPath);
+      importMap.set(match[2], { path: importPath, exportName: 'default' });
     } else if (match[1]) {
       // Named imports: import { Foo, Bar as Baz } from './foo'
-      const namedImports = match[1].split(',').map((s) => s.trim());
-      for (const namedImport of namedImports) {
-        const parts = namedImport.split(/\s+as\s+/);
-        const localName = parts[1] || parts[0];
-        importMap.set(localName.trim(), importPath);
+      for (const namedImport of match[1].split(',')) {
+        const [exportName, localName = exportName] = namedImport
+          .trim()
+          .split(/\s+as\s+/);
+        if (!exportName) continue;
+        importMap.set(localName, { path: importPath, exportName });
       }
     }
   }
@@ -216,19 +214,23 @@ function parseAppsConfig(configPath: string): AppInfo[] {
     // Extract the config body (between the braces)
     const configBody = content.slice(startIndex + 1, endIndex - 1);
 
-    // Extract name property - look for the first name: '...' or name: "..."
-    const nameMatch = configBody.match(/name\s*:\s*['"]([^'"]+)['"]/);
-    if (!nameMatch) continue;
-    const name = nameMatch[1];
+    const properties = readTopLevelProperties(configBody);
+    const name = readStringLiteral(properties.get('name'));
+    if (!name) continue;
 
-    // Extract component property - look for component: <identifier>
-    const componentMatch = configBody.match(/component\s*:\s*(\w+)/);
-    if (!componentMatch) continue;
-    const componentName = componentMatch[1];
+    const componentName = properties.get('component')?.match(/^\w+$/)?.[0];
+    if (!componentName) continue;
 
-    // Look up the component's import path
-    const componentImportPath = importMap.get(componentName);
-    if (!componentImportPath) {
+    const versionValue = properties.get('version');
+    const version = readStringLiteral(versionValue);
+    if (versionValue !== undefined && version === undefined) {
+      console.warn(
+        `[mcp-web-app] Warning: The version of app "${name}" is not a string literal, so its view uses the version from package.json`
+      );
+    }
+
+    const componentImport = importMap.get(componentName);
+    if (!componentImport) {
       console.warn(
         `[mcp-web-app] Warning: Could not find import for component "${componentName}" in app "${name}"`
       );
@@ -237,9 +239,10 @@ function parseAppsConfig(configPath: string): AppInfo[] {
 
     apps.push({
       name,
+      version,
       exportName,
       componentName,
-      componentImportPath,
+      componentImport,
     });
   }
 
@@ -286,17 +289,43 @@ function resolveComponentPath(
 }
 
 /**
+ * Version in the `package.json` closest to `dir`, or undefined if there is
+ * none.
+ */
+function readPackageVersion(dir: string): string | undefined {
+  let current = dir;
+  while (true) {
+    const packageJsonPath = path.join(current, 'package.json');
+    if (fs.existsSync(packageJsonPath)) {
+      const { version } = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+      return typeof version === 'string' ? version : undefined;
+    }
+    const parent = path.dirname(current);
+    if (parent === current) return undefined;
+    current = parent;
+  }
+}
+
+/**
  * Generate a virtual module that renders an MCP App.
  */
 function generateVirtualModule(
   componentPath: string,
-  componentName: string
+  componentName: string,
+  exportName: string,
+  appInfo: { name: string; version?: string }
 ): string {
+  const imported =
+    exportName === 'default'
+      ? componentName
+      : exportName === componentName
+        ? `{ ${componentName} }`
+        : `{ ${exportName} as ${componentName} }`;
   return `
 import { renderMCPApp } from '@mcp-web/app/internal';
-import { ${componentName} } from '${componentPath}';
+import ${imported} from '${componentPath}';
 
-renderMCPApp(${componentName});
+renderMCPApp(${componentName}, ${JSON.stringify(appInfo)});
 `;
 }
 
@@ -319,132 +348,298 @@ function generateHTMLContent(appName: string, virtualModulePath: string): string
 </html>`;
 }
 
+/** Directory, in the project root, of the generated HTML entries. */
+const TEMP_HTML_DIR = path.join('node_modules', '.mcp-web-app-temp');
+
+/** A view to build: an HTML entry, and the path of its output in `outDir`. */
+interface ViewEntry {
+  input: string;
+  output: string;
+  /** What asks for the view, as shown in messages. */
+  source: string;
+}
+
+/** The views of a project, and the modules that render `createApp()` apps. */
+interface Views {
+  apps: AppInfo[];
+  pages: string[];
+  entries: ViewEntry[];
+  virtualModules: Map<string, string>;
+}
+
+/** What every build of a view needs. */
+interface ViewBuildContext {
+  projectRoot: string;
+  outDir: string;
+  viteConfig: UserConfig;
+  views: Views;
+}
+
 /**
- * Internal plugin that handles virtual modules and build process.
+ * Collects the views to build: one per `createApp()` app, rendered from a
+ * generated HTML entry, and one per page opened through `mcpApp`.
+ *
+ * @throws If two views would be built to the same file.
+ */
+function collectViews(projectRoot: string, configPath: string | null): Views {
+  const apps = configPath ? parseAppsConfig(configPath) : [];
+  const entries: ViewEntry[] = [];
+  const virtualModules = new Map<string, string>();
+
+  if (configPath && apps.length > 0) {
+    const configDir = path.dirname(configPath);
+    const packageVersion = readPackageVersion(configDir);
+    const tempHtmlDir = path.join(projectRoot, TEMP_HTML_DIR);
+    fs.mkdirSync(tempHtmlDir, { recursive: true });
+
+    for (const app of apps) {
+      const fileName = getAppFileName(app.name);
+      const virtualId = `${VIRTUAL_PREFIX}${path.basename(fileName, '.html')}`;
+      virtualModules.set(
+        `\0${virtualId}`,
+        generateVirtualModule(
+          resolveComponentPath(app.componentImport.path, configDir),
+          app.componentName,
+          app.componentImport.exportName,
+          { name: app.name, version: app.version ?? packageVersion }
+        )
+      );
+      const htmlPath = path.join(tempHtmlDir, fileName);
+      fs.writeFileSync(htmlPath, generateHTMLContent(app.name, virtualId));
+      entries.push({
+        input: htmlPath,
+        output: fileName,
+        source: `the app "${app.name}"`,
+      });
+    }
+  }
+
+  const pages = findMCPAppPages(projectRoot);
+  for (const page of pages) {
+    entries.push({
+      input: path.resolve(projectRoot, page),
+      output: page,
+      source: `the page ${page} that \`mcpApp\` opens`,
+    });
+  }
+
+  const sources = new Map<string, string>();
+  for (const entry of entries) {
+    const otherSource = sources.get(entry.output);
+    if (otherSource) {
+      throw new Error(
+        `[mcp-web-app] ${otherSource} and ${entry.source} would both be built to ${entry.output}. Rename one of them.`
+      );
+    }
+    sources.set(entry.output, entry.source);
+  }
+
+  return { apps, pages, entries, virtualModules };
+}
+
+/** Serves the modules that render `createApp()` apps. */
+function serveVirtualModules(views: Views) {
+  return {
+    resolveId(id: string) {
+      return id.startsWith(VIRTUAL_PREFIX) ? `\0${id}` : null;
+    },
+    load(id: string) {
+      return views.virtualModules.get(id) ?? null;
+    },
+  };
+}
+
+/**
+ * Removes the page's icon links from a view. A view shows in a frame, where
+ * browsers show no icon, and Vite would write the icon file next to it.
+ */
+const removeIconLinks = {
+  transformIndexHtml: {
+    order: 'pre' as const,
+    handler: (html: string) =>
+      html.replace(/<link\b[^>]*\brel=["']?[^"'>]*\bicon\b[^>]*>\s*/gi, ''),
+  },
+};
+
+/**
+ * Local files that a view loads by URL. Hosts get only the view's HTML, so
+ * the view can't load them.
+ */
+function findLocalFiles(html: string): string[] {
+  // Inlined code can contain text that looks like tags.
+  const tags = html.replace(
+    /<(script|style)\b([^>]*)>[\s\S]*?<\/\1>/gi,
+    '<$1$2>'
+  );
+  const urls: string[] = [];
+  for (const [tag, name] of tags.matchAll(/<(script|img|link)\b[^>]*>/gi)) {
+    if (name.toLowerCase() === 'link' && !/\brel=["']?stylesheet\b/i.test(tag)) {
+      continue;
+    }
+    const url = tag.match(/\s(?:src|href)=["']?([^"'\s>]+)/i)?.[1];
+    if (url && !/^(data:|blob:|https?:|\/\/)/i.test(url)) urls.push(url);
+  }
+  return urls;
+}
+
+/**
+ * Moves a built view from the path of its entry to its path in `outDir`, and
+ * warns about local files it loads.
+ */
+function moveView(entry: ViewEntry, { projectRoot, outDir }: ViewBuildContext) {
+  const built = path.join(outDir, path.relative(projectRoot, entry.input));
+  const target = path.join(outDir, entry.output);
+  if (built !== target && fs.existsSync(built)) {
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.renameSync(built, target);
+    // Removes the directories of the entry, if they are now empty.
+    for (
+      let dir = path.dirname(built);
+      dir.startsWith(outDir + path.sep);
+      dir = path.dirname(dir)
+    ) {
+      try {
+        fs.rmdirSync(dir);
+      } catch {
+        break;
+      }
+    }
+  }
+  if (!fs.existsSync(target)) return;
+
+  const files = findLocalFiles(fs.readFileSync(target, 'utf-8'));
+  if (files.length > 0) {
+    console.warn(
+      `[mcp-web-app] Warning: ${entry.output} loads ${files.join(', ')}, but hosts get only the view's HTML. Import these files from code, so the build inlines them.`
+    );
+  }
+}
+
+type BuildWatcher = { close(): Promise<void> };
+
+/**
+ * Builds one view as a single HTML file. With `watch`, it resolves once the
+ * first build is done, to a watcher that rebuilds the view on changes.
+ */
+async function buildView(
+  entry: ViewEntry,
+  context: ViewBuildContext,
+  { mode, watch }: { mode: string; watch: ResolvedConfig['build']['watch'] }
+): Promise<BuildWatcher | undefined> {
+  const { projectRoot, outDir, viteConfig, views } = context;
+  const { build } = await import('vite');
+  const result = await build({
+    ...viteConfig,
+    configFile: false,
+    mode,
+    root: projectRoot,
+    base: './',
+    publicDir: false,
+    logLevel: 'warn',
+    plugins: [
+      ...(viteConfig.plugins || []),
+      viteSingleFile(),
+      {
+        name: 'mcp-web-app-view',
+        ...serveVirtualModules(views),
+        ...removeIconLinks,
+        writeBundle: () => moveView(entry, context),
+      },
+    ],
+    build: {
+      ...viteConfig.build,
+      outDir,
+      emptyOutDir: false,
+      watch,
+      assetsInlineLimit: Number.MAX_SAFE_INTEGER,
+      cssCodeSplit: false,
+      rollupOptions: { ...viteConfig.build?.rollupOptions, input: entry.input },
+    },
+  });
+  if (!('on' in result)) return undefined;
+
+  await new Promise<void>((resolve) => {
+    const onEvent = (event: { code: string }) => {
+      if (event.code !== 'END' && event.code !== 'ERROR') return;
+      result.off('event', onEvent);
+      resolve();
+    };
+    result.on('event', onEvent);
+  });
+  return result;
+}
+
+/**
+ * Internal plugin that serves the modules of `createApp()` apps, builds every
+ * view after the first, which this build handles, and moves each view to its
+ * path in `outDir`.
  */
 function mcpAppPlugin(
-  projectRoot: string,
-  outDir: string,
+  context: ViewBuildContext,
   configPath: string | null
 ): Plugin {
-  let apps: AppInfo[] = [];
-  let configDir: string;
-  const virtualModules = new Map<string, string>();
-  const htmlEntries = new Map<string, string>();
+  const { projectRoot, views } = context;
+  let config: ResolvedConfig;
+  let isFirstBuild = true;
+  let watchers: BuildWatcher[] = [];
+  const closeWatchers = async () => {
+    await Promise.all(watchers.map((watcher) => watcher.close()));
+    watchers = [];
+  };
 
   return {
     name: 'mcp-web-app',
 
-    configResolved(_config) {
-      // Store config for potential future use
+    configResolved(resolvedConfig) {
+      config = resolvedConfig;
+      // Every view goes where this build goes, also with `--outDir`.
+      context.outDir = path.resolve(config.root, config.build.outDir);
     },
 
     buildStart() {
-      // Clear previous state
-      virtualModules.clear();
-      htmlEntries.clear();
-
-      if (!configPath) {
-        console.log(
-          '\n\u26A0 No MCP Apps config file found. Looking for src/mcp-apps.ts or src/mcp/apps.ts'
+      // The views are collected with the config. Later builds in watch mode
+      // pick up changes.
+      if (!isFirstBuild) {
+        Object.assign(views, collectViews(projectRoot, configPath));
+      }
+      isFirstBuild = false;
+      if (configPath) this.addWatchFile(configPath);
+      if (views.entries.length === 0) {
+        this.error(
+          'No views to build. Add an app with createApp(), or open a page with the `mcpApp` option of MCPWeb.'
         );
-        return;
-      }
-
-      configDir = path.dirname(configPath);
-      apps = parseAppsConfig(configPath);
-
-      if (apps.length === 0) {
-        console.log(
-          `\n\u26A0 No apps found in ${path.relative(projectRoot, configPath)}`
-        );
-        return;
-      }
-
-      // Generate virtual modules for each app
-      for (const app of apps) {
-        const kebabName = toKebabCase(app.name);
-        const virtualId = `${VIRTUAL_PREFIX}${kebabName}`;
-        const resolvedVirtualId = `${RESOLVED_VIRTUAL_PREFIX}${kebabName}`;
-
-        // Resolve the component path
-        const absoluteComponentPath = resolveComponentPath(
-          app.componentImportPath,
-          configDir
-        );
-
-        // Generate the virtual module content
-        const moduleContent = generateVirtualModule(
-          absoluteComponentPath,
-          app.componentName
-        );
-        virtualModules.set(resolvedVirtualId, moduleContent);
-
-        // Generate HTML entry
-        const htmlContent = generateHTMLContent(kebabName, virtualId);
-        const htmlPath = path.join(outDir, `${kebabName}.html`);
-        htmlEntries.set(kebabName, htmlContent);
-
-        // Write temporary HTML file for Vite to use as entry
-        fs.mkdirSync(path.dirname(htmlPath), { recursive: true });
-      }
-
-      console.log(
-        `\n\u2139 Found ${apps.length} MCP App(s) in ${path.relative(projectRoot, configPath)}`
-      );
-    },
-
-    resolveId(id) {
-      if (id.startsWith(VIRTUAL_PREFIX)) {
-        return `\0${id}`;
-      }
-      return null;
-    },
-
-    load(id) {
-      // Handle virtual app modules
-      if (id.startsWith(RESOLVED_VIRTUAL_PREFIX)) {
-        return virtualModules.get(id) || null;
-      }
-
-      return null;
-    },
-
-    generateBundle() {
-      // Don't emit additional HTML - let vite-plugin-singlefile handle the output
-      // The inlined HTML will be at a nested path which we'll fix in closeBundle
-    },
-
-    closeBundle() {
-      if (apps.length === 0) return;
-
-      // The inlined HTML files are output to a nested path matching the temp directory structure
-      // Move them to the root of the output directory
-      const tempSubDir = path.join(outDir, 'node_modules', '.mcp-web-app-temp');
-
-      if (fs.existsSync(tempSubDir)) {
-        for (const app of apps) {
-          const kebabName = toKebabCase(app.name);
-          const srcPath = path.join(tempSubDir, `${kebabName}.html`);
-          const destPath = path.join(outDir, `${kebabName}.html`);
-
-          if (fs.existsSync(srcPath)) {
-            // Move the inlined HTML to the root
-            fs.copyFileSync(srcPath, destPath);
-          }
-        }
-
-        // Clean up the nested directory
-        fs.rmSync(path.join(outDir, 'node_modules'), { recursive: true, force: true });
-      }
-
-      const relOutDir = path.relative(projectRoot, outDir);
-      console.log(`\n\u2713 Built ${apps.length} MCP App(s) to ${relOutDir}/`);
-      for (const app of apps) {
-        const kebabName = toKebabCase(app.name);
-        console.log(`   - ${kebabName}.html (${app.exportName})`);
       }
     },
+
+    ...serveVirtualModules(views),
+    ...removeIconLinks,
+
+    writeBundle() {
+      const [firstEntry] = views.entries;
+      if (firstEntry) moveView(firstEntry, context);
+    },
+
+    async closeBundle() {
+      // This build empties `outDir`, so the other views are built again. In
+      // watch mode, each of them also rebuilds on changes of its own.
+      await closeWatchers();
+      for (const entry of views.entries.slice(1)) {
+        const watcher = await buildView(entry, context, {
+          mode: config.mode,
+          watch: config.build.watch,
+        });
+        if (watcher) watchers.push(watcher);
+      }
+
+      if (views.entries.length === 0) return;
+      const relOutDir = path.relative(projectRoot, context.outDir);
+      console.log(`\n✓ Built ${views.entries.length} view(s) to ${relOutDir}/`);
+      for (const entry of views.entries) {
+        console.log(`   - ${entry.output}`);
+      }
+    },
+
+    closeWatcher: closeWatchers,
   };
 }
 
@@ -460,6 +655,11 @@ function mcpAppPlugin(
  * 2. Parses `createApp()` calls to find app names and components
  * 3. Auto-generates entry files that render each component
  * 4. Bundles everything into single HTML files
+ *
+ * It also builds each page that an `MCPWeb` config opens through `mcpApp` as
+ * a view, at the same path in `outDir`, such as `public/mcp-web-apps/index.html`.
+ * The bridge serves that view when AI calls its `open_app` tool. Each view
+ * gets a build of its own, so its HTML file holds all of its code.
  *
  * **Features:**
  * - No manual entry files needed - just define your apps!
@@ -540,31 +740,21 @@ export function defineMCPAppsConfig(
   // Find the apps config file
   const configPath = findAppsConfigFile(projectRoot, appsConfig);
 
-  // Parse apps to generate rollup inputs
-  let apps: AppInfo[] = [];
-  let tempHtmlDir: string | null = null;
-  const input: Record<string, string> = {};
-
-  if (configPath) {
-    apps = parseAppsConfig(configPath);
-
-    if (apps.length > 0) {
-      // Create a temp directory for HTML entries
-      tempHtmlDir = path.join(projectRoot, 'node_modules', '.mcp-web-app-temp');
-      fs.mkdirSync(tempHtmlDir, { recursive: true });
-
-      // Generate HTML entries for rollup input
-      for (const app of apps) {
-        const kebabName = toKebabCase(app.name);
-        const htmlPath = path.join(tempHtmlDir, `${kebabName}.html`);
-        const virtualModulePath = `${VIRTUAL_PREFIX}${kebabName}`;
-
-        const htmlContent = generateHTMLContent(kebabName, virtualModulePath);
-        fs.writeFileSync(htmlPath, htmlContent);
-
-        input[kebabName] = htmlPath;
-      }
-    }
+  // A single-file build inlines all code, including code shared between
+  // views and code loaded on demand, only when it has one entry. So this
+  // build handles the first view, and each other view gets a build of its own.
+  const views = collectViews(projectRoot, configPath);
+  const firstEntry = views.entries[0];
+  // A project can have only pages that `mcpApp` opens, and no apps.
+  if (!configPath && views.pages.length === 0) {
+    console.log(
+      '\n\u26A0 No MCP Apps config file found. Looking for src/mcp-apps.ts or src/mcp/apps.ts'
+    );
+  }
+  if (views.pages.length > 0) {
+    console.log(
+      `\n\u2139 Found ${views.pages.length} page(s) that \`mcpApp\` opens: ${views.pages.join(', ')}`
+    );
   }
 
   // Check for and warn about overridden settings
@@ -594,7 +784,10 @@ export function defineMCPAppsConfig(
       ...(viteConfig.plugins || []),
       // Then our plugins
       viteSingleFile(),
-      mcpAppPlugin(projectRoot, outDirPath, configPath),
+      mcpAppPlugin(
+        { projectRoot, outDir: outDirPath, viteConfig, views },
+        configPath
+      ),
     ],
 
     build: {
@@ -602,6 +795,8 @@ export function defineMCPAppsConfig(
 
       outDir: outDirPath,
       emptyOutDir: true,
+      // Hosts get only the HTML of a view, not the files next to it.
+      copyPublicDir: false,
 
       // Critical overrides for single-file output
       assetsInlineLimit: Number.MAX_SAFE_INTEGER,
@@ -609,7 +804,7 @@ export function defineMCPAppsConfig(
 
       rollupOptions: {
         ...viteConfig.build?.rollupOptions,
-        input: Object.keys(input).length > 0 ? input : undefined,
+        input: firstEntry?.input,
       },
     },
   };

@@ -45,6 +45,13 @@ export interface CreateAppConfig<
   name: string;
   /** Description of what the app does (shown to AI) */
   description: string;
+  /**
+   * Version of the app, as shown to the host. Only the Vite plugin reads it,
+   * from the source at build time, so it must be a string literal, and it is
+   * not part of `definition`. Defaults to the version in the closest
+   * `package.json`.
+   */
+  version?: string;
   /** React component to render - handler must return props matching this component */
   component: TComponent;
   /** Optional Zod schema for validating tool input */

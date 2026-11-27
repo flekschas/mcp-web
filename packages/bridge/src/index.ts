@@ -58,6 +58,7 @@ export { Bridge, MCPWebBridgeBun, MCPWebBridgeNode } from './adapters/index.js';
  * @deprecated Use MCPWebBridgeNode for new code. This export exists for backwards compatibility.
  */
 export { MCPWebBridge, MCPWebBridge as MCPWebBridgeCore } from './core.js';
+export type { MCPWebBridgeOptions } from './core.js';
 // Runtime abstractions (for custom adapter authors)
 export type {
   BridgeAdapterConfig,

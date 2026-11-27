@@ -348,6 +348,10 @@ function processFile(filePath: string, projectRoot: string): DocEntry[] {
   const entries: DocEntry[] = [];
 
   function visit(node: ts.Node) {
+    // Exported for other modules of the package, not for its users
+    if (ts.getJSDocTags(node).some((tag) => tag.tagName.text === "internal")) {
+      return;
+    }
     if (ts.isClassDeclaration(node)) {
       const entry = processClass(node, sourceFile, relativePath);
       if (entry) entries.push(entry);

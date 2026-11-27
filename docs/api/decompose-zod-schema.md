@@ -212,32 +212,6 @@ maxOptionsPerEnum: number
 
 Maximum options per enum before splitting.
 
-### SplitGroup
-
-*Interface* — `packages/decompose-zod-schema/src/types.ts`
-
-Internal grouping of related splits.
-
-**Properties:**
-
-```ts
-name: string
-```
-
-Group name.
-
-```ts
-paths: string[]
-```
-
-Paths included in this group.
-
-```ts
-schemas: Record<string, ZodType>
-```
-
-Schemas for each path.
-
 ### DeepPathSegment
 
 *Interface* — `packages/decompose-zod-schema/src/utils.ts`

@@ -52,6 +52,7 @@
 import type { MCPWebConfig } from '@mcp-web/types';
 import { MCPWebBridge } from '../core.js';
 import { TimerScheduler } from '../runtime/scheduler.js';
+import { createStaticFileReader } from './static-files.js';
 import type { HttpRequest, WebSocketConnection } from '../runtime/types.js';
 import { isSSEResponse } from '../runtime/types.js';
 
@@ -64,6 +65,12 @@ export interface MCPWebBridgeBunConfig extends Omit<MCPWebConfig, 'bridgeUrl'> {
 
   /** Hostname to bind to (default: '0.0.0.0') */
   hostname?: string;
+
+  /**
+   * Directory of the web app's static files, from which the bridge reads the
+   * view of `mcpApp`. Relative to the working directory (default: 'public').
+   */
+  publicDir?: string;
 }
 
 /**
@@ -182,7 +189,9 @@ export class MCPWebBridgeBun {
 
     // Create the core with a timer-based scheduler
     const scheduler = new TimerScheduler();
-    this.#core = new MCPWebBridge(config, scheduler);
+    this.#core = new MCPWebBridge(config, scheduler, {
+      readStaticFile: createStaticFileReader(config.publicDir),
+    });
     const handlers = this.#core.getHandlers();
 
     // Start Bun server with WebSocket support

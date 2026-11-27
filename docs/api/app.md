@@ -28,6 +28,15 @@ description: string
 Description of what the app does (shown to AI)
 
 ```ts
+version?: string
+```
+
+Version of the app, as shown to the host. Only the Vite plugin reads it,
+from the source at build time, so it must be a string literal, and it is
+not part of `definition`. Defaults to the version in the closest
+`package.json`.
+
+```ts
 component: TComponent
 ```
 
@@ -257,6 +266,11 @@ can be served as MCP App resources that render inline in AI chat interfaces.
 2. Parses `createApp()` calls to find app names and components
 3. Auto-generates entry files that render each component
 4. Bundles everything into single HTML files
+
+It also builds each page that an `MCPWeb` config opens through `mcpApp` as
+a view, at the same path in `outDir`, such as `public/mcp-web-apps/index.html`.
+The bridge serves that view when AI calls its `open_app` tool. Each view
+gets a build of its own, so its HTML file holds all of its code.
 
 **Features:**
 - No manual entry files needed - just define your apps!

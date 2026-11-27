@@ -10,14 +10,20 @@
 
 import {
   type AvailableSession,
+  checkResultShape,
   type ErroredListPromptsResult,
   type ErroredListResourcesResult,
   type ErroredListToolsResult,
   type FatalError,
+  getMCPAppPage,
+  getMCPAppViewPath,
   getMcpOutputSchema,
   InternalErrorCode,
-  isErrorResult,
   InvalidSessionErrorCode,
+  isErrorResult,
+  MCP_APP_RESOURCE_URI,
+  MCP_APP_TOOL_NAME,
+  MCP_APP_VIEW_META_NAME,
   type MCPWebConfig,
   type MCPWebConfigOutput,
   McpWebConfigSchema,
@@ -35,6 +41,7 @@ import {
   QueryNotActiveErrorCode,
   QueryNotFoundErrorCode,
   QueryProgressMessageSchema,
+  RESOURCE_MIME_TYPE,
   type ResourceMetadata,
   SessionExpiredErrorCode,
   SessionLimitExceededErrorCode,
@@ -43,9 +50,11 @@ import {
   SessionNotSpecifiedErrorCode,
   type ToolMetadata,
   ToolNameRequiredErrorCode,
+  ToolNameReservedErrorCode,
   ToolNotAllowedErrorCode,
   ToolNotFoundErrorCode,
   ToolSchemaConflictErrorCode,
+  toCallToolResult,
   UnknownMethodErrorCode,
 } from '@mcp-web/types';
 import type {
@@ -164,18 +173,6 @@ interface ToolDefinition {
   inputSchema?: z.core.JSONSchema.JSONSchema;
   outputSchema?: z.core.JSONSchema.JSONSchema;
   handler?: string;
-  _meta?: Record<string, unknown>;
-}
-
-interface WrappedToolResult {
-  content: Array<{
-    type: string;
-    text?: string;
-    data?: string;
-    mimeType?: string;
-  }>;
-  structuredContent?: Record<string, unknown>;
-  isError?: boolean;
   _meta?: Record<string, unknown>;
 }
 
@@ -310,21 +307,6 @@ const getSchemaKey = (tool: ToolDefinition): string =>
   );
 
 /**
- * Turns a successful result that isn't an object into an error when the tool
- * has an output schema, because MCP clients reject it. Pages on an older
- * `@mcp-web/core` don't check results themselves.
- */
-const checkResultShape = (
-  result: unknown,
-  outputSchema?: Tool['outputSchema'],
-): unknown =>
-  outputSchema &&
-  !isErrorResult(result) &&
-  (result === null || typeof result !== 'object' || Array.isArray(result))
-    ? { error: 'Invalid output: expected an object' }
-    : result;
-
-/**
  * Builds the query URL by appending the UUID to the agent URL.
  * If no protocol is specified, defaults to http://.
  */
@@ -351,6 +333,34 @@ const buildQueryUrl = (agentUrl: string, uuid: string): string => {
 // ============================================
 // MCPWebBridge Core Class
 // ============================================
+
+/**
+ * Adds the view mark to the HTML of the `mcpApp` view. Only the copy served
+ * to the host has it, so the public file can't offer tools to a site that
+ * frames it.
+ */
+function markAsView(html: string): string {
+  const mark = `<meta name="${MCP_APP_VIEW_META_NAME}">`;
+  let end = html.match(/^\s*<!doctype[^>]*>/i)?.[0].length ?? 0;
+  for (const tag of html.matchAll(/<!--[\s\S]*?-->|<head(?=[\s>])[^>]*>/gi)) {
+    if (tag[0].startsWith('<!--')) continue;
+    end = tag.index + tag[0].length;
+    break;
+  }
+  // Without a <head> tag, the parser still puts the mark in the head.
+  return html.slice(0, end) + mark + html.slice(end);
+}
+
+/** Options that depend on the runtime the bridge runs in. */
+export interface MCPWebBridgeOptions {
+  /**
+   * Reads a static file of the web app, such as a built MCP App view, by its
+   * path relative to the directory the app's static files are served from.
+   * Resolves to `undefined` when the file doesn't exist. Required for
+   * `mcpApp`.
+   */
+  readStaticFile?: (path: string) => Promise<string | undefined>;
+}
 
 /**
  * Core bridge server that connects web frontends to AI agents via MCP.
@@ -380,6 +390,7 @@ const buildQueryUrl = (agentUrl: string, uuid: string): string => {
  */
 export class MCPWebBridge {
   #sessions = new Map<string, SessionData>();
+  #readStaticFile: MCPWebBridgeOptions['readStaticFile'];
   #queries = new Map<string, QueryTracking>();
   #config: MCPWebConfigOutput;
   #scheduler: Scheduler;
@@ -408,9 +419,14 @@ export class MCPWebBridge {
    *
    * @param config - Bridge configuration options
    * @param scheduler - Optional scheduler for timing operations (used for testing)
+   * @param options - Options that depend on the runtime
    * @throws {Error} If configuration validation fails
    */
-  constructor(config: MCPWebConfig, scheduler?: Scheduler) {
+  constructor(
+    config: MCPWebConfig,
+    scheduler?: Scheduler,
+    options: MCPWebBridgeOptions = {},
+  ) {
     const parsedConfig = McpWebConfigSchema.safeParse(config);
     if (!parsedConfig.success) {
       throw new Error(
@@ -420,6 +436,7 @@ export class MCPWebBridge {
 
     this.#config = parsedConfig.data;
     this.#scheduler = scheduler ?? new NoopScheduler();
+    this.#readStaticFile = options.readStaticFile;
 
     // Resolve icon: if it's a URL, fetch and convert to base64 data URI
     this.#iconReady = this.#resolveIcon();
@@ -708,6 +725,18 @@ export class MCPWebBridge {
     const toolName = message.tool.name;
     const newSchema = getSchemaKey(message.tool);
 
+    if (toolName === MCP_APP_TOOL_NAME && getMCPAppPage(this.#config.mcpApp)) {
+      session.ws.send(
+        JSON.stringify({
+          type: 'tool-registration-error',
+          toolName,
+          error: ToolNameReservedErrorCode,
+          message: `The bridge offers '${toolName}' itself, because \`mcpApp\` is set. Rename the tool.`,
+        }),
+      );
+      return;
+    }
+
     // Check sibling sessions (same auth token) for schema conflicts
     const siblingSessionIds = this.#tokenSessionIds.get(session.authToken);
     if (siblingSessionIds) {
@@ -765,6 +794,16 @@ export class MCPWebBridge {
     const session = this.#sessions.get(sessionId);
     if (!session) {
       console.warn(`Resource registration for unknown session: ${sessionId}`);
+      return;
+    }
+
+    if (
+      message.resource.uri === MCP_APP_RESOURCE_URI &&
+      getMCPAppPage(this.#config.mcpApp)
+    ) {
+      console.warn(
+        `Ignoring resource ${MCP_APP_RESOURCE_URI} of session ${sessionId}: the bridge serves it itself, because \`mcpApp\` is set.`,
+      );
       return;
     }
 
@@ -1290,6 +1329,12 @@ export class MCPWebBridge {
         );
       }
 
+      // A query can only use the tools of its browser session.
+      const mcpAppResponse = queryId
+        ? undefined
+        : await this.#handleMCPAppRequest(mcpRequest);
+      if (mcpAppResponse) return mcpAppResponse;
+
       if (sessions.size === 0) {
         // No browser sessions connected — return synthetic fallback responses
         // instead of an error. This is critical because Claude Desktop disables
@@ -1307,7 +1352,7 @@ export class MCPWebBridge {
         case 'tools/call': {
           const { result: toolResult, outputSchema } =
             await this.#handleToolCall(sessions, mcpRequest.params);
-          result = this.#wrapToolCallResult(toolResult, outputSchema);
+          result = toCallToolResult(toolResult, outputSchema);
           break;
         }
         case 'resources/list':
@@ -1343,7 +1388,10 @@ export class MCPWebBridge {
         );
       }
 
-      return this.#mcpSuccessResponse(mcpRequest.id, result);
+      return this.#mcpSuccessResponse(
+        mcpRequest.id,
+        queryId ? result : this.#withMCPApp(mcpRequest.method, result),
+      );
     } catch (error) {
       console.error('MCP request error:', error);
       return this.#mcpErrorResponse(requestId, -32603, InternalErrorCode);
@@ -1413,8 +1461,7 @@ export class MCPWebBridge {
           tools: [
             {
               name: 'get_connection_status',
-              description:
-                'Check the connection status of this MCP-Web server. Returns whether any browser sessions are currently connected. If no sessions are connected, you should tell the user to open the web app in their browser, or to switch back to it.',
+              description: `Check the connection status of this MCP-Web server. Returns whether any browser sessions are currently connected. If no sessions are connected, you should tell the user to open the web app in their browser, or to switch back to it.${getMCPAppPage(this.#config.mcpApp) ? ` Or open the app in the chat with \`${MCP_APP_TOOL_NAME}\`.` : ''}`,
               inputSchema: {
                 type: 'object',
                 properties: {},
@@ -1433,7 +1480,7 @@ export class MCPWebBridge {
             content: [
               {
                 type: 'text',
-                text: 'No browser sessions are currently connected to this MCP-Web server. Ask the user to open the web app in their browser, or to switch back to it if it is already open, since pages can disconnect after a while without use. Once connected, tools from the web app will become available automatically.',
+                text: `No browser sessions are currently connected to this MCP-Web server. Ask the user to open the web app in their browser, or to switch back to it if it is already open, since pages can disconnect after a while without use. Once connected, tools from the web app will become available automatically.${getMCPAppPage(this.#config.mcpApp) ? ` Or open the app in the chat with \`${MCP_APP_TOOL_NAME}\`.` : ''}`,
               },
             ],
           };
@@ -1501,130 +1548,90 @@ export class MCPWebBridge {
         );
     }
 
-    return this.#mcpSuccessResponse(mcpRequest.id, result);
+    return this.#mcpSuccessResponse(
+      mcpRequest.id,
+      this.#withMCPApp(mcpRequest.method, result),
+    );
   }
 
   /**
-   * Wraps a tool call result in the MCP CallToolResult format, for both
-   * Remote MCP (direct HTTP) and STDIO clients.
-   *
-   * The `_meta` field of a successful object result goes to the top level of
-   * the CallToolResult, where MCP expects it, instead of into the content.
-   *
-   * When the tool has an output schema, a successful object result is also
-   * returned as `structuredContent`. The content stays for clients that don't
-   * read structured content.
+   * Answers calls of the `open_app` tool and reads of its view, which work
+   * without a browser session. Returns `undefined` for other requests.
    */
-  #wrapToolCallResult(
-    result: unknown,
-    outputSchema?: Tool['outputSchema'],
-  ): WrappedToolResult {
+  async #handleMCPAppRequest(
+    mcpRequest: McpRequest,
+  ): Promise<HttpResponse | undefined> {
+    const page = getMCPAppPage(this.#config.mcpApp);
+    if (!page) return undefined;
+
     if (
-      isErrorResult(result) ||
-      result === null ||
-      typeof result !== 'object' ||
-      Array.isArray(result)
+      mcpRequest.method === 'tools/call' &&
+      mcpRequest.params?.name === MCP_APP_TOOL_NAME
     ) {
-      return this.#toCallToolResult(result);
+      return this.#mcpSuccessResponse(mcpRequest.id, {
+        content: [{ type: 'text', text: `Opened ${this.#config.name}.` }],
+      });
     }
 
-    const { _meta, ...value } = result as Record<string, unknown>;
-    const wrapped = this.#toCallToolResult(value);
-    if (_meta && typeof _meta === 'object') {
-      wrapped._meta = _meta as Record<string, unknown>;
+    if (
+      mcpRequest.method === 'resources/read' &&
+      mcpRequest.params?.uri === MCP_APP_RESOURCE_URI
+    ) {
+      const path = getMCPAppViewPath(page);
+      const html = await this.#readStaticFile?.(path);
+      const { mcpApp } = this.#config;
+      const csp = typeof mcpApp === 'object' ? mcpApp.csp : undefined;
+      if (html === undefined) {
+        return this.#mcpErrorResponse(
+          mcpRequest.id,
+          -32002,
+          `The MCP App view ${path} was not found. Build it with the Vite config from defineMCPAppsConfig() of @mcp-web/app, which builds the pages that \`mcpApp\` names when it's written inline in the config.`,
+        );
+      }
+      return this.#mcpSuccessResponse(mcpRequest.id, {
+        contents: [
+          {
+            uri: MCP_APP_RESOURCE_URI,
+            mimeType: RESOURCE_MIME_TYPE,
+            text: markAsView(html),
+            ...(csp && { _meta: { ui: { csp } } }),
+          },
+        ],
+      });
     }
-    if (outputSchema) {
-      wrapped.structuredContent = value;
-    }
-    return wrapped;
+
+    return undefined;
   }
 
-  /**
-   * Formats a tool result as MCP content: an error, an image for image data
-   * URLs, or text.
-   */
-  #toCallToolResult(result: unknown): WrappedToolResult {
-    if (isErrorResult(result)) {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(result, null, 2),
-          },
-        ],
-        isError: true,
+  /** Adds the `open_app` tool and its view to tool and resource lists. */
+  #withMCPApp(method: string, result: unknown): unknown {
+    if (!getMCPAppPage(this.#config.mcpApp)) return result;
+    if (!result || typeof result !== 'object') return result;
+    const { name, description } = this.#config;
+
+    const { tools } = result as { tools?: unknown };
+    if (method === 'tools/list' && Array.isArray(tools)) {
+      const openApp: Tool = {
+        name: MCP_APP_TOOL_NAME,
+        description: `Opens a new copy of ${name} in the chat, where the user can see and use it. The copy starts fresh, has its own tools, and doesn't share its state with ${name} in the user's browser. ${description}`,
+        inputSchema: { type: 'object', properties: {}, required: [] },
+        _meta: { ui: { resourceUri: MCP_APP_RESOURCE_URI } },
       };
+      return { ...result, tools: [...tools, openApp] };
     }
 
-    // Handle different result types
-    if (typeof result === 'string') {
-      // Check if it's a data URL (image)
-      if (result.startsWith('data:image/')) {
-        const mimeType = result.split(';')[0].split(':')[1];
-        // Extract base64 data after the comma
-        const base64Data = result.split(',')[1];
-        return {
-          content: [
-            {
-              type: 'image',
-              data: base64Data,
-              mimeType,
-            },
-          ],
-        };
-      }
-      return {
-        content: [
-          {
-            type: 'text',
-            text: result,
-          },
-        ],
+    const { resources } = result as { resources?: unknown };
+    if (method === 'resources/list' && Array.isArray(resources)) {
+      const view: Resource = {
+        uri: MCP_APP_RESOURCE_URI,
+        name,
+        description: `${name} as an MCP App`,
+        mimeType: RESOURCE_MIME_TYPE,
       };
+      return { ...result, resources: [...resources, view] };
     }
 
-    if (result !== null && result !== undefined) {
-      // Check if it's an object containing a data URL (e.g., { dataUrl: "data:image/png;base64,..." })
-      // This handles tools that return image data wrapped in an object rather than as a raw string.
-      if (typeof result === 'object' && 'dataUrl' in result) {
-        const dataUrl = (result as Record<string, unknown>).dataUrl;
-        if (typeof dataUrl === 'string' && dataUrl.startsWith('data:image/')) {
-          const mimeType = dataUrl.split(';')[0].split(':')[1];
-          const base64Data = dataUrl.split(',')[1];
-          return {
-            content: [
-              {
-                type: 'image',
-                data: base64Data,
-                mimeType,
-              },
-            ],
-          };
-        }
-      }
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text:
-              typeof result === 'object'
-                ? JSON.stringify(result, null, 2)
-                : String(result),
-          },
-        ],
-      };
-    }
-
-    // null or undefined result
-    return {
-      content: [
-        {
-          type: 'text',
-          text: '',
-        },
-      ],
-    };
+    return result;
   }
 
   // ============================================
@@ -2099,6 +2106,7 @@ export class MCPWebBridge {
             this.#toolResponseHandlers.delete(requestId);
             session.ws.offMessage(handleResponse);
 
+            // Pages on an older @mcp-web/core don't check results themselves.
             const toolResult = checkResultShape(message.result, outputSchema);
 
             if (queryId) {

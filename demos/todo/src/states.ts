@@ -1,24 +1,24 @@
 import { atom } from 'jotai';
-import { atomWithStorage } from 'jotai/utils';
-import type { Project, Todo, View } from './types';
 import { type StatisticsProps } from './components/Statistics';
+import { atomWithDemoStorage } from './storage';
+import type { Project, Todo, View } from './types';
 
 /* ---------------------------- Settable atoms ----------------------------- */
 
 // Todos
-export const todosAtom = atomWithStorage<Todo[]>('todos', []);
+export const todosAtom = atomWithDemoStorage<Todo[]>('todos', []);
 
 // Projects
-export const projectsAtom = atomWithStorage<Record<string, Project>>('projects', {});
+export const projectsAtom = atomWithDemoStorage<Record<string, Project>>('projects', {});
 
 // Settings
-export const themeAtom = atomWithStorage<'system' | 'light' | 'dark'>('theme', 'system');
-export const sortByAtom = atomWithStorage<'created_at' | 'due_at' | 'title'>('sortBy', 'created_at');
-export const sortOrderAtom = atomWithStorage<'asc' | 'desc'>('sortOrder', 'desc');
-export const showCompletedAtom = atomWithStorage<boolean>('showCompleted', true);
+export const themeAtom = atomWithDemoStorage<'system' | 'light' | 'dark'>('theme', 'system');
+export const sortByAtom = atomWithDemoStorage<'created_at' | 'due_at' | 'title'>('sortBy', 'created_at');
+export const sortOrderAtom = atomWithDemoStorage<'asc' | 'desc'>('sortOrder', 'desc');
+export const showCompletedAtom = atomWithDemoStorage<boolean>('showCompleted', true);
 
 // View - discriminated union: { type: 'inbox' } | { type: 'statistics' } | { type: 'project', id: string }
-export const viewAtom = atomWithStorage<View>('view', { type: 'inbox' });
+export const viewAtom = atomWithDemoStorage<View>('view', { type: 'inbox' });
 
 /* ----------------------------- Derived atoms ----------------------------- */
 

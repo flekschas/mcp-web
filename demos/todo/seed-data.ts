@@ -5,27 +5,28 @@
  * Provides realistic data for testing statistics and charts.
  */
 
+import { storage } from './src/storage';
 import type { Project, Todo } from './src/types';
 
 // Storage keys (must match states.ts)
 const STORAGE_KEYS = ['todos', 'projects', 'theme', 'sortBy', 'sortOrder', 'showCompleted', 'view'];
 
 /**
- * Clear all demo data from localStorage.
+ * Clear all demo data from storage.
  * Call from browser console: window.clearDemoData()
  */
 export function clearDemoData(): void {
   for (const key of STORAGE_KEYS) {
-    localStorage.removeItem(key);
+    storage.removeItem(key);
   }
-  console.log('[Demo] Cleared localStorage. Reload to populate seed data.');
+  console.log('[Demo] Cleared storage. Reload to populate seed data.');
 }
 
 /**
  * Check if this is the first run (no todos in localStorage).
  */
 export function isFirstRun(): boolean {
-  return localStorage.getItem('todos') === null;
+  return storage.getItem('todos') === null;
 }
 
 /**
@@ -267,7 +268,7 @@ function generateTodos(_projects: Record<string, Project>): Todo[] {
 }
 
 /**
- * Initialize seed data in localStorage.
+ * Initialize seed data in storage.
  * Only runs if localStorage is empty.
  */
 export function initializeSeedData(): boolean {
@@ -278,8 +279,8 @@ export function initializeSeedData(): boolean {
   const projects = generateProjects();
   const todos = generateTodos(projects);
 
-  localStorage.setItem('projects', JSON.stringify(projects));
-  localStorage.setItem('todos', JSON.stringify(todos));
+  storage.setItem('projects', JSON.stringify(projects));
+  storage.setItem('todos', JSON.stringify(todos));
 
   console.log(`[Demo] Initialized seed data: ${todos.length} todos, ${Object.keys(projects).length} projects`);
   return true;

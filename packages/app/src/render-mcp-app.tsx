@@ -9,6 +9,18 @@ import { useMCPAppProps } from './use-mcp-app-props.js';
  */
 export interface RenderMCPAppOptions {
   /**
+   * Name of the app, as shown to the host.
+   * @default 'mcp-web-app'
+   */
+  name?: string;
+
+  /**
+   * Version of the app, as shown to the host.
+   * @default '0.0.0'
+   */
+  version?: string;
+
+  /**
    * Component to show while waiting for props.
    * @default A simple "Loading..." div
    */
@@ -119,7 +131,13 @@ export function renderMCPApp<P extends Record<string, unknown>>(
   Component: ComponentType<P>,
   options: RenderMCPAppOptions = {}
 ): void {
-  const { loading: Loading = DefaultLoading, rootId = 'root', strictMode = true } = options;
+  const {
+    loading: Loading = DefaultLoading,
+    rootId = 'root',
+    strictMode = true,
+    name,
+    version,
+  } = options;
 
   const rootElement = document.getElementById(rootId);
   if (!rootElement) {
@@ -131,7 +149,7 @@ export function renderMCPApp<P extends Record<string, unknown>>(
 
   const app = (
     <Suspense fallback={<Loading />}>
-      <MCPAppProvider>
+      <MCPAppProvider name={name} version={version}>
         <MCPAppWrapper Component={Component} Loading={Loading} />
       </MCPAppProvider>
     </Suspense>

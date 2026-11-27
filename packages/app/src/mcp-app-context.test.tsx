@@ -123,10 +123,24 @@ describe('MCPAppProvider', () => {
     };
     expect(options.appInfo).toEqual({
       name: 'mcp-web-app',
-      version: '0.1.0',
+      version: '0.0.0',
     });
     expect(options.capabilities).toEqual({});
     expect(typeof options.onAppCreated).toBe('function');
+  });
+
+  test('calls useApp with the given name and version', () => {
+    renderToString(
+      createElement(
+        MCPAppProvider,
+        { name: 'show_stats', version: '1.4.2' },
+        createElement('div')
+      )
+    );
+    const options = mockUseAppOptions as {
+      appInfo: { name: string; version: string };
+    };
+    expect(options.appInfo).toEqual({ name: 'show_stats', version: '1.4.2' });
   });
 
   test('calls useHostStyles with app and initial context', () => {

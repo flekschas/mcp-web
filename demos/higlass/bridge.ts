@@ -12,6 +12,7 @@ const bridge = new MCPWebBridgeNode({
   description: 'Control the HiGlass web-based genome browser',
   port: Number(bridgeUrl.port),
   icon: config.icon,
+  mcpApp: config.mcpApp,
 });
 
 console.log('✅ Bridge started successfully!');

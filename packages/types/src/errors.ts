@@ -19,6 +19,7 @@ export const SessionExpiredErrorCode = 'SessionExpired';
 
 export const SessionNameAlreadyInUseErrorCode = 'SessionNameAlreadyInUse';
 export const ToolSchemaConflictErrorCode = 'ToolSchemaConflict';
+export const ToolNameReservedErrorCode = 'ToolNameReserved';
 
 /**
  * Error details passed to the `onRegistrationError` callback when the bridge
@@ -55,7 +56,7 @@ export class SessionNotSpecifiedError extends Error {
 
   constructor(
     message: string,
-    public readonly availableSessions: SessionInfo[]
+    public readonly availableSessions: SessionInfo[],
   ) {
     super(message);
     this.name = 'SessionNotSpecifiedError';

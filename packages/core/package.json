@@ -44,6 +44,8 @@
     "@mcp-web/bridge": "workspace:*",
     "@mcp-web/decompose-zod-schema": "workspace:*",
     "@mcp-web/types": "workspace:*",
+    "@modelcontextprotocol/ext-apps": "^1.7.5",
+    "@modelcontextprotocol/sdk": "catalog:",
     "ajv": "catalog:",
     "ajv-formats": "catalog:",
     "zod": "catalog:"

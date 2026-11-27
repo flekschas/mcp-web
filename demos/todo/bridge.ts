@@ -4,8 +4,7 @@ import { MCPWebBridgeNode } from '@mcp-web/bridge';
 import type { MCPWebBridgeNodeSSLConfig } from '@mcp-web/bridge';
 import config from './mcp-web.config.js';
 
-// Port constant shared with mcp-web.config.ts (but we can't import the bridgeUrl
-// because that file uses Vite-specific import.meta.env which doesn't work in tsx)
+// The port of `bridgeUrl` in mcp-web.config.ts
 const BRIDGE_PORT = 3001;
 
 const useSSL = process.argv.includes('--ssl');
@@ -38,6 +37,7 @@ const bridge = new MCPWebBridgeNode({
   port: BRIDGE_PORT,
   ssl,
   icon: config.icon,
+  mcpApp: config.mcpApp,
 });
 
 // Wait for the bridge to be ready before printing success

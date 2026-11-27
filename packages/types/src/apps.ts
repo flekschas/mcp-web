@@ -127,7 +127,19 @@ export interface ProcessedAppDefinition extends AppDefinition {
  * Get default URL for an app.
  */
 export function getDefaultAppUrl(name: string): string {
-  return `/mcp-web-apps/${name}.html`;
+  return `/mcp-web-apps/${getAppFileName(name)}`;
+}
+
+/**
+ * Name of the HTML file the Vite plugin builds for an app:
+ * `'show_stats'` → `'show-stats.html'`.
+ */
+export function getAppFileName(name: string): string {
+  const kebabName = name
+    .replace(/([a-z])([A-Z])/g, '$1-$2')
+    .replace(/_/g, '-')
+    .toLowerCase();
+  return `${kebabName}.html`;
 }
 
 /**
@@ -160,4 +172,38 @@ export function isCreatedApp(value: unknown): value is CreatedApp {
     '__brand' in value &&
     (value as CreatedApp).__brand === 'CreatedApp'
   );
+}
+
+/** Name of the bridge tool that opens the whole web app as an MCP App. */
+export const MCP_APP_TOOL_NAME = 'open_app';
+
+/** Resource URI of the view that shows the whole web app as an MCP App. */
+export const MCP_APP_RESOURCE_URI = 'ui://mcp-web/page.html';
+
+/**
+ * Name of the `<meta>` tag that the bridge adds to the view it serves for
+ * `mcpApp`. Only a page with it offers its tools to the host around it. The
+ * view file itself has no mark, so a site that frames its public URL can't
+ * use the tools.
+ */
+export const MCP_APP_VIEW_META_NAME = 'mcp-web-view';
+
+/**
+ * The page that `mcpApp` opens as an MCP App, such as `'index.html'`, or
+ * `undefined` when `mcpApp` is off.
+ */
+export function getMCPAppPage(
+  mcpApp: boolean | { page: string } | undefined,
+): string | undefined {
+  if (!mcpApp) return undefined;
+  if (mcpApp === true) return 'index.html';
+  return mcpApp.page.replace(/^(\.\/|\/)+/, '');
+}
+
+/**
+ * Path of a page's view, relative to the directory that serves the web app's
+ * static files: `'admin.html'` → `'mcp-web-apps/admin.html'`.
+ */
+export function getMCPAppViewPath(page: string): string {
+  return `mcp-web-apps/${page}`;
 }

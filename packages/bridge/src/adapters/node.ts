@@ -29,6 +29,7 @@ import { WebSocket, WebSocketServer } from 'ws';
 import type { MCPWebConfig } from '@mcp-web/types';
 import { MCPWebBridge } from '../core.js';
 import { TimerScheduler } from '../runtime/scheduler.js';
+import { createStaticFileReader } from './static-files.js';
 import type { HttpRequest, WebSocketConnection } from '../runtime/types.js';
 import { readyStateToString, isSSEResponse } from '../runtime/types.js';
 
@@ -75,6 +76,12 @@ export interface MCPWebBridgeNodeConfig extends Omit<MCPWebConfig, 'bridgeUrl'> 
    * ```
    */
   ssl?: MCPWebBridgeNodeSSLConfig;
+
+  /**
+   * Directory of the web app's static files, from which the bridge reads the
+   * view of `mcpApp`. Relative to the working directory (default: 'public').
+   */
+  publicDir?: string;
 }
 
 /**
@@ -158,7 +165,9 @@ export class MCPWebBridgeNode {
 
     // Create the core with a timer-based scheduler
     const scheduler = new TimerScheduler();
-    this.#core = new MCPWebBridge(config, scheduler);
+    this.#core = new MCPWebBridge(config, scheduler, {
+      readStaticFile: createStaticFileReader(config.publicDir),
+    });
     const handlers = this.#core.getHandlers();
 
     // Request handler (shared between HTTP and HTTPS)

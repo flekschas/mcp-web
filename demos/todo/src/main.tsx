@@ -5,6 +5,7 @@ import baseConfig from '../mcp-web.config.ts';
 import App from './App.tsx';
 import './index.css';
 import { clearDemoData, initializeSeedData } from '../seed-data';
+import { storage } from './storage';
 import type { View } from './types';
 
 // In dev mode, use the config's bridgeUrl (e.g., localhost:3001).
@@ -17,7 +18,7 @@ const config = {
 
 // Migrate old view format to new discriminated union format
 function migrateViewFormat() {
-  const stored = localStorage.getItem('view');
+  const stored = storage.getItem('view');
   if (!stored) return;
   
   try {
@@ -41,10 +42,10 @@ function migrateViewFormat() {
       newView = { type: 'inbox' };
     }
     
-    localStorage.setItem('view', JSON.stringify(newView));
+    storage.setItem('view', JSON.stringify(newView));
   } catch {
     // Invalid JSON, reset to inbox
-    localStorage.setItem('view', JSON.stringify({ type: 'inbox' }));
+    storage.setItem('view', JSON.stringify({ type: 'inbox' }));
   }
 }
 

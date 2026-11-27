@@ -286,3 +286,31 @@ test('fail marks query as failed and prevents further operations', async () => {
 
   globalThis.fetch = originalFetch;
 });
+
+test('the bridge answers get_connection_status, else the client does', async () => {
+  const client = new MCPWebClient({ serverUrl: 'http://localhost:3002' });
+
+  globalThis.fetch = (async () =>
+    Response.json({
+      jsonrpc: '2.0',
+      id: 1,
+      result: {
+        content: [{ type: 'text', text: 'Or open the app with `open_app`.' }],
+      },
+    })) as unknown as typeof fetch;
+  const fromBridge = await client.callTool('get_connection_status', {});
+  expect(JSON.stringify(fromBridge)).toContain('open_app');
+
+  // A bridge that reports no sessions as an error
+  globalThis.fetch = (async () =>
+    Response.json({
+      jsonrpc: '2.0',
+      id: 1,
+      error: { code: -32600, message: 'NoSessionsFound' },
+    })) as unknown as typeof fetch;
+  const fromClient = await client.callTool('get_connection_status', {});
+  expect(JSON.stringify(fromClient)).toContain('No browser sessions');
+  expect((fromClient as { isError?: boolean }).isError).toBeUndefined();
+
+  globalThis.fetch = originalFetch;
+});

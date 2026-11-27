@@ -51,6 +51,7 @@ import type {
   DurableObjectStorage,
 } from './cloudflare-types.js';
 import { newWebSocketPair } from './cloudflare-types.js';
+import { readAsset } from './read-asset.js';
 
 // ============================================
 // Configuration
@@ -218,9 +219,14 @@ function createBridgeDurableObject<Env>(
     #queryIndex: QueryIndexClient;
 
     constructor(_state: DurableObjectState, env: Env) {
+      const assets = binding<AssetsBinding>(
+        env,
+        options.bindings?.assets ?? DEFAULT_BINDINGS.assets,
+      );
       this.#core = new MCPWebBridge(
         resolveConfig(env) as MCPWebConfig,
         new TimerScheduler(),
+        { readStaticFile: assets && readAsset(assets) },
       );
       this.#queryIndex = new QueryIndexClient(
         binding<DurableObjectNamespace>(

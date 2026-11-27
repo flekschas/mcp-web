@@ -1,6 +1,21 @@
 import { z } from 'zod';
 
 /**
+ * Domains an MCP App view may reach, which the host allows in its content
+ * security policy. Without them, the view can't use the network.
+ */
+export const McpAppCspSchema = z.object({
+  /** Origins for `fetch`, XHR and WebSocket, such as `'https://api.example.com'`. */
+  connectDomains: z.array(z.string()).optional(),
+  /** Origins for images, scripts, stylesheets, fonts and media. */
+  resourceDomains: z.array(z.string()).optional(),
+  /** Origins for frames in the view. */
+  frameDomains: z.array(z.string()).optional(),
+  /** Allowed base URIs of the view. */
+  baseUriDomains: z.array(z.string()).optional(),
+});
+
+/**
  * Zod schema for MCPWeb configuration.
  *
  * Validates and transforms configuration options for MCPWeb instances.
@@ -21,6 +36,67 @@ export const McpWebConfigSchema = z.object({
     .min(1)
     .describe(
       'The description of the server. This should describe the web app you want the AI App to control.',
+    ),
+  /**
+   * Version of the app, such as `version` from its `package.json`. Shown to
+   * the host when the page runs as an MCP App view.
+   */
+  version: z
+    .string()
+    .min(1)
+    .optional()
+    .describe(
+      'Version of the app, shown to the host when the page runs as an MCP App view.',
+    ),
+  /**
+   * Lets AI open the whole web app as an MCP App, for example in a Claude
+   * chat. `true` opens `index.html`; for another page, pass its path as
+   * `{ page: 'admin.html' }`. Write the value inline, in a plain config file
+   * such as `mcp-web.config.ts`, as the Vite plugin of `@mcp-web/app` reads
+   * it from the source to know which pages to build.
+   *
+   * The bridge then offers an `open_app` tool, also while no browser tab is
+   * connected. In the opened view, MCP-Web offers its tools to the host as
+   * app tools instead of connecting to the bridge.
+   *
+   * The view is a new copy of the app, separate from any browser tab:
+   * - It starts from the app's initial state.
+   * - It runs on the host's origin, so it has none of the site's cookies or
+   *   storage, and relative URLs such as `/api/todos` point at the host.
+   * - It can't reach the network, except for the domains listed in `csp`,
+   *   such as `{ page: 'index.html', csp: { connectDomains:
+   *   ['https://api.example.com'] } }`. Files it loads by URL, such as
+   *   images in `public/`, need their domain in `csp.resourceDomains`; files
+   *   it imports are part of the view.
+   * - The page must not create its own ext-apps `App`, as MCP-Web already
+   *   connects to the host.
+   *
+   * The view also sends the state of `addStateTools()` states to the host for
+   * the model, after tool calls and after user input in the view. A state
+   * that changes otherwise, such as when a fetch finishes, reaches the model
+   * with the next of these.
+   */
+  mcpApp: z
+    .union([
+      z.boolean(),
+      z.object({
+        page: z
+          .string()
+          .regex(/\.html$/, 'Must be an HTML file, such as admin.html')
+          .refine(
+            (page) => !page.split('/').includes('..'),
+            'Must be inside the project',
+          ),
+        /**
+         * Domains the view may reach, such as
+         * `{ connectDomains: ['https://api.example.com'] }`.
+         */
+        csp: McpAppCspSchema.optional(),
+      }),
+    ])
+    .optional()
+    .describe(
+      "Lets AI open the whole web app as an MCP App. `true` opens index.html; `{ page: 'admin.html' }` opens another page.",
     ),
   /** The bridge server address as host:port (e.g., 'localhost:3001' or 'bridge.example.com'). Protocol is determined automatically based on page context. */
   bridgeUrl: z
@@ -64,13 +140,34 @@ export const McpWebConfigSchema = z.object({
     .optional()
     .default(true)
     .describe('Whether to persist the auth token in localStorage.'),
-  /** Whether to automatically connect to the MCP bridge on initialization. */
+  /**
+   * Whether to connect on initialization, to the bridge or, in an MCP App
+   * view, to the host.
+   */
   autoConnect: z
     .boolean()
     .optional()
     .default(true)
     .describe(
-      'Whether to automatically connect to the MCP bridge on initialization.',
+      'Whether to connect on initialization, to the bridge or, in an MCP App view, to the host.',
+    ),
+  /**
+   * In a view opened through `mcpApp`, MCP-Web offers its tools to the host
+   * as app tools instead of connecting to the bridge. Set this to connect to
+   * the bridge there too. The bridge is needed for `query()` and for tools
+   * added with `addApp()`, which are not offered as app tools.
+   *
+   * The view runs on the host's origin, so it then needs `bridgeUrl`, the
+   * bridge in `mcpApp.csp.connectDomains`, and the `authToken` of the MCP
+   * client. The view still does the handshake with the host, but offers it
+   * no tools.
+   */
+  disableAppTools: z
+    .boolean()
+    .optional()
+    .default(false)
+    .describe(
+      'Always connect to the bridge, even in a view opened through `mcpApp`.',
     ),
   /**
    * Disconnect from the bridge after this many milliseconds without requests
@@ -149,6 +246,9 @@ export const McpWebConfigSchema = z.object({
  * ```
  */
 export type MCPWebConfig = z.input<typeof McpWebConfigSchema>;
+
+/** Domains an MCP App view may reach. See `McpAppCspSchema`. */
+export type MCPAppCsp = z.infer<typeof McpAppCspSchema>;
 
 /**
  * Output type for parsed MCPWeb configuration.

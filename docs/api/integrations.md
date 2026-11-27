@@ -115,24 +115,6 @@ automatically. All child components can access the MCPWeb instance via the
 MCPWebProvider({ children, ...props }: MCPWebProviderProps): void
 ```
 
-### useConnectedMCPWeb
-
-*Function* — `packages/integrations/react/src/use-connected-mcp-web.ts`
-
-Internal hook for managing MCPWeb connection lifecycle.
-Connects on mount and disconnects on unmount.
-Returns reactive connection state for triggering re-renders.
-
-Subscribes to MCPWeb's connection state changes so that reconnection
-attempts (e.g. after a WebSocket drop) are reflected in React state.
-
-Handles React StrictMode's double-mount behavior by using a ref to track
-whether we should actually disconnect on cleanup.
-
-```ts
-useConnectedMCPWeb(mcpInstance: MCPWeb): MCPWebContextValue
-```
-
 ### useMCPApps
 
 *Function* — `packages/integrations/react/src/use-mcp-apps.ts`
@@ -174,9 +156,3 @@ Must be used within MCPWebProvider.
 ```ts
 useMCPWeb(): MCPWebContextValue
 ```
-
-### MCPWebContext
-
-*Variable* — `packages/integrations/react/src/mcp-web-context.ts`
-
-React context for sharing MCPWeb instance across component tree.

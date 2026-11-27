@@ -9,7 +9,7 @@
     "dev:app": "vite",
     "dev:bridge": "tsx watch bridge.ts",
     "dev:mcp-apps": "vite build --config vite.apps.config.ts --watch",
-    "build": "pnpm build:app && pnpm build:mcp-apps",
+    "build": "pnpm build:mcp-apps && pnpm build:app",
     "build:app": "tsc --noEmit && vite build",
     "build:mcp-apps": "vite build --config vite.apps.config.ts",
     "bridge": "tsx bridge.ts",
